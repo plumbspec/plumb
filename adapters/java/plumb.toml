@@ -1,0 +1,16 @@
+# The whole declaration, in one file the core reads for every language.
+adapter = "java"
+
+entry_points = ["App#handleRequest", "App#failingRequest"]   # where the wired system begins (dev07-1-3)
+production   = ["App"]                 # what counts as production code
+sources      = ["sample"]              # where that code's source lives, for mutation
+
+[archetypes]
+# Declared on the story, never on the test (dev07-4-2). Interim home while the archetype
+# question is open — a Python project declares these by running its spec.
+"CM-102" = "structural"
+"APP-4"  = "structural"
+
+[java]
+tests     = "sample/target/test-classes"
+classpath_file = "build/classpath.txt"

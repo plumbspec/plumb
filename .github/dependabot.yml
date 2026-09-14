@@ -1,0 +1,31 @@
+version: 2
+
+# The action versions in `workflows/` are a hand-maintained list of somebody else's releases, and a
+# list like that goes stale in the direction nobody notices: quietly, about something new. Every
+# version this repository's first workflow was written with was two or three majors behind on the
+# day it was written, and nothing in the repository could have said so.
+#
+# This is the mechanism rather than the reminder. A gate that depends on somebody remembering to
+# look is the shape the whole chore-spec exists to replace.
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    # Every action bump arrives in ONE pull request, however many actions moved. Ungrouped is the
+    # default and would open one per action — four reviews and four merges to learn the single
+    # thing they can tell us between them, which is that the runner still builds.
+    #
+    # And nothing here verifies that. `build.yml` runs on dispatch only, so these land on the word
+    # of the action's own maintainers and the next cut is where a bad bump surfaces. That is
+    # accepted rather than overlooked: the alternative is a build that fires without being asked,
+    # and the blast radius is a run somebody was about to make deliberately anyway.
+    groups:
+      actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 400" role="img"
+     aria-labelledby="proven-title proven-desc">
+  <title id="proven-title">What makes a story PROVEN</title>
+  <desc id="proven-desc">A story is proven only if a test cites it, that test passed, and its
+    execution matched the kind of claim the story makes. Failing any one of the three leaves the
+    story unproven.</desc>
+
+  <!-- Hand-authored, not generated. Inlined into the page rather than linked as an image, so the
+       classes below pick up the page's own ink and brass in both light and dark. -->
+  <style>
+    .box  { fill: none; stroke: currentColor; stroke-width: 1.5; }
+    .lbl  { fill: currentColor; font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .sub  { fill: currentColor; opacity: .62; font: 11.5px ui-monospace, Menlo, Consolas, monospace; }
+    .arw  { stroke: currentColor; stroke-width: 1.5; fill: none; }
+    .no   { fill: currentColor; opacity: .62; font: 11px -apple-system, sans-serif; }
+    .good { stroke: #8a6212; }
+    .goodfill { fill: #8a6212; }
+    .goodtxt  { fill: #8a6212; font: 700 13px -apple-system, sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      .good { stroke: #d8a441; } .goodfill { fill: #d8a441; } .goodtxt { fill: #d8a441; }
+    }
+  </style>
+
+  <defs>
+    <marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L8 4 L0 8 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <!-- the three questions, top to bottom -->
+  <rect class="box" x="40" y="14"  width="250" height="40" rx="20"/>
+  <text class="lbl" x="165" y="39" text-anchor="middle">A story you wrote down</text>
+
+  <rect class="box" x="40" y="96"  width="250" height="46" rx="5"/>
+  <text class="lbl" x="165" y="115" text-anchor="middle">Does a test cite it?</text>
+  <text class="sub" x="165" y="132" text-anchor="middle">@Proves / pytest.mark.proves</text>
+
+  <rect class="box" x="40" y="184" width="250" height="46" rx="5"/>
+  <text class="lbl" x="165" y="203" text-anchor="middle">Did that test pass?</text>
+  <text class="sub" x="165" y="220" text-anchor="middle">skipped is not passed</text>
+
+  <rect class="box" x="40" y="272" width="250" height="58" rx="5"/>
+  <text class="lbl" x="165" y="291" text-anchor="middle">Did the run match the claim?</text>
+  <text class="sub" x="165" y="308" text-anchor="middle">behavioural: reached wired code</text>
+  <text class="sub" x="165" y="323" text-anchor="middle">structural: touched nothing</text>
+
+  <!-- the one way out -->
+  <rect class="box good" x="40" y="356" width="250" height="34" rx="17"/>
+  <text class="goodtxt" x="165" y="378" text-anchor="middle">PROVEN</text>
+
+  <!-- and the one way everything else goes -->
+  <rect class="box" x="380" y="184" width="160" height="46" rx="5"/>
+  <text class="lbl" x="460" y="212" text-anchor="middle">UNPROVEN</text>
+
+  <!-- yes-path down the spine -->
+  <path class="arw" d="M165 54  V96"  marker-end="url(#a)"/>
+  <path class="arw" d="M165 142 V184" marker-end="url(#a)"/>
+  <path class="arw" d="M165 230 V272" marker-end="url(#a)"/>
+  <path class="arw" d="M165 330 V356" marker-end="url(#a)"/>
+
+  <!-- any 'no' leaves the spine and lands in the same place -->
+  <path class="arw" d="M290 119 H340 V200 H380" marker-end="url(#a)"/>
+  <path class="arw" d="M290 207 H380"           marker-end="url(#a)"/>
+  <path class="arw" d="M290 301 H340 V216 H380" marker-end="url(#a)"/>
+
+  <text class="no" x="300" y="113">no</text>
+  <text class="no" x="330" y="201">no</text>
+  <text class="no" x="300" y="295">no</text>
+
+  <text class="no" x="174" y="90">yes</text>
+  <text class="no" x="174" y="178">yes</text>
+  <text class="no" x="174" y="266">yes</text>
+
+  <text class="sub" x="460" y="252" text-anchor="middle">not an error —</text>
+  <text class="sub" x="460" y="267" text-anchor="middle">not proven yet</text>
+</svg>

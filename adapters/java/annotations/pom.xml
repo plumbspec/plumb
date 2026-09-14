@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The PUBLISHED half of the Java adapter (`ado1`) — the citation vocabulary and nothing else.
+
+  Deliberately NOT a second copy of the source. `sourceDirectory` points at the same tree
+  `build.sh` compiles and the include list selects the one file, so the artifact an adopter
+  compiles against and the annotation Plumb itself reads can never drift. Copying it here would
+  be `ado1`'s trap — a reference implementation acting as a template — one layer down.
+
+  Maven exists here only to satisfy Maven Central: sources, javadoc, signatures and checksums per
+  file. The adapter jar stays on `build.sh`; nothing else in this project needs Maven.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.plumbspec</groupId>
+  <artifactId>plumb-annotations</artifactId>
+  <version>0.2.0</version>
+  <packaging>jar</packaging>
+
+  <name>Plumb annotations</name>
+  <description>The citation vocabulary for Plumb: @Proves, for a test that claims it proves a
+    story, and @Informs, for one that reports on a decision or a parameter — a subject that is
+    never done and can only be informed. Carries no dependencies and no runtime — this is the only
+    part of Plumb that belongs on a consumer's compile classpath.</description>
+  <url>https://plumbspec.org</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Plumb</name>
+      <email>contact@plumbspec.org</email>
+      <organization>plumbspec</organization>
+      <organizationUrl>https://plumbspec.org</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/plumbspec/plumb.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/plumbspec/plumb.git</developerConnection>
+    <url>https://github.com/plumbspec/plumb</url>
+  </scm>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>8</maven.compiler.release>
+  </properties>
+
+  <build>
+    <!-- Standard layout, real file, no symlink. This module OWNS Proves.java; build.sh compiles
+         it from here alongside the adapter, so there is still exactly one copy. -->
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+      <plugin>
+        <!-- The jar also lands in `build/` under the name the suite asserts on. Central takes the
+             artifact wherever it is written; the path is the only thing this changes. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration>
+          <finalName>plumb-annotations</finalName>
+          <outputDirectory>${project.basedir}/../build</outputDirectory>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions><execution><id>attach-sources</id><goals><goal>jar-no-fork</goal></goals>
+        </execution></executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.8.0</version>
+        <configuration>
+          <!-- JDK javadoc bundles ~4 MB of web fonts. For two annotation classes that is 92.5%
+               of the jar wrapping 117 KB of actual documentation, shipped to every mirror and
+               every consumer who fetches sources. The pages fall back to system fonts. -->
+          <additionalOptions>
+            <additionalOption>--no-fonts</additionalOption>
+          </additionalOptions>
+        </configuration>
+        <executions><execution><id>attach-javadocs</id><goals><goal>jar</goal></goals>
+        </execution></executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

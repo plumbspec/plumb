@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 300" role="img"
+     aria-labelledby="pon-title pon-desc">
+  <title id="pon-title">Is it a parameter, or just a number?</title>
+  <desc id="pon-desc">One question decides it: is there a model — something that would validate
+    this number? Without a model it is not a parameter, whether or not you can measure anything:
+    with no measurement it is a decision with a number in it, and with a measurement it is
+    observable but not tunable. With a model it is a parameter already, and the measurement only
+    says where in its life it sits — unvalidated or unmeasured before one has run, supported or
+    refuted after.</desc>
+
+  <!-- Hand-authored, not generated. Inlined into the page rather than linked as an image, so
+       currentColor picks up the page's own ink in both light and dark. -->
+  <style>
+    .box  { fill: none; stroke: currentColor; stroke-width: 1.5; }
+    .lbl  { fill: currentColor; font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .sub  { fill: currentColor; opacity: .62; font: 11px ui-monospace, Menlo, Consolas, monospace; }
+    .q    { fill: currentColor; font: 700 11px -apple-system, sans-serif; letter-spacing: .06em; }
+    .qs   { fill: currentColor; opacity: .62; font: 11px -apple-system, sans-serif; }
+    .arw  { stroke: currentColor; stroke-width: 1.5; fill: none; }
+    .edge { fill: currentColor; opacity: .62; font: 11px -apple-system, sans-serif; }
+    .good     { stroke: #8a6212; stroke-width: 2; }
+    .goodtxt  { fill: #8a6212; font: 700 13px -apple-system, sans-serif; }
+    @media (prefers-color-scheme: dark) {
+      .good { stroke: #d8a441; } .goodtxt { fill: #d8a441; }
+    }
+  </style>
+
+  <rect class="box" x="228" y="6" width="124" height="26" rx="4"/>
+  <text class="lbl" x="290" y="23" text-anchor="middle">a value you chose</text>
+
+  <!-- the one question that decides it -->
+  <path class="arw" d="M290 32 v12"/>
+  <text class="q"  x="290" y="56" text-anchor="middle">IS THERE A MODEL?</text>
+  <text class="qs" x="290" y="70" text-anchor="middle">something that would validate this number</text>
+  <path class="arw" d="M145 78 h290 M145 78 v18 M435 78 v18"/>
+  <text class="edge" x="152" y="92">no</text>
+  <text class="edge" x="412" y="92">yes</text>
+
+  <!-- the measurement only sub-divides each side; it never decides -->
+  <text class="q" x="145" y="110" text-anchor="middle">MEASUREMENT?</text>
+  <text class="q" x="435" y="110" text-anchor="middle">MEASURED YET?</text>
+  <path class="arw" d="M75 118 h140 M75 118 v20 M215 118 v20"/>
+  <path class="arw" d="M365 118 h140 M365 118 v20 M505 118 v20"/>
+  <text class="edge" x="82" y="132">no</text>
+  <text class="edge" x="196" y="132">yes</text>
+  <text class="edge" x="372" y="132">not yet</text>
+  <text class="edge" x="484" y="132">yes</text>
+
+  <!-- no model: not a parameter either way -->
+  <rect class="box" x="14" y="138" width="122" height="84" rx="4"/>
+  <text class="lbl" x="75" y="160" text-anchor="middle">not a parameter</text>
+  <text class="sub" x="75" y="180" text-anchor="middle">a decision with</text>
+  <text class="sub" x="75" y="194" text-anchor="middle">a number in it —</text>
+  <text class="sub" x="75" y="208" text-anchor="middle">record it as one</text>
+
+  <rect class="box" x="154" y="138" width="122" height="84" rx="4"/>
+  <text class="lbl" x="215" y="160" text-anchor="middle">not a parameter</text>
+  <text class="sub" x="215" y="180" text-anchor="middle">observable, not</text>
+  <text class="sub" x="215" y="194" text-anchor="middle">tunable — a chart</text>
+  <text class="sub" x="215" y="208" text-anchor="middle">says nothing to do</text>
+
+  <!-- a model makes it a parameter; the measurement says where in its life it is -->
+  <rect class="box good" x="304" y="138" width="122" height="84" rx="4"/>
+  <text class="goodtxt" x="365" y="160" text-anchor="middle">PARAMETER</text>
+  <text class="sub" x="365" y="182" text-anchor="middle">unvalidated, then</text>
+  <text class="sub" x="365" y="196" text-anchor="middle">unmeasured once</text>
+  <text class="sub" x="365" y="210" text-anchor="middle">a test cites it</text>
+
+  <rect class="box good" x="444" y="138" width="122" height="84" rx="4"/>
+  <text class="goodtxt" x="505" y="160" text-anchor="middle">PARAMETER</text>
+  <text class="sub" x="505" y="182" text-anchor="middle">supported, or</text>
+  <text class="sub" x="505" y="196" text-anchor="middle">refuted — tunable,</text>
+  <text class="sub" x="505" y="210" text-anchor="middle">error derived</text>
+
+  <text class="sub" x="290" y="250" text-anchor="middle">the model decides. the measurement only says how far along it is</text>
+  <text class="sub" x="290" y="268" text-anchor="middle">most values that look like parameters have no model — nothing would ever confirm them</text>
+</svg>

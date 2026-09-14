@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "plumb.BASE_VERSION"}
+
+[project]
+name = "plumbspec"
+# Read from `plumb.BASE_VERSION`, never typed here. A version restated in a second file is a second
+# fact, and the two drift silently because nothing compares them — this one sat at 0.5.0rc5 against
+# a base of 0.5.0, so a `pip install` and the zipapp reported different versions of one build.
+dynamic = ["version"]
+description = "Proof that a story is done — verified, not asserted"
+license = "Apache-2.0"
+# 3.11 is a real floor, not a preference: the tracer reads `code.co_qualname` (3.11+) to name a
+# frame. `sys.addaudithook` (3.8+) and `Path.is_relative_to` (3.9+) sit below it.
+requires-python = ">=3.11"
+dependencies = []
+
+# What the suite needs, and deliberately not what the tool needs — `dependencies = []` above is a
+# runtime claim and stays exactly true, which is what makes a single-file zipapp viable at all.
+# This is how a machine that did not grow this developer's environment reproduces the run. Until
+# there was a machine like that, it was written down nowhere: the first cold run failed on `No
+# module named pytest`, having passed here for months.
+[project.optional-dependencies]
+dev = ["pytest>=9"]
+
+# The signing back end for `plumb account`. An extra rather than a dependency, because
+# `dependencies = []` above is a runtime claim that is load-bearing — it is what makes a single-file
+# zipapp viable — and Ed25519 is not in the standard library. The alternative was assembling the
+# primitive ourselves, which `dev07-6-2-u3` records as where a protocol goes wrong quietly. Absent, the
+# account commands name Plumb's own install as the fault and print the repair (`ado1-ur7`).
+account = ["cryptography>=42"]
+
+# The CLI command is `plumb`, split from the `plumbspec` package.
+[project.scripts]
+plumb = "plumb.cli:main"
+plumb-series-holder = "plumb.series_holder:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The production surface Plumb declares about itself lives in `plumb.toml`, beside this file —
+# one home, read by the core for every language, because a Java project has no pyproject.toml.
+
+[tool.pytest.ini_options]
+testpaths = ["spec", "tests"]
+pythonpath = ["spec", "src", "."]
+markers = [
+    "proves(id, depth, ref): an implementation test citing the gold-spec story it proves, at a depth — e.g. @pytest.mark.proves('dev07-4-2', depth='wiring'). `ref` is optional and is the consumer's own external key (dev07-3-1); Plumb never mints or parses it.",
+]

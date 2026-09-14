@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The sample project the adapter is exercised against. Not published, not shipped, and not an
+  adopter's project — it is the fixture the suite boards.
+
+  PRODUCTION AND TESTS COMPILE TO SEPARATE DIRECTORIES, which is what Maven does by default and
+  what this module exists to keep. Grounding tells production from test by where a class was
+  loaded from, so a shared output directory makes the sample's own production code look like a
+  test, nothing is instrumented, and every test reads `inert`.
+
+  The sources sit in one flat directory rather than under `src/main` and `src/test`, so the split
+  is drawn by include patterns instead of by layout. `App.java` is production; `*Test.java` is not.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.plumbspec</groupId>
+  <artifactId>plumb-java-sample</artifactId>
+  <version>0.2.0</version>
+  <packaging>jar</packaging>
+  <name>plumb java sample</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <maven.install.skip>true</maven.install.skip>
+    <!-- The suite is run by `plumb board`, through the adapter, not by surefire. -->
+    <maven.test.skip.exec>true</maven.test.skip.exec>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.plumbspec</groupId>
+      <artifactId>plumb-java</artifactId>
+      <version>0.2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.12.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
+      <version>1.12.2</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <sourceDirectory>${project.basedir}</sourceDirectory>
+    <testSourceDirectory>${project.basedir}</testSourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <includes><include>App.java</include></includes>
+          <testIncludes><testInclude>*Test.java</testInclude></testIncludes>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration><skipIfEmpty>true</skipIfEmpty></configuration>
+        <executions>
+          <execution><id>default-jar</id><phase>none</phase></execution>
+        </executions>
+      </plugin>
+
+      <!-- What the adapter is handed, written where the declaration points. A file rather than a
+           pasted string, because a classpath goes stale the moment a dependency moves.
+
+           `build/sample` ahead of `build/sample-app`: a mutant compiles into the tests root, and
+           it has to shadow the class it mutates rather than sit behind it. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.7.0</version>
+        <executions>
+          <execution>
+            <id>third-party-classpath</id>
+            <phase>process-test-classes</phase>
+            <goals><goal>build-classpath</goal></goals>
+            <configuration>
+              <outputFile>${project.basedir}/../build/third-party-classpath.txt</outputFile>
+              <includeScope>test</includeScope>
+              <excludeArtifactIds>plumb-java</excludeArtifactIds>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>classpath-file</id>
+            <phase>process-test-classes</phase>
+            <goals><goal>run</goal></goals>
+            <configuration>
+              <target>
+                <loadfile property="plumb.thirdparty"
+                          srcFile="${project.basedir}/../build/third-party-classpath.txt"/>
+                <!-- TEST OUTPUTS FIRST, then main outputs, then the dependencies — Maven's own
+                     order, and the one the adapter's classpath guard checks against. It is also
+                     what a mutant needs: a mutant compiles into the tests root and has to shadow
+                     the class it mutates rather than sit behind it. -->
+                <echo file="${project.basedir}/../build/classpath.txt"
+                      message="${project.basedir}/target/test-classes:${project.basedir}/target/classes:${project.basedir}/../adapter/target/classes:${project.basedir}/../annotations/target/classes:${plumb.thirdparty}"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
