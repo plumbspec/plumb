@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The adapter, the citation vocabulary and the sample, built by Maven.
+
+  AGGREGATION WITHOUT INHERITANCE, and that is deliberate. `annotations` is published to Maven
+  Central and declares no parent: a published pom whose parent is not itself published is a pom
+  nobody downstream can resolve. So this lists the modules and none of them inherit from it.
+
+  EVERY MODULE WRITES INTO `build/`, not into its own `target/`. The paths are a contract: the
+  sample's `plumb.toml` names `build/sample` and `build/classpath.txt`, and the suite asserts
+  against `build/plumb-boot.jar` and `build/adapter`. Keeping them fixed is what lets the same
+  assertions check this build.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.plumbspec</groupId>
+  <artifactId>plumb-java-build</artifactId>
+  <version>0.2.0</version>
+  <packaging>pom</packaging>
+  <name>plumb java adapter build</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- The adapter runs on the ADOPTER's JVM, never on the one that built it, so the bytecode
+         floor is a compatibility promise and not a build detail. Without it javac emits for
+         whatever JDK happens to be building, and an artifact built on a newer JDK dies with
+         UnsupportedClassVersionError before main. -->
+    <plumb.java.release>17</plumb.java.release>
+    <junit.jupiter.version>5.12.2</junit.jupiter.version>
+    <junit.platform.version>1.12.2</junit.platform.version>
+  </properties>
+
+  <modules>
+    <module>annotations</module>
+    <module>adapter</module>
+    <module>sample</module>
+  </modules>
+</project>

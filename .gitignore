@@ -1,0 +1,32 @@
+# scratch / build artifacts
+.coverage
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+target/
+out/
+dist/
+build/
+*.egg-info/
+
+# a temp dir for tests that must execute what they install, when /tmp is noexec
+.pytest-exec/
+
+# Scratch that must never become a commit.
+#
+# `tmp/` — the workspace keeps a scratch directory for plans, runbooks and working notes, and it
+# lives BESIDE this repository rather than inside it. Ignored here anyway, because the two readings
+# of "put it in the plumb tmp directory" differ by one path segment and only one of them is
+# untracked. A note written to the wrong one is committed silently.
+tmp/
+
+# `.plumb/` — this project's own cursor and session state. Machine-specific by nature: the cursor
+# may be a symlink to somewhere outside this repository, so committing it would put one person's
+# directory layout into every checkout. Nothing describing a particular machine belongs in a file
+# every checkout gets.
+.plumb/
+
+# Internal review markers and test-run state are not product.
+.audience
+.pytest_cache/

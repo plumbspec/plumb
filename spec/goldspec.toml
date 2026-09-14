@@ -1,0 +1,35 @@
+# The conventions this spec is checked under. Read by the `goldspec` command and by
+# `test_spec_status_guardrail.py` beside it, through `goldspec.conventions_for` — one home, so a
+# fault the command reports and a fault the suite reports are the same fault.
+#
+# **Beside the chapters rather than at the repository root**, because this repository holds two
+# specs in two namespaces: `spec/` and `decision-spec/`. A root-level file is found for every spec
+# directory under it, so it would have checked the decision spec as though its ids belonged here,
+# and every one of its subjects would have gone missing at once. A project with one spec can put
+# this file at its root; a project with two puts one beside each.
+#
+# Nothing in `src/plumb` reads this file, and nothing may: the tool does not read a spec and must
+# never learn the methodology exists. This is a file about the method this repository adopted,
+# sitting beside the spec that adopted it.
+
+[conventions]
+# The corpus is a set of process flows, each named by its sigil: `dev` (a developer's day and its
+# drill-downs), `ado` (bringing plumb to a project), `rel` (cutting a release), `mod`
+# (contributing a module), `hol` (holding a series). The namespace is their alternation, because
+# a citation is held against the spec that owns its sigil and no other.
+namespace = "(?:dev|ado|rel|mod|hol)"
+flow_dir  = "diagrams"
+# Every flow chapter's name carries its sigil and a hyphen; `legend.md` — the shared mermaid
+# legend, not a flow — is the one file the pattern deliberately misses.
+flow_glob = "*-*.md"
+
+
+# The chapters are in the process-flow shape — mermaid flow, `## Nodes` with story, Information
+# The corpus spans repositories: the method's own spec defines the vocabulary this one's flows
+# consume. A gate seeing half a corpus cannot tell a correct reference to a neighbour from a
+# reference to nothing, so the extent is declared. A sibling is read for the names it defines and
+# never checked here — it is gated by its own run, where it is the subject rather than the
+# context.
+#
+# Relative, which assumes the two repositories are checked out beside each other.
+siblings = ["../../goldspec/spec"]

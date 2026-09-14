@@ -1,0 +1,92 @@
+name: verify
+
+# The suite, on a machine that did not grow a developer's environment. It builds the adapter jars
+# the JVM tests need, installs what `pyproject` declares, and runs the tests — nothing here signs,
+# stamps or publishes anything.
+#
+# **Asked for, never automatic.** It is a step in a cut, so it runs when somebody is cutting. A
+# build that fires on every push spends real minutes telling you what the local suite already told
+# you, and the habit it trains is scrolling past a red mark that has nothing to do with the work in
+# hand. The cost of that is not the minutes, it is that the one run which matters stops being read.
+#
+# The consequence, stated so it is a choice rather than a surprise: between cuts, every green result
+# this project reports is still one machine's word.
+#
+# **Every action is pinned to a commit, not a tag.** `@v7` is mutable — whoever owns the action can
+# repoint it at any commit at any time, and nothing here would notice. That is the loosest link in a
+# chain this project otherwise takes seriously: the artifact is signed, the fingerprint is published
+# in three places, and the key is kept offline precisely so the trust root is independent of the
+# host. A tag that a third party can move undoes that on the machine where the artifact is built.
+# The trailing comment names the version the commit was, so a reader is not left holding forty hex
+# characters, and dependabot updates both together.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two cuts at once would race for the same artifact name and prove nothing about either.
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # A hung step otherwise burns six hours of runner time before anything notices. Ten minutes is
+    # roughly four times the observed run, which leaves room for a cold cache and none for a hang.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"   # the floor pyproject declares, so the floor is what is tested
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: cache the jars
+        id: jars
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.m2/repository
+          # Keyed on the poms, because the poms are where the versions live.
+          key: m2-${{ hashFiles('adapters/java/**/pom.xml') }}
+
+      - name: build the adapter, the vocabulary and the sample
+        # Before anything reads a jar: the adapter rides inside the artifact, so building that
+        # first would ship the previous adapter with a correct-looking digest.
+        #
+        # `package` rather than `install`: nothing here is published from a runner, and the suite
+        # reads the outputs out of the tree.
+        run: mvn -B -f adapters/java/pom.xml package
+
+      - name: install what the suite needs
+        # From the extra pyproject declares, never a version typed here — a version in this file
+        # would be a second home for it, free to disagree with the one the project states.
+        run: python3 -m pip install --disable-pip-version-check -e ".[dev]"
+
+      - name: run the suite
+        run: python3 -m pytest -q
+
+      # Plumb traces itself (`dev07-6-1`), and until now it did so once: the whole series held a single
+      # run, because pushing it was a thing somebody had to remember. A series answers *when did
+      # this last change*, *when did we last look* and *which subjects move most*, and all three
+      # need repeated samples — so the sampling belongs on the one thing that runs every time.
+      #
+      # It cannot turn this build red. `plumb board` does not relay the runner's exit code, which
+      # is why the suite above is still the gate, and an unreachable holder is reported rather than
+      # raised (`dev07-6-2`). With no passphrase set it says the series stayed local and carries on.
+      - name: board, and hand the series to its holder
+        env:
+          # The bearer credential, not a passphrase. An account's passphrase is generated once and
+          # written nowhere, so an account whose passphrase was not captured can never sign again —
+          # and `account.json` goes on looking complete, because every field in it is public or
+          # derivable. A credential is operator-issued and re-issuable, which is the property that
+          # matters for a runner nobody warmed up.
+          PLUMB_CREDENTIAL: ${{ secrets.PLUMB_CREDENTIAL }}
+        run: python3 -m plumb.cli board --series build/plumb/series.jsonl --push

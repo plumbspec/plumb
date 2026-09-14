@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The adapter: the agent, the probe, the listener, the mutator and the manifest reader.
+
+  NEVER PUBLISHED. It rides inside the artifact, so it declares no parent, no signing and no
+  javadoc — the things Central demands of `annotations` and of nothing else.
+
+  IT COMPILES THE ANNOTATION SOURCES TOO, at this module's floor rather than at the vocabulary's.
+  The shipped jar has to carry the annotations it reads, and a jar depending on a Central
+  coordinate would put an adopter's resolution on the path of our own artifact.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.plumbspec</groupId>
+  <artifactId>plumb-java</artifactId>
+  <version>0.2.0</version>
+  <packaging>jar</packaging>
+  <name>plumb java adapter</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <!-- Not published, so nothing here is signed, sourced or javadoc'd. -->
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <maven.install.skip>true</maven.install.skip>
+  </properties>
+
+  <dependencies>
+    <!-- The listener implements the JUnit Platform's own interface. `provided`: the suite under
+         test brings its own JUnit, and shipping a second copy inside the artifact is how two
+         Launchers end up on one classpath. -->
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
+      <version>1.12.2</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Classes land in this module's own `target/`, which is where the adapter's classpath
+         guard expects a Maven module to put them. The JARS go to `../build/`, because that is
+         where a source checkout looks for the shipped adapter. -->
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>the-vocabulary-ships-inside-the-adapter</id>
+            <phase>generate-sources</phase>
+            <goals><goal>add-source</goal></goals>
+            <configuration>
+              <sources><source>${project.basedir}/../annotations/src/main/java</source></sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.1.2</version>
+        <executions>
+          <!-- The shippable half: everything under `org/`, and an AGENT. The grounding surface has
+               to report its own execution, and `-javaagent` is how a JVM is told to transform
+               classes as they load. The manifest is written here rather than kept as a file,
+               because its one moving part is a class name that already appears in these sources. -->
+          <execution>
+            <id>default-jar</id>
+            <configuration>
+              <finalName>plumb-java</finalName>
+              <outputDirectory>${project.basedir}/../build</outputDirectory>
+              <archive>
+                <manifestEntries>
+                  <Premain-Class>org.plumbspec.PlumbAgent</Premain-Class>
+                  <Agent-Class>org.plumbspec.PlumbAgent</Agent-Class>
+                  <Can-Retransform-Classes>true</Can-Retransform-Classes>
+                  <Boot-Class-Path>plumb-boot.jar</Boot-Class-Path>
+                </manifestEntries>
+              </archive>
+            </configuration>
+          </execution>
+
+          <!-- THE PROBE ALONE GOES ON THE BOOTSTRAP PATH, and nothing else. The dispatch
+               primitives are bootstrap classes, so a probe they call must be resolvable by the
+               bootstrap loader — but putting the whole adapter there makes the bootstrap loader
+               define the runner too, and it cannot see JUnit on the application classpath. That
+               fails as NoClassDefFoundError on the Launcher's listener interface, which reads as
+               the adopter's classpath being wrong and is entirely this.
+
+               Every class the boot jar needs, not just the named one: a bootstrap loader that
+               finds `PlumbFlag` and not something it references fails during premain, fatally. -->
+          <execution>
+            <id>boot</id>
+            <phase>package</phase>
+            <goals><goal>jar</goal></goals>
+            <configuration>
+              <!-- `finalName` + `classifier` is what names the file: Maven refuses a second jar
+                   that would replace the project's own artifact, so the boot jar is attached as a
+                   classified one and the two compose to `plumb-boot.jar`. -->
+              <finalName>plumb</finalName>
+              <classifier>boot</classifier>
+              <outputDirectory>${project.basedir}/../build</outputDirectory>
+              <includes>
+                <include>org/plumbspec/PlumbFlag*.class</include>
+                <include>org/plumbspec/PlumbCarrier*.class</include>
+              </includes>
+              <archive><addMavenDescriptor>false</addMavenDescriptor></archive>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
