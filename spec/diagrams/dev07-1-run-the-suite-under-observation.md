@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-09-11 v3
+**Last updated** 2026-09-18 v4
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the command, carrying the
 configuration, the citations and the working tree. Exits to `dev07-3 · collect what the run
@@ -118,6 +118,8 @@ flowchart TD
 | dev07-1-3-inf8 | Out | `citation.elapsed` | optional | observed |
 | dev07-1-3-inf5 | Out | `trace.edges` | optional | observed |
 | dev07-1-3-inf6 | Out | `run_progress` | yes | observed |
+| dev07-1-3-inf9 | Out | `trace.sites` | optional | observed |
+| dev07-1-3-inf10 | Out | `plumb_coverage` | optional | derived |
 
 #### User Requirements
   * dev07-1-3-ur1 - the trace is per test, taken with the runtime's own hooks
@@ -127,6 +129,11 @@ flowchart TD
     waiting is a decision
   * dev07-1-3-ur4 - the position is written to a file and rewritten in place, readable at any
     moment without following the stream
+  * dev07-1-3-ur5 - what the instrument knew of and did not reach is reported beside what it
+    reached; the unreached half is the measurement
+  * dev07-1-3-ur6 - the figure is the declared surface this run's citing tests drove through a
+    door, never the lines a suite executed, and is named so the two are not compared
+  * dev07-1-3-ur7 - the figure is asked for, never on by default, and moves no status
 
 #### System Requirements
   * dev07-1-3-sr1 - where watching is unaffordable, the production surface reports its own
@@ -140,6 +147,10 @@ flowchart TD
     loaded from, never by its name
   * dev07-1-3-sr5 - the window carries to a thread it started and a task it queued, and the
     entry depth is counted per thread
+  * dev07-1-3-sr6 - an instrument that cannot enumerate its own sites reports not-checked, as
+    any other question this method could not ask is reported
+  * dev07-1-3-sr7 - the figure is written beside the manifest by the observer that made it and
+    enters neither the manifest nor the board, so no interface widens to carry it
 
 #### Non-Functional Requirements
   * dev07-1-3-nfr1 - running under observation costs about what the tests already cost —
@@ -147,6 +158,8 @@ flowchart TD
   * dev07-1-3-nfr2 - an instrument failure costs the wiring question and never the run; the
     board says the instrument failed, not the project
   * dev07-1-3-nfr3 - a class the adapter cannot rewrite is left exactly as it was, and surfaced
+  * dev07-1-3-nfr4 - it costs a run nothing it does not already pay: a site's ends are settled
+    before the program starts, and reaching one is already recorded
 
 #### Unknowns
   * dev07-1-3-u1 - what tracing costs on Python tracks the traced window rather than the
@@ -155,8 +168,8 @@ flowchart TD
     woven, and what that costs on a large suite is unmeasured
   * dev07-1-3-u3 - excluding generated classes by their `$$` names is refused — name-matching is
     the guessing that origin-matching replaced — and nothing else tells them apart
-  * dev07-1-3-u4 - edges are observed and nothing consumes them; seam analysis and dead-edge
-    detection are candidates, neither settled
+  * dev07-1-3-u4 - what it costs an instrument that must enumerate its sites by reading source,
+    rather than by holding what it wove, is unmeasured
   * dev07-1-3-u5 - a thread that predates the window and takes work by accepting a connection
     is seen by neither adapter; a corpus that needs those threads needs a collector outside them
 
@@ -234,6 +247,8 @@ flowchart TD
 | Not-checked | No doors are declared, so the question could not be asked. |
 | Dispatched | The work left for a thread that could not be followed — a hand-off that was seen, never assumed. |
 | Build declaration | What the build tool itself says its test runtime is. |
+| Site | One join the instrument knew of before the run: a call from one named piece of production code to another. |
+| Plumb coverage | How much of the declared surface this run's citing tests reached through a door. Not line coverage — a different numerator, a different denominator, and only the citing tests. |
 | Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
 | Authored | Written by a person. An input nothing produces, or an output somebody typed. |
 | Derived | Computed by this step from what it took in. |
@@ -253,6 +268,11 @@ hand-off to `dev07-3 · collect`, and its claims about the fact vocabulary live 
 **Withdrawal candidate.** `ch3-9` (finish the suite without the observer) describes a
 debugger-based observer the in-process instrument retires; its three citing tests hold until the
 debugger is actually gone. The claim survives here only as n3-nfr2.
+
+**Seam analysis, dropped.** n3-u4 offered seam analysis and dead-edge detection as candidates.
+The second is now `plumb_coverage`. The first was taken up, researched and put down (2026-09-18):
+it needs a specification of what a module is, which is neither this tool's business nor this
+chapter's.
 
 **Schema names.** `citation.grounding`, `grounded`, `inert`, `dispatched` are manifest schema
 values with 53 citing marks; the prose now says what they mean in plain words, and renaming the
