@@ -33,7 +33,7 @@ final class Wrapper {
 
     private static final int ACC_STATIC = 0x0008;
     private static final int ACC_PRIVATE = 0x0002;
-    private static final int ACC_SYNTHETIC = 0x1000;
+    static final int ACC_SYNTHETIC = 0x1000;
     private static final int ACC_ABSTRACT = 0x0400;
     private static final int ACC_NATIVE = 0x0100;
     private static final int VISIBILITY = 0x0001 | 0x0002 | 0x0004;      // public|private|protected

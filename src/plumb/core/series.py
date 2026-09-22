@@ -21,6 +21,8 @@ of. `plumb board --series FILE` is the whole of the opt-in — the same posture 
 migrate` takes about doing something irreversible only when asked.
 """
 
+from __future__ import annotations
+
 import json
 import secrets
 from dataclasses import asdict, dataclass, fields, replace

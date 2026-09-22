@@ -24,7 +24,8 @@ public final class Mutate {
 
     /** Where the original is parked while a mutant stands in for it (`dev07-2-3`). If this file is
      *  still here, a run died and the tree needs putting back — which the next run does. */
-    public static final String RESCUE = ".plumb-mutation-rescue";
+    /** Owned by {@link Rescue}, which puts it back — recovery holds at a floor mutation does not. */
+    public static final String RESCUE = Rescue.PARKED;
 
     /** A mutant can make a loop never terminate — negating a `while` is one of three operators. */
     private static final int TIMEOUT_SECONDS = 120;
@@ -40,13 +41,30 @@ public final class Mutate {
     }
 
     /** One story's pass, costed before any of it runs (`dev07-2-2`). */
-    private record Plan(String story, List<String> tests, Map<Path, Set<String>> byFile,
-                        Set<String> methods, int mutants) {
+    private static final class Plan {
+        private final String story;
+        private final List<String> tests;
+        private final Map<Path, Set<String>> byFile;
+        private final Set<String> methods;
+        private final int mutants;
+
+        Plan(String story, List<String> tests, Map<Path, Set<String>> byFile,
+             Set<String> methods, int mutants) {
+            this.story = story; this.tests = tests; this.byFile = byFile;
+            this.methods = methods; this.mutants = mutants;
+        }
+
+        String story() { return story; }
+        List<String> tests() { return tests; }
+        Map<Path, Set<String>> byFile() { return byFile; }
+        Set<String> methods() { return methods; }
+        int mutants() { return mutants; }
+
         boolean runnable() { return mutants > 0 && !tests.isEmpty(); }
     }
 
     public static void main(String[] args) throws Exception {
-        Path build = Path.of(args[3]);
+        Path build = Paths.get(args[3]);
         // A MUTANT GETS ITS OWN OUTPUT DIRECTORY, FIRST ON THE CLASSPATH.
         //
         // It used to be compiled into the tests root, which had two consequences and neither was
@@ -58,9 +76,9 @@ public final class Mutate {
         // require a live instrument.
         Path mutants = build.resolve("mutants");
         Files.createDirectories(mutants);
-        Mutate mutate = new Mutate(Path.of(args[0]), mutants, mutants + ":" + args[2]);
+        Mutate mutate = new Mutate(Paths.get(args[0]), mutants, mutants + ":" + args[2]);
 
-        Path recovered = restore(build);
+        Path recovered = Rescue.restore(build);
         if (recovered != null)
             System.out.println("mutation: put back " + recovered + " — a previous run was interrupted");
 
@@ -68,7 +86,7 @@ public final class Mutate {
         Map<String, Set<String>> wiredByTest = wired(build.resolve("wired.txt"));
 
         List<Plan> plans = new ArrayList<>();
-        for (var entry : testsByStory.entrySet())
+        for (Map.Entry<String, List<String>> entry : testsByStory.entrySet())
             plans.add(mutate.plan(entry.getKey(), entry.getValue(), wiredByTest));
         int pairs = plans.stream().mapToInt(Plan::mutants).sum();
         long runnable = plans.stream().filter(Plan::runnable).count();
@@ -127,7 +145,7 @@ public final class Mutate {
             System.out.printf("  [%d/%d] %s: %d/%d killed%n", ++done, runnable, plan.story(),
                     killed, seen);
         }
-        Files.writeString(build.resolve("scores.tsv"), scores.toString());
+        Text.write(build.resolve("scores.tsv"), scores.toString());
         applyTo(build.resolve("manifest.json"), build.resolve("scores.tsv"), survivors);
     }
 
@@ -138,10 +156,10 @@ public final class Mutate {
         /** The union of the citing tests of every story that scopes this mutant's method. Run
          *  once; each story then reads back only its own. */
         final List<String> tests;
-        Set<String> noticedBy = Set.of();
+        Set<String> noticedBy = java.util.Collections.<String>emptySet();
         /** The tests that actually evaluated the mutated expression. A story whose tests are all
          *  absent from this never had a chance at the mutant (`dev07-2-4`). */
-        Set<String> reachedBy = Set.of();
+        Set<String> reachedBy = java.util.Collections.<String>emptySet();
 
         Job(Path file, Mutants.Mutant mutant, List<String> tests) {
             this.file = file; this.mutant = mutant; this.tests = tests;
@@ -167,11 +185,11 @@ public final class Mutate {
     private List<Job> jobs(List<Plan> plans) throws IOException {
         Map<Path, Set<String>> byFile = new TreeMap<>();
         for (Plan plan : plans)
-            for (var entry : plan.byFile().entrySet())
+            for (Map.Entry<Path, Set<String>> entry : plan.byFile().entrySet())
                 byFile.computeIfAbsent(entry.getKey(), k -> new TreeSet<>()).addAll(entry.getValue());
 
         List<Job> jobs = new ArrayList<>();
-        for (var entry : byFile.entrySet()) {
+        for (Map.Entry<Path, Set<String>> entry : byFile.entrySet()) {
             for (Mutants.Mutant mutant : Mutants.of(entry.getKey(), entry.getValue())) {
                 Set<String> tests = new LinkedHashSet<>();
                 for (Plan plan : plans)
@@ -194,7 +212,7 @@ public final class Mutate {
      */
     private Plan plan(String story, List<String> tests, Map<String, Set<String>> wiredByTest) throws IOException {
         Set<String> methods = new TreeSet<>();
-        for (String test : tests) methods.addAll(wiredByTest.getOrDefault(test, Set.of()));
+        for (String test : tests) methods.addAll(wiredByTest.getOrDefault(test, java.util.Collections.<String>emptySet()));
 
         Map<Path, Set<String>> byFile = new TreeMap<>();
         for (String method : methods) {
@@ -202,7 +220,7 @@ public final class Mutate {
             if (file != null) byFile.computeIfAbsent(file, k -> new TreeSet<>()).add(method);
         }
         int mutants = 0;
-        for (var entry : byFile.entrySet()) mutants += Mutants.count(entry.getKey(), entry.getValue());
+        for (Map.Entry<Path, Set<String>> entry : byFile.entrySet()) mutants += Mutants.count(entry.getKey(), entry.getValue());
         return new Plan(story, tests, byFile, methods, mutants);
     }
 
@@ -228,19 +246,33 @@ public final class Mutate {
     private void report() {
         if (position == null) return;
         try {
-            Files.writeString(position, finished + " " + total + " " + System.currentTimeMillis());
+            Text.write(position, finished + " " + total + " " + System.currentTimeMillis());
         } catch (IOException unreportable) {
             // Progress is a courtesy. The run is the point.
         }
     }
 
     /** One mutant no test noticed, named the way the reader's next move needs it (`dev07-2-4`). */
-    private record Survivor(String operator, String where, String file, long line,
-                            boolean reached) { }
+    private static final class Survivor {
+        private final String operator, where, file;
+        private final long line;
+        private final boolean reached;
+
+        Survivor(String operator, String where, String file, long line, boolean reached) {
+            this.operator = operator; this.where = where; this.file = file;
+            this.line = line; this.reached = reached;
+        }
+
+        String operator() { return operator; }
+        String where() { return where; }
+        String file() { return file; }
+        long line() { return line; }
+        boolean reached() { return reached; }
+    }
 
     /** The source file as the reader types it, not as this process happens to have resolved it. */
     private String relative(Path file) {
-        Path from = Path.of("").toAbsolutePath();
+        Path from = Paths.get("").toAbsolutePath();
         Path absolute = file.toAbsolutePath().normalize();
         return absolute.startsWith(from) ? from.relativize(absolute).toString() : absolute.toString();
     }
@@ -260,13 +292,13 @@ public final class Mutate {
     private Set<String> noticedBy(Job job, Path build) throws Exception {
         byte[] original = Files.readAllBytes(job.file);
         Path rescue = build.resolve(RESCUE);
-        Files.writeString(rescue, job.file.toAbsolutePath() + "\n" + new String(original));
+        Text.write(rescue, job.file.toAbsolutePath() + "\n" + new String(original));
         try {
-            Files.writeString(job.file, job.mutant.source());
+            Text.write(job.file, job.mutant.source());
             if (!compiles(job.file)) {
                 System.out.println("    skipped (would not compile): " + job.mutant.operator()
                         + " @ " + job.mutant.where() + ":" + job.mutant.line());
-                return Set.of();
+                return java.util.Collections.<String>emptySet();
             }
             String said = capture(command("org.plumbspec.MutantRun", job.tests));
             if (said.contains(MutantRun.NOTHING_RAN)) {
@@ -293,13 +325,13 @@ public final class Mutate {
     }
 
     private boolean compiles(Path file) throws Exception {
-        return exec(List.of("javac", "-cp", classpath + ":" + classes,
+        return exec(java.util.Arrays.asList("javac", "-cp", classpath + ":" + classes,
                 "-d", classes.toString(), file.toString())) == 0;
     }
 
     private List<String> command(String main, List<String> tests) {
         List<String> command = new ArrayList<>(
-                List.of("java", "-ea", "-cp", classpath + ":" + classes, main));
+                java.util.Arrays.asList("java", "-ea", "-cp", classpath + ":" + classes, main));
         command.addAll(tests);
         return command;
     }
@@ -308,7 +340,7 @@ public final class Mutate {
      *  a mutant that stops the suite finishing did not pass over it unmoved. */
     private String capture(List<String> command) throws Exception {
         Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-        byte[] said = process.getInputStream().readAllBytes();   // drained, or the pipe fills
+        byte[] said = Text.drain(process.getInputStream());   // drained, or the pipe fills
         if (!process.waitFor(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)) {
             process.destroyForcibly();
             return MutantRun.NOTHING_RAN;
@@ -318,7 +350,7 @@ public final class Mutate {
 
     private int exec(List<String> command) throws Exception {
         Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-        process.getInputStream().readAllBytes();     // drained, or the pipe fills and it hangs
+        Text.drain(process.getInputStream());     // drained, or the pipe fills and it hangs
         if (!process.waitFor(TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)) {
             process.destroyForcibly();
             return 1;    // a mutant that hangs did not pass over the tests unmoved
@@ -335,7 +367,7 @@ public final class Mutate {
         if (first == null) return floorSeconds = 0;
         long started = System.nanoTime();
         compiles(first.byFile().keySet().iterator().next());
-        exec(command("org.plumbspec.MutantRun", List.of()));
+        exec(command("org.plumbspec.MutantRun", java.util.Collections.emptyList()));
         return floorSeconds = (System.nanoTime() - started) / 1_000_000_000.0;
     }
 
@@ -355,16 +387,7 @@ public final class Mutate {
      *  ran mutation *again* — and every board in between measured the mutant and reported it as the
      *  project. The Python adapter has always recovered on every run "whether or not mutation is on
      *  this time", for exactly that reason, and this is the same rule arriving on the other side. */
-    static Path restore(Path build) throws IOException {
-        Path rescue = build.resolve(RESCUE);
-        if (!Files.isRegularFile(rescue)) return null;
-        String parked = Files.readString(rescue);
-        int split = parked.indexOf('\n');
-        Path file = Path.of(parked.substring(0, split));
-        Files.writeString(file, parked.substring(split + 1));
-        Files.delete(rescue);
-        return file;
-    }
+
 
     private static Map<String, List<String>> passingCitations(Path tsv) throws IOException {
         Map<String, List<String>> found = new TreeMap<>();
@@ -394,7 +417,7 @@ public final class Mutate {
     private static void applyTo(Path manifest, Path scores, Map<String, List<Survivor>> survivors)
             throws IOException {
         if (!Files.exists(manifest) || !Files.exists(scores)) return;
-        String json = Files.readString(manifest);
+        String json = Text.read(manifest);
         for (String line : Files.readAllLines(scores)) {
             String[] parts = line.split("\t");
             if (parts.length != 3) continue;
@@ -404,7 +427,7 @@ public final class Mutate {
             int slot = json.indexOf("\"mutation\": null", at);
             if (slot < 0) continue;
             StringBuilder named = new StringBuilder();
-            for (Survivor s : survivors.getOrDefault(parts[0], List.of())) {
+            for (Survivor s : survivors.getOrDefault(parts[0], java.util.Collections.emptyList())) {
                 if (named.length() > 0) named.append(", ");
                 named.append("{\"operator\": \"").append(s.operator())
                      .append("\", \"where\": \"").append(s.where())
@@ -417,7 +440,7 @@ public final class Mutate {
                  + ", \"survivors\": [" + named + "]}"
                  + json.substring(slot + "\"mutation\": null".length());
         }
-        Files.writeString(manifest, json);
+        Text.write(manifest, json);
         System.out.println("scored -> " + manifest);
     }
 }

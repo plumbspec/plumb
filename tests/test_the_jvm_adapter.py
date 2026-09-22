@@ -899,9 +899,9 @@ def test_an_ordinary_board_puts_back_what_an_interrupted_mutation_left():
     # Read out of the adapter rather than retyped. A constant spelled in two places is one that
     # drifts, and a test asserting recovery against the wrong filename would assert nothing while
     # passing — which is the shape of every drift found in this file today.
-    declared = re.search(r'RESCUE\s*=\s*"([^"]+)"',
-                         (JAVA / "adapter/src/main/java/org/plumbspec/Mutate.java").read_text())
-    assert declared, "Mutate no longer declares RESCUE, and this test is guessing"
+    declared = re.search(r'PARKED\s*=\s*"([^"]+)"',
+                         (JAVA / "adapter/src/main/java/org/plumbspec/Rescue.java").read_text())
+    assert declared, "Rescue no longer declares PARKED, and this test is guessing"
     rescue = _work() / declared.group(1)
     _work().mkdir(parents=True, exist_ok=True)
     try:
@@ -924,3 +924,38 @@ def test_an_ordinary_board_puts_back_what_an_interrupted_mutation_left():
         rescue.unlink(missing_ok=True)
         for f, was in kept.items():
             f.write_bytes(was)
+
+
+@pytest.mark.proves("dev07-1-3", depth="unit")
+def test_a_member_the_toolchain_made_is_not_an_end_of_an_edge():
+    """Read as source, because what is being checked is which fact the rule is keyed on.
+
+    A private member read from a nested class needed an `access$N` bridge until nest-based access
+    arrived in Java 11, so the same source compiled either side of that line has a different member
+    in it and calls it from a real `invokestatic`. The graph may not move when the compiler does
+    (`dev07-1-3-ur11`), so such a member is refused — off the **flag** the class file carries, never
+    off what the compiler chose to call it, which is the guessing `dev07-1-3-sr10` rules out.
+    """
+    sites = (JAVA / "adapter" / "src" / "main" / "java" / "org" / "plumbspec" / "Sites.java").read_text()
+    probe = (JAVA / "adapter" / "src" / "main" / "java" / "org" / "plumbspec" / "Probe.java").read_text()
+
+    assert "undeclared.contains(from)" in sites and "undeclared.contains(to)" in sites, (
+        "Sites.taken hands back every edge it recorded, so a member that exists only on some "
+        "toolchains is still an end of one")
+    assert "Wrapper.ACC_SYNTHETIC" in probe and "Sites.toolchainMade" in probe, (
+        "nothing tells Sites which members the toolchain made, so the filter above holds nothing")
+    assert "Sites.writtenInside" in probe and "settled(callers[i])" in sites, (
+        "a lambda body is compiler-made too, and refusing it would drop every call made from "
+        "inside one — it is reported against the method it was written inside instead")
+    assert '"EnclosingMethod".equals(utf8[nameIndex])' in probe and "declaredInside" in probe, (
+        "a class declared inside a method still reports under its own number, and a compiler "
+        "numbers those in declaration order — add one above and every one below is renamed")
+    assert "nameAndType <= 0" in probe, (
+        "a class declared in an initializer names no enclosing method, and reading index zero as "
+        "one is how a fold reports against whatever happens to sit at that constant")
+    assert '"<init>".equals(name)' in probe, (
+        "without holding the constructor out, an accessor carrying the class's own line reports "
+        "a field read as a call to the constructor — a false edge for an unsteady one")
+    assert "access$" not in probe and "lambda$" not in probe, (
+        "the weaver is matching what a compiler-made member is called, which is what reading the "
+        "flag replaced")

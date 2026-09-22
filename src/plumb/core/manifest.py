@@ -13,6 +13,8 @@ they are produced (chapters 3 and 4). Two fields are not facts about the run at 
 own external key, which Plumb carries and never parses (``dev07-3-1``).
 """
 
+from __future__ import annotations
+
 import json
 import re
 from dataclasses import asdict, dataclass, field

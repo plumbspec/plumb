@@ -13,6 +13,8 @@ happens. Two field classes, per ``ch6-4``:
   a plausible value, and an importer to invent one on a record's behalf.
 """
 
+from __future__ import annotations
+
 import json
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone

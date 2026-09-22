@@ -6,6 +6,8 @@ that an unreachable endpoint costs the contributor nothing is empty if the queue
 process.
 """
 
+from __future__ import annotations
+
 import re
 from datetime import datetime, timezone
 from pathlib import Path

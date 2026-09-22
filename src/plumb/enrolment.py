@@ -11,6 +11,8 @@ because you are the only authority over your own store; transmitted ones are sta
 accepted them.
 """
 
+from __future__ import annotations
+
 import json
 import os
 from dataclasses import dataclass

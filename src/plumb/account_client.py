@@ -10,6 +10,8 @@ environment or the command line on every run, because an unattended runner has n
 (``ch12-2``), and the identity is rebuilt from it rather than stored (``ch12-13``).
 """
 
+from __future__ import annotations
+
 import json
 import os
 import urllib.error

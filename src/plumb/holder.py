@@ -24,6 +24,8 @@ from and the operations they invoke. Splitting it the other way would give each 
 of the bound, which is how two implementations come to disagree about what they are enforcing.
 """
 
+from __future__ import annotations
+
 from typing import Protocol, runtime_checkable
 
 

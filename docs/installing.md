@@ -38,27 +38,26 @@ The installer tells you if the directory it used is not on your `PATH`.
 
 ## What you need
 
-**Python 3.11 or newer, somewhere on the machine.** That is true even when your project is Java —
-Plumb is written in Python and runs alongside your build rather than inside it. Nothing about your
-Java build changes.
+| | needs |
+|---|---|
+| **A Python project** | **Python 3.9 or newer** — the same one your tests run under, and nothing else |
+| **A Java project** | **Java 8 or newer** for your tests, and a **Python 3.9 or newer** anywhere on the machine for Plumb itself |
+| What your Java tests compile against | **Java 8 or newer** — the annotation jar, which imports nothing |
+| Your test runner | **pytest**, or **JUnit 5** — whichever you already have. Plumb brings neither and pins neither |
 
-Ubuntu 22.04 and RHEL 9 still ship something older as `python3`. Installing a newer one is the
-whole fix, and the installer tells you if this applies to you:
+**One Python, not two.** Plumb runs on the same floor its observer does, so a Python project
+needs one interpreter rather than one for its tests and a newer one for the tool that watches
+them. RHEL 9 ships 3.9 and Ubuntu 22.04 ships 3.10 as `python3`; both are enough as they come.
+Ubuntu 20.04's 3.8 is not, and installing a newer one is the whole fix:
 
-    apt install python3.11      # Debian / Ubuntu
-    dnf install python3.11      # RHEL / Fedora
+    apt install python3.9       # Debian / Ubuntu
+    dnf install python3.9       # RHEL / Fedora
 
-**Java projects need a JVM of 17 or newer to run a board.** Plumb's adapter runs inside the JVM
-that runs your tests, so that is the version it has to load on — not the version that built it, and
-not the version your project targets.
+**Plumb is written in Python and runs alongside your build rather than inside it**, which is why a
+Java project needs one available too. Nothing about your Java build changes.
 
-**Your own project's Java level is not affected.** The annotation your tests compile against is
-built for Java 8 and imports nothing, so adding it does not raise the floor of your build. The two
-are separate on purpose: what you compile against is a kilobyte of annotations, and what needs 17 is
-the adapter Plumb supplies and runs.
-
-So a project targeting Java 8 can cite stories and compile normally; what it needs is a 17+ JVM
-available to run the test suite Plumb observes.
+**On JUnit.** JUnit 6 requires Java 17, so a project holding at Java 8 stays on the JUnit 5 line —
+which is what Plumb's adapter is built against. Nothing here asks you to choose either.
 
 **Java projects also need two more things** before `plumb board` will run — that annotation on the
 compile path, and a classpath file. Both are covered in
@@ -95,22 +94,6 @@ and on `keyserver.ubuntu.com`, so the key can reach you by a route that is not t
 but not against this host: whoever served you a bad artifact also served you the installer that
 checks it. Only the signature closes that hole, and only if you did not take the fingerprint from
 here alone. Fetch it from a keyserver, or from someone who already has it.
-
----
-
-## Pinning a version
-
-Plumb is alpha. Interfaces, the manifest format and the command line may change between versions
-without notice, so pin if you depend on one:
-
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_VERSION=0.5.0 sh
-
-Every published version stays reachable at its own path, with its checksums and its documentation
-frozen as they were at the cut. Releases are browsable at [/channels/](/channels/), where each channel names the version it currently points at.
-
-Pinning means deciding when to move. The [changelog](/changelog.html) says what each release
-changed and whether it asks anything of you; it lives outside the version tree, so the copy you
-read is always the current one whatever version you are on.
 
 ---
 

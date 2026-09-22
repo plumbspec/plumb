@@ -22,7 +22,10 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>17</maven.compiler.release>
+    <!-- The floor this adapter declares (`dev07-3-1-ur12`). It runs in the PROJECT's JVM, not the
+         tool's, so raising it asks every adopter to raise the JVM their tests run under. -->
+    <maven.compiler.release>8</maven.compiler.release>
+
     <!-- Not published, so nothing here is signed, sourced or javadoc'd. -->
     <maven.deploy.skip>true</maven.deploy.skip>
     <maven.install.skip>true</maven.install.skip>
@@ -45,6 +48,46 @@
          guard expects a Maven module to put them. The JARS go to `../build/`, because that is
          where a source checkout looks for the shipped adapter. -->
     <plugins>
+      <!-- One floor, two ways of reaching it. The `release` flag is the right check for
+           ordinary code: it compiles against the API that release actually had. Mutation reads a
+           parse tree with the compiler the JDK ships, and `com.sun.source` is not in the signature
+           data that flag consults, while a real JDK 8 has those classes in `tools.jar`. So
+           mutation is held to the same floor by `source` and `target`, which emit the same class
+           file version. Verified where it counts: on the jar, by the floor gate, and by compiling
+           the whole adapter with a JDK 8 of its own. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <executions>
+          <execution>
+            <id>default-compile</id>
+            <configuration>
+              <excludes>
+                <exclude>org/plumbspec/Mutants.java</exclude>
+                <exclude>org/plumbspec/Mutate.java</exclude>
+                <exclude>org/plumbspec/MutantRun.java</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>mutation-reads-the-jdks-own-compiler</id>
+            <phase>compile</phase>
+            <goals><goal>compile</goal></goals>
+            <configuration>
+              <release combine.self="override"></release>
+              <source>${maven.compiler.release}</source>
+              <target>${maven.compiler.release}</target>
+              <includes>
+                <include>org/plumbspec/Mutants.java</include>
+                <include>org/plumbspec/Mutate.java</include>
+                <include>org/plumbspec/MutantRun.java</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>

@@ -26,6 +26,8 @@ number doing both jobs.
 thing an adopter was doing (`ch6-7`), so every function returns an `Answer` and a refusal is data.
 """
 
+from __future__ import annotations
+
 import json
 import urllib.error
 import urllib.request

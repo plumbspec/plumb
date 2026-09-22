@@ -15,6 +15,8 @@ ones the trace already produced, so what gets mutated is the code the citing tes
 run, and nothing else.
 """
 
+from __future__ import annotations
+
 import ast
 from dataclasses import dataclass
 from typing import Iterator

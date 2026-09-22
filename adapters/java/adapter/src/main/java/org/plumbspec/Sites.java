@@ -27,10 +27,53 @@ final class Sites {
         return next++;
     }
 
-    /** Every edge whose site was reached, as `caller\tcallee`. A set by construction. */
+    /**
+     * Members the class file flags as made by the toolchain, which the source declares none of.
+     *
+     * <p>Whether one exists at all is the compiler's decision and compilers change it: a private
+     * member read from a nested class needed an {@code access$N} bridge until nest-based access
+     * arrived, and the same source compiled either side of that has a different member in it. A
+     * name that can come and go with the build is not a name a series can be compared on
+     * (``dev07-1-3-ur11``), so such a member is not an end of an edge.
+     *
+     * <p>Read off the flag and never off the name — what these are called is the compiler's habit
+     * and matching it is the guessing this method exists to avoid (``dev07-1-3-sr10``).
+     */
+    private static final java.util.Set<String> undeclared = new java.util.HashSet<String>();
+
+    /** Told once per class, as it is woven. */
+    static synchronized void toolchainMade(String member) { undeclared.add(member); }
+
+    /**
+     * A compiler-made member and the declared one it was written inside (``dev07-1-3-ur09``).
+     *
+     * <p>A lambda body is a method the source never declared, and it carries the lines of the
+     * expression it came from — which lie inside the method that wrote it. So an edge at either
+     * end of it is reported against that method, and what the body calls stays in the picture
+     * whatever the compiler called the body.
+     */
+    private static final java.util.Map<String, String> inside = new java.util.HashMap<String, String>();
+
+    /** Told once per class, as it is woven. */
+    static synchronized void writtenInside(String member, String host) { inside.put(member, host); }
+
+    private static String settled(String member) {
+        String host = inside.get(member);
+        return host == null ? member : host;
+    }
+
+    /** Every edge whose site was reached and whose both ends the source declares. */
     static synchronized List<String> taken() {
         List<String> found = new ArrayList<String>();
-        for (int i = 0; i < next; i++) if (PlumbFlag.sites[i]) found.add(callers[i] + "\t" + callees[i]);
+        java.util.Set<String> already = new java.util.HashSet<String>();
+        for (int i = 0; i < next; i++) {
+            if (!PlumbFlag.sites[i]) continue;
+            String from = settled(callers[i]), to = settled(callees[i]);
+            // Folding two ends into one definition turns a call into a definition calling itself,
+            // which `Pointcut.joins` already refuses before the fold and has to refuse after it.
+            if (undeclared.contains(from) || undeclared.contains(to) || from.equals(to)) continue;
+            if (already.add(from + "\t" + to)) found.add(from + "\t" + to);
+        }
         return found;
     }
 

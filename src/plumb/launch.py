@@ -13,6 +13,8 @@ languages: there is one reader, and it is here.
 This module knows adapter names, which is exactly why it is not in :mod:`plumb.core`.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import shutil
@@ -434,7 +436,7 @@ def _java(config: Config, *, mutation: bool, report: Callable[[str], None] | Non
         # launcher reads one contract rather than learning a second — and cleared first, or the
         # heartbeat spends its first tick counting down the suite's finished 1937-of-1937.
         progress.unlink(missing_ok=True)
-        _run(java, ["-cp", classpath, "org.plumbspec.Mutate",
+        _run(java, ["-cp", _compiling_classpath(java, classpath), "org.plumbspec.Mutate",
                     str((config.root / (config.sources[0] if config.sources else ".")).resolve()),
                     str(tests_root), classpath, str(work)],
              cwd=config.root, say=say, what="mutation", stream=True, progress=progress,
@@ -1085,6 +1087,19 @@ def _run(java: str, args: list[str], *, cwd: Path, say, what: str, stream: bool 
             say(f"java: {what}: {line}")
     return completed
 
+
+
+def _compiling_classpath(java: str, classpath: str) -> str:
+    """The classpath mutation compiles on, with the JDK's own compiler where it needs finding.
+
+    Mutation reads and rewrites a parse tree with the compiler the JDK already ships. From Java 9
+    that is an exported package of `jdk.compiler` and already reachable; below it, the same classes
+    are in `tools.jar` beside the runtime and on nobody's classpath. Added when it is there, which
+    is the only version it is (`dev07-3-1-sr3` — the capability holds at the floor, and what it
+    takes to hold there is ours to arrange, not the adopter's).
+    """
+    tools = Path(java).resolve().parent.parent / "lib" / "tools.jar"
+    return f"{classpath}{os.pathsep}{tools}" if tools.is_file() else classpath
 
 def _test_roots(config, options) -> tuple[str, list]:
     """Where the runner discovers tests, as one argument and as the list behind it.

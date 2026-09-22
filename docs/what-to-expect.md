@@ -321,12 +321,12 @@ covers. `PLUMB_REQUIRE_SIGNATURE=1` refuses to install without a verified signat
 
 Two consequences worth knowing before you adopt:
 
-- **Plumb runs on Python 3.11+, even when your project is Java.** It needs *a* Python 3.11 or
-  newer somewhere on the machine, not in your project. Ubuntu 22.04 and RHEL 9 still ship older
-  ones as `python3`; `apt install python3.11` or `dnf install python3.11` is the whole fix, and
-  nothing about your build changes.
-- **For a Python project, the adapter runs in *your* interpreter, not Plumb's.** It has to import
-  your code and your test framework. Plumb finds your virtualenv (`.venv`, `venv`, or an active
+- **Plumb runs on Python 3.9+, even when your project is Java.** It needs *a* Python 3.9 or
+  newer somewhere on the machine, not in your project — which RHEL 9 and Ubuntu 22.04 both ship
+  as `python3` already, and nothing about your build changes.
+- **For a Python project, the adapter runs in *your* interpreter, not Plumb's** — which is why
+  the two floors are the same **3.9**, and why there is one interpreter to install rather than two.
+  The adapter has to import your code and your test framework. Plumb finds your virtualenv (`.venv`, `venv`, or an active
   one) and runs the adapter there, adding itself to `PYTHONPATH` — nothing is installed into your
   environment. If your interpreter lives somewhere unusual, name it:
 

@@ -88,12 +88,18 @@ public final class PlumbListener implements TestExecutionListener {
             // grants status to an innocent, and only the second can turn an unproven story proven.
             PlumbFlag.reset();
         }
-        record(id, switch (result.getStatus()) {
-            case SUCCESSFUL -> "passed";
+        record(id, outcome(result.getStatus()));
+    }
+
+    /** The runner's own word for what happened, untranslated (``dev07-3-1``). */
+    private static String outcome(TestExecutionResult.Status status) {
+        switch (status) {
+            case SUCCESSFUL: return "passed";
             // JUnit's abort is the "specified but not built" signal, exactly as pytest's skip is.
-            case ABORTED    -> "skipped";
-            case FAILED     -> "failed";
-        });
+            case ABORTED:    return "skipped";
+            case FAILED:     return "failed";
+            default:         return "failed";
+        }
     }
 
     @Override
@@ -152,7 +158,7 @@ public final class PlumbListener implements TestExecutionListener {
      *  when there was nothing there to observe with (`dev07-1-4`, `dev07-1-3`). */
     public void settle() {
         if (PlumbFlag.instrumentedAnything()) return;
-        for (var each : groundingByTest.entrySet())
+        for (java.util.Map.Entry<String, String> each : groundingByTest.entrySet())
             if (!"grounded".equals(each.getValue()) && !"dispatched".equals(each.getValue()))
                 each.setValue(NOT_CHECKED);
         manifest.ground(groundingByTest);
@@ -194,7 +200,7 @@ public final class PlumbListener implements TestExecutionListener {
     private void say(int done) {
         if (progress == null) return;
         try {
-            java.nio.file.Files.writeString(progress,
+            Text.write(progress,
                     done + " " + discovered + " " + System.currentTimeMillis());
         } catch (Exception unreportable) {
             // Progress is a courtesy. The run is the point.
@@ -234,14 +240,15 @@ public final class PlumbListener implements TestExecutionListener {
     /** The citations of one kind a test declares, class-level ones included. */
     private <A extends java.lang.annotation.Annotation> List<A> citationsOn(
             TestIdentifier id, Class<A> kind) {
-        var source = id.getSource().orElse(null);
-        if (!(source instanceof MethodSource method)) return List.of();
+        Object source = id.getSource().orElse(null);
+        if (!(source instanceof MethodSource)) return java.util.Collections.emptyList();
+        MethodSource method = (MethodSource) source;
         try {
             Class<?> owner = Class.forName(method.getClassName());
             Method target = Arrays.stream(owner.getDeclaredMethods())
                     .filter(m -> m.getName().equals(method.getMethodName()))
                     .findFirst().orElse(null);
-            var found = new ArrayList<A>();
+            List<A> found = new ArrayList<A>();
             if (target != null) found.addAll(Arrays.asList(target.getAnnotationsByType(kind)));
             found.addAll(Arrays.asList(owner.getAnnotationsByType(kind)));
             return found;
@@ -250,11 +257,11 @@ public final class PlumbListener implements TestExecutionListener {
             // test still reads, so the run degrades rather than losing the lot (`dev07-5-1`) — the
             // failure mode found the hard way, where a missing member took every citation in a
             // project with it and the board read "you have not cited anything yet".
-            return List.of();
+            return java.util.Collections.emptyList();
         } catch (ClassNotFoundException unavailable) {
             // A test whose class cannot be loaded cites nothing we can read. Report no citation
             // rather than inventing one — an adapter never decides (`dev07-3-1`).
-            return List.of();
+            return java.util.Collections.emptyList();
         }
     }
 }

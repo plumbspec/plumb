@@ -4,6 +4,8 @@
 ``plumb friction`` captures what rubbed (``ch6-1``, ``ch6-10``).
 """
 
+from __future__ import annotations
+
 # Everything a user reads — help text, the board, a refusal — is written for someone who has
 # never seen this source. Story ids, chapter numbers and the arguments behind a design belong in
 # the code and the spec, where the reader can follow them; in a terminal they are noise the reader
