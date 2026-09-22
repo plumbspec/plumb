@@ -1,6 +1,6 @@
 # dev07-3 · collect what the run did
 
-**Last updated** 2026-09-22 v6
+**Last updated** 2026-09-22 v7
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the observed run, carrying the
 run, the traces, the wiring facts and — where mutation ran — the scores. Exits to
@@ -46,6 +46,7 @@ flowchart TD
 | dev07-3-1-inf10 | Out | `observer` | yes | observed |
 | dev07-3-1-inf11 | Out | `citation.ref` | optional | authored |
 | dev07-3-1-inf12 | Out | `citation.about` | optional | authored |
+| dev07-3-1-inf13 | Out | `adapter.floor` | yes | authored |
 
 #### User Requirements
   * dev07-3-1-ur01 - the minimum citation is test, depth and result; an adapter that knows nothing
@@ -70,8 +71,20 @@ flowchart TD
     to a subject; cost is evidence and moves no status
   * dev07-3-1-ur11 - the mechanism names the rule a frame was named by, so two facts a reader is
     told to compare were made comparable by the same rule
+  * dev07-3-1-ur12 - an adapter declares the oldest runtime it runs on, so an adopter reads
+    whether it fits their project before installing rather than after a failure
+  * dev07-3-1-ur13 - the tool's floor and an adapter's floor are separate declarations, so
+    upgrading the tool never asks a project to upgrade the runtime its tests run under
+  * dev07-3-1-ur14 - a runtime below the declared floor is refused by name, so an adopter reads
+    their own version back rather than a fault that looks like their project's
 
 #### System Requirements
+  * dev07-3-1-sr1 - the floor is held by reading what the adapter ships, in that language's own
+    terms, so the declaration and the artifact cannot disagree
+  * dev07-3-1-sr2 - the check covers everything the adapter loads in the project's runtime and
+    nothing beyond it, because that is the only part the project's runtime has to satisfy
+  * dev07-3-1-sr3 - a capability the floor cannot carry is declared unavailable at that floor,
+    and the rest of the adapter runs
 
 #### Non-Functional Requirements
   * dev07-3-1-nfr1 - the adapter records facts and stamps no verdict, so it can neither grant
@@ -191,6 +204,7 @@ flowchart TD
 | Manifest | The language-neutral record the adapter produces and the core consumes: story id → archetype and citations. The sole interface. |
 | Archetype | Per subject, never per citation: behavioural or structural, declared in the project's configuration — precisely the part a test does not get to claim. |
 | Observer | Which adapter, at what version, on which runtime, by what mechanism, made a fact. Absent means not reported and is never inferred. |
+| Floor | The oldest runtime an adapter runs on. Declared by the adapter, held against what it ships. |
 | Extent | How many tests the run observed at all, cited or not — the one fact about the run itself. Zero means it looked and found none; absent means it could not say. |
 | Ref | The consumer's own external key on a citation — a ticket id, a spreadsheet row. Never minted or validated here. |
 | Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
