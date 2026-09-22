@@ -1,6 +1,6 @@
 # dev07-3 · collect what the run did
 
-**Last updated** 2026-09-11 v5
+**Last updated** 2026-09-22 v6
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the observed run, carrying the
 run, the traces, the wiring facts and — where mutation ran — the scores. Exits to
@@ -68,6 +68,8 @@ flowchart TD
   * dev07-3-1-ur09 - the measurement time rides the fact, and absent is never now
   * dev07-3-1-ur10 - each citation carries what the observed run spent on it, so cost attributes
     to a subject; cost is evidence and moves no status
+  * dev07-3-1-ur11 - the mechanism names the rule a frame was named by, so two facts a reader is
+    told to compare were made comparable by the same rule
 
 #### System Requirements
 

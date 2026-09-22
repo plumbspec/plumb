@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-09-18 v4
+**Last updated** 2026-09-22 v6
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the command, carrying the
 configuration, the citations and the working tree. Exits to `dev07-3 · collect what the run
@@ -134,6 +134,14 @@ flowchart TD
   * dev07-1-3-ur6 - the figure is the declared surface this run's citing tests drove through a
     door, never the lines a suite executed, and is named so the two are not compared
   * dev07-1-3-ur7 - the figure is asked for, never on by default, and moves no status
+  * dev07-1-3-ur8 - a frame is named for the source definition it belongs to — the enclosing
+    function, method or module — so a name means the same thing on every runtime of its language
+  * dev07-1-3-ur9 - an expression a runtime may or may not give a frame of its own — a
+    comprehension, a lambda, a generator expression — is named for the definition containing it
+  * dev07-1-3-ur10 - one suite observed under two runtimes of one language names one set of
+    frames, so a series spanning a runtime upgrade compares like with like
+  * dev07-1-3-ur11 - one source names one set of frames whichever toolchain built the artifact,
+    so a series spanning a compiler upgrade compares like with like
 
 #### System Requirements
   * dev07-1-3-sr1 - where watching is unaffordable, the production surface reports its own
@@ -151,6 +159,12 @@ flowchart TD
     any other question this method could not ask is reported
   * dev07-1-3-sr7 - the figure is written beside the manifest by the observer that made it and
     enters neither the manifest nor the board, so no interface widens to carry it
+  * dev07-1-3-sr8 - one naming rule serves the whole adapter: what a trace records, what a door
+    is matched against and what mutation may scope to are the same names
+  * dev07-1-3-sr9 - a frame with no source to place it in keeps the name its runtime gave it
+  * dev07-1-3-sr10 - a member the artifact declares as made by its toolchain — by the flags it
+    carries or by the declaration naming what encloses it — is named for the source member that
+    contains it, and never by matching what it is called
 
 #### Non-Functional Requirements
   * dev07-1-3-nfr1 - running under observation costs about what the tests already cost —
@@ -166,8 +180,8 @@ flowchart TD
     codebase, and no bound is claimable
   * dev07-1-3-u2 - a runtime-generated class reports the origin of its host, so every one is
     woven, and what that costs on a large suite is unmeasured
-  * dev07-1-3-u3 - excluding generated classes by their `$$` names is refused — name-matching is
-    the guessing that origin-matching replaced — and nothing else tells them apart
+  * dev07-1-3-u3 - a runtime-made class that declares no enclosing member can be placed only in
+    its host, and whether the host is a sufficient name is unsettled
   * dev07-1-3-u4 - what it costs an instrument that must enumerate its sites by reading source,
     rather than by holding what it wove, is unmeasured
   * dev07-1-3-u5 - a thread that predates the window and takes work by accepting a connection
@@ -207,6 +221,8 @@ flowchart TD
     next move differs
   * dev07-1-4-ur6 - with no doors declared the board prompts — declare entry points to catch
     orphaned code — never a silent skip
+  * dev07-1-4-ur7 - a door is matched against the names a trace records, so a declared door
+    holds whichever runtime observed it
 
 #### System Requirements
   * dev07-1-4-sr1 - `grounded` is read from a per-thread window: the door's wrapper counts
@@ -247,6 +263,7 @@ flowchart TD
 | Not-checked | No doors are declared, so the question could not be asked. |
 | Dispatched | The work left for a thread that could not be followed — a hand-off that was seen, never assumed. |
 | Build declaration | What the build tool itself says its test runtime is. |
+| Definition | The named function, method or module a frame belongs to, whatever the runtime chose to give a frame of its own. |
 | Site | One join the instrument knew of before the run: a call from one named piece of production code to another. |
 | Plumb coverage | How much of the declared surface this run's citing tests reached through a door. Not line coverage — a different numerator, a different denominator, and only the citing tests. |
 | Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
