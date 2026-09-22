@@ -37,8 +37,11 @@ by what you are trying to do, and says who each page is for.
 changed and whether taking it asks anything of you. It sits outside the version tree deliberately,
 so the copy you read is the current one whatever you have pinned.
 
-One file, both language adapters inside it, no package index and no account. Needs Python 3.11+ on
-the machine — even for a Java project, where nothing else about your build changes. Releases are signed by
+One file, both language adapters inside it, no package index and no account. Needs **Python 3.9+**
+on the machine — the same one your tests run under, so a Python project needs one interpreter and
+not two. A Java project needs **Java 8+** for its own tests and a Python anywhere for Plumb, where
+nothing else about the build changes. The whole of it is a table in
+[installing](docs/installing.md#what-you-need). Releases are signed by
 `208B C127 9656 FEEA 7C2F  9A1D 8306 04D5 1CA7 D4FB`
 (on keys.openpgp.org) — the same key that signs the
 commits here from 2026-08-18 onward; the key was rotated on that date and the previous one is

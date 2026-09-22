@@ -15,6 +15,8 @@ keeps a ``BRANCH`` there and a tool that dropped unknown keys would silently eat
 (``dev03``).
 """
 
+from __future__ import annotations
+
 import json
 import re
 import subprocess

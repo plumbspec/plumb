@@ -14,6 +14,8 @@ Nothing here decides anything. It renders what the gate derived, so the number a
 is the number the gate produced.
 """
 
+from __future__ import annotations
+
 import json
 import re
 from dataclasses import dataclass, field, replace

@@ -22,6 +22,8 @@ the current four-value vocabulary is unstable for import-touching tests, so the 
 the observations and the vocabulary settles separately. Nothing here presumes the answer.
 """
 
+from __future__ import annotations
+
 import sys
 import threading
 import weakref
@@ -31,7 +33,7 @@ from dataclasses import dataclass, field
 from types import FrameType
 from typing import Iterator
 
-from plumb.adapters.python.surface import ProductionSurface
+from plumb.adapters.python.surface import ProductionSurface, qualname_of
 
 # The tracer's own frames, which must never appear in what it observes. Reading a file fires the
 # audit hook, and the hook plus the context manager live *here* — inside any project whose
@@ -230,7 +232,7 @@ class _Recorder:
             return None
         code = frame.f_code
         if event == "call":
-            if (code.co_filename in _SELF or code.co_qualname in self._ignore
+            if (code.co_filename in _SELF or qualname_of(code) in self._ignore
                     or not self._owns(code.co_filename)):
                 return None
             self._enter(code)
@@ -242,7 +244,9 @@ class _Recorder:
         return None
 
     def _name(self, code) -> str:
-        key = (code.co_filename, code.co_qualname)
+        # Keyed on what every runtime carries. `co_qualname` is 3.11 and up, and two definitions
+        # never share a file, a first line and a bare name.
+        key = (code.co_filename, code.co_firstlineno, code.co_name)
         cached = self._names.get(key)
         if cached is None:
             cached = self._names[key] = self.surface.qualify(code)
@@ -296,7 +300,17 @@ class _Recorder:
                 return
             parent = caller.f_code
             if parent.co_filename not in _SELF and self._owns(parent.co_filename):
-                self.edges[(self._name(parent), self._name(code))] = None
+                # A definition calling itself is not a join. Folding an expression into the
+                # definition containing it (`dev07-1-3-ur09`) makes one wherever a comprehension or
+                # a lambda calls out of its own function.
+                #
+                # The JVM probe refuses self-edges too, but at a coarser grain: `Pointcut.joins`
+                # is handed the two *classes*, so it drops every call whose target is in the
+                # calling class — a one-class surface draws no edges there at all. The two
+                # adapters are not yet the same rule, which `dev07-1-3-sr08` says they must be.
+                names = (self._name(parent), self._name(code))
+                if names[0] != names[1]:
+                    self.edges[names] = None
                 return
             caller = caller.f_back
 
@@ -418,7 +432,12 @@ def tracing(surface: ProductionSurface,
     recorder = _Recorder(surface, _ignore=ignore)
     recorder.watch(threading.current_thread())
     previous_tracer, previous_active = sys.gettrace(), _active
-    previous_hook = threading.gettrace()
+    # Reading the module's global hook back is 3.10 and up, and looked up by name rather than
+    # written as an attribute so that it reads as optional to a person and to the floor gate
+    # alike. Below 3.10 a host that installed one does not get it returned — the capability the
+    # floor cannot carry (`dev07-3-1-sr3`). The per-thread hook above is restored either way.
+    read_global_hook = getattr(threading, "gettrace", None)
+    previous_hook = read_global_hook() if read_global_hook is not None else None
     _active = recorder
     recorder.note_threads()
     threading.settrace(recorder)

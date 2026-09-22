@@ -13,6 +13,8 @@ So a replacement carries the ownership and mode of what it replaced, and where t
 replace it is created narrow.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import tempfile

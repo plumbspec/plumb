@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-09-22 v6
+**Last updated** 2026-09-22 v7
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the command, carrying the
 configuration, the citations and the working tree. Exits to `dev07-3 · collect what the run
@@ -110,33 +110,33 @@ flowchart TD
 
 | Information | IO | Description | Required | Provenance |
 |---|---|---|---|---|
-| dev07-1-3-inf1 | In | `annotation` | yes | parent |
-| dev07-1-3-inf2 | In | `adapter.production` | yes | authored |
-| dev07-1-3-inf3 | In | `adapter.entry_points` | optional | authored |
-| dev07-1-3-inf4 | Out | `trace` | yes | observed |
-| dev07-1-3-inf7 | Out | `run` | yes | observed |
-| dev07-1-3-inf8 | Out | `citation.elapsed` | optional | observed |
-| dev07-1-3-inf5 | Out | `trace.edges` | optional | observed |
-| dev07-1-3-inf6 | Out | `run_progress` | yes | observed |
-| dev07-1-3-inf9 | Out | `trace.sites` | optional | observed |
+| dev07-1-3-inf01 | In | `annotation` | yes | parent |
+| dev07-1-3-inf02 | In | `adapter.production` | yes | authored |
+| dev07-1-3-inf03 | In | `adapter.entry_points` | optional | authored |
+| dev07-1-3-inf04 | Out | `trace` | yes | observed |
+| dev07-1-3-inf07 | Out | `run` | yes | observed |
+| dev07-1-3-inf08 | Out | `citation.elapsed` | optional | observed |
+| dev07-1-3-inf05 | Out | `trace.edges` | optional | observed |
+| dev07-1-3-inf06 | Out | `run_progress` | yes | observed |
+| dev07-1-3-inf09 | Out | `trace.sites` | optional | observed |
 | dev07-1-3-inf10 | Out | `plumb_coverage` | optional | derived |
 
 #### User Requirements
-  * dev07-1-3-ur1 - the trace is per test, taken with the runtime's own hooks
-  * dev07-1-3-ur2 - the declared doors are few, stable, and the project's own — never a
+  * dev07-1-3-ur01 - the trace is per test, taken with the runtime's own hooks
+  * dev07-1-3-ur02 - the declared doors are few, stable, and the project's own — never a
     story-to-code map
-  * dev07-1-3-ur3 - a long run says where it has got to — done out of discovered, coarsely — so
+  * dev07-1-3-ur03 - a long run says where it has got to — done out of discovered, coarsely — so
     waiting is a decision
-  * dev07-1-3-ur4 - the position is written to a file and rewritten in place, readable at any
+  * dev07-1-3-ur04 - the position is written to a file and rewritten in place, readable at any
     moment without following the stream
-  * dev07-1-3-ur5 - what the instrument knew of and did not reach is reported beside what it
+  * dev07-1-3-ur05 - what the instrument knew of and did not reach is reported beside what it
     reached; the unreached half is the measurement
-  * dev07-1-3-ur6 - the figure is the declared surface this run's citing tests drove through a
+  * dev07-1-3-ur06 - the figure is the declared surface this run's citing tests drove through a
     door, never the lines a suite executed, and is named so the two are not compared
-  * dev07-1-3-ur7 - the figure is asked for, never on by default, and moves no status
-  * dev07-1-3-ur8 - a frame is named for the source definition it belongs to — the enclosing
+  * dev07-1-3-ur07 - the figure is asked for, never on by default, and moves no status
+  * dev07-1-3-ur08 - a frame is named for the source definition it belongs to — the enclosing
     function, method or module — so a name means the same thing on every runtime of its language
-  * dev07-1-3-ur9 - an expression a runtime may or may not give a frame of its own — a
+  * dev07-1-3-ur09 - an expression a runtime may or may not give a frame of its own — a
     comprehension, a lambda, a generator expression — is named for the definition containing it
   * dev07-1-3-ur10 - one suite observed under two runtimes of one language names one set of
     frames, so a series spanning a runtime upgrade compares like with like
@@ -144,24 +144,24 @@ flowchart TD
     so a series spanning a compiler upgrade compares like with like
 
 #### System Requirements
-  * dev07-1-3-sr1 - where watching is unaffordable, the production surface reports its own
+  * dev07-1-3-sr01 - where watching is unaffordable, the production surface reports its own
     execution — measured at 0.49ns a call, a cost that depends on neither the surface size nor
     the shape of the test
-  * dev07-1-3-sr2 - the observation runs in the process it happens in: no second process, no
+  * dev07-1-3-sr02 - the observation runs in the process it happens in: no second process, no
     attach, no debugger
-  * dev07-1-3-sr3 - the instrument is a join point, a pointcut and an advice; the weaver knows
+  * dev07-1-3-sr03 - the instrument is a join point, a pointcut and an advice; the weaver knows
     none of them, and an advice declares its width so alignment is never an advice's job
-  * dev07-1-3-sr4 - what is production and what is a test is decided by where a class was
+  * dev07-1-3-sr04 - what is production and what is a test is decided by where a class was
     loaded from, never by its name
-  * dev07-1-3-sr5 - the window carries to a thread it started and a task it queued, and the
+  * dev07-1-3-sr05 - the window carries to a thread it started and a task it queued, and the
     entry depth is counted per thread
-  * dev07-1-3-sr6 - an instrument that cannot enumerate its own sites reports not-checked, as
+  * dev07-1-3-sr06 - an instrument that cannot enumerate its own sites reports not-checked, as
     any other question this method could not ask is reported
-  * dev07-1-3-sr7 - the figure is written beside the manifest by the observer that made it and
+  * dev07-1-3-sr07 - the figure is written beside the manifest by the observer that made it and
     enters neither the manifest nor the board, so no interface widens to carry it
-  * dev07-1-3-sr8 - one naming rule serves the whole adapter: what a trace records, what a door
+  * dev07-1-3-sr08 - one naming rule serves the whole adapter: what a trace records, what a door
     is matched against and what mutation may scope to are the same names
-  * dev07-1-3-sr9 - a frame with no source to place it in keeps the name its runtime gave it
+  * dev07-1-3-sr09 - a frame with no source to place it in keeps the name its runtime gave it
   * dev07-1-3-sr10 - a member the artifact declares as made by its toolchain — by the flags it
     carries or by the declaration naming what encloses it — is named for the source member that
     contains it, and never by matching what it is called

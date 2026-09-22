@@ -32,7 +32,19 @@ public final class Manifest {
     public static final String SCHEMA_VERSION = SCHEMA_MAJOR + "." + SCHEMA_MINOR;
 
     /** The instrument that made these measurements (`dev07-3-1`). */
-    public record Provenance(String adapter, String version, String runtime, String mechanism) { }
+    public static final class Provenance {
+        private final String adapter, version, runtime, mechanism;
+
+        public Provenance(String adapter, String version, String runtime, String mechanism) {
+            this.adapter = adapter; this.version = version;
+            this.runtime = runtime; this.mechanism = mechanism;
+        }
+
+        public String adapter() { return adapter; }
+        public String version() { return version; }
+        public String runtime() { return runtime; }
+        public String mechanism() { return mechanism; }
+    }
 
     private Provenance observer;
 
@@ -54,13 +66,35 @@ public final class Manifest {
      *  null is the ordinary case and means the subject has exactly one. Nothing here can set it
      *  yet — {@code @Proves} carries no such member, because a story has one aspect and a story
      *  with parts already has nested ids. It arrives with the annotation that cites a decision. */
-    public record Citation(String test, String depth, String result, String grounding, String ref,
-                           String about, String when) { }
+    public static final class Citation {
+        private final String test, depth, result, grounding, ref, about, when;
+
+        public Citation(String test, String depth, String result, String grounding, String ref,
+                        String about, String when) {
+            this.test = test; this.depth = depth; this.result = result; this.grounding = grounding;
+            this.ref = ref; this.about = about; this.when = when;
+        }
+
+        public String test() { return test; }
+        public String depth() { return depth; }
+        public String result() { return result; }
+        public String grounding() { return grounding; }
+        public String ref() { return ref; }
+        public String about() { return about; }
+        public String when() { return when; }
+    }
 
     /** How many mutants of a story's wired code its tests noticed (`dev07-2-4`). A score rather than
      *  a word, and on the STORY rather than the citation, because every mutant is run against
      *  every test citing that story — one fact, not the same number repeated per citation. */
-    public record Score(int total, int killed) { }
+    public static final class Score {
+        private final int total, killed;
+
+        public Score(int total, int killed) { this.total = total; this.killed = killed; }
+
+        public int total() { return total; }
+        public int killed() { return killed; }
+    }
 
     private final Map<String, List<Citation>> byStory = new TreeMap<>();
     private final Map<String, String> archetypes = new HashMap<>();
@@ -83,7 +117,7 @@ public final class Manifest {
      *  problem and solved it by patching a written document from another process; this is that
      *  correction made where the facts are. */
     public void ground(Map<String, String> byTest) {
-        for (var entry : byStory.entrySet()) {
+        for (Map.Entry<String, List<Citation>> entry : byStory.entrySet()) {
             List<Citation> settled = new ArrayList<>();
             for (Citation c : entry.getValue()) {
                 String fact = byTest.get(c.test());
@@ -114,7 +148,7 @@ public final class Manifest {
            .append(observedTests == null ? "null" : observedTests.toString()).append(",\n");
         out.append("  \"stories\": {");
         String storySep = "\n";
-        for (var entry : byStory.entrySet()) {
+        for (Map.Entry<String, List<Citation>> entry : byStory.entrySet()) {
             out.append(storySep).append("    ").append(quote(entry.getKey())).append(": {\n");
             out.append("      \"archetype\": ")
                .append(quote(archetypes.getOrDefault(entry.getKey(), "behavioral")))
@@ -155,7 +189,7 @@ public final class Manifest {
 
     public Path write(Path path) throws IOException {
         Files.createDirectories(path.toAbsolutePath().getParent());
-        Files.writeString(path, toJson());
+        Text.write(path, toJson());
         return path;
     }
 
@@ -163,12 +197,14 @@ public final class Manifest {
         StringBuilder q = new StringBuilder("\"");
         for (char c : raw.toCharArray()) {
             switch (c) {
-                case '"'  -> q.append("\\\"");
-                case '\\' -> q.append("\\\\");
-                case '\n' -> q.append("\\n");
-                case '\r' -> q.append("\\r");
-                case '\t' -> q.append("\\t");
-                default   -> { if (c < 0x20) q.append(String.format("\\u%04x", (int) c)); else q.append(c); }
+                case '"':  q.append("\\\""); break;
+                case '\\': q.append("\\\\"); break;
+                case '\n': q.append("\\n"); break;
+                case '\r': q.append("\\r"); break;
+                case '\t': q.append("\\t"); break;
+                default:
+                    if (c < 0x20) q.append(String.format("\\u%04x", (int) c));
+                    else q.append(c);
             }
         }
         return q.append('"').toString();

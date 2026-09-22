@@ -32,26 +32,57 @@ public final class Mutants {
 
     /** The whole set (`dev07-2-3`), and the same three the Python adapter applies. */
     public static final List<String> OPERATORS =
-            List.of(FLIP_COMPARISON, NEGATE_BRANCH, SWAP_RETURN);
+            java.util.Arrays.asList(FLIP_COMPARISON, NEGATE_BRANCH, SWAP_RETURN);
 
     /** One mutated rendering of a file, and where the change was made. */
-    public record Mutant(String operator, String where, long line, String source) { }
+    public static final class Mutant {
+        private final String operator, where, source;
+        private final long line;
+
+        public Mutant(String operator, String where, long line, String source) {
+            this.operator = operator; this.where = where; this.line = line; this.source = source;
+        }
+
+        public String operator() { return operator; }
+        public String where() { return where; }
+        public long line() { return line; }
+        public String source() { return source; }
+    }
 
     /** Each comparison and its negation — never a neighbour, which survives on the boundary case
      *  a test is most likely to use (`dev07-2-4`). */
-    private static final Map<Tree.Kind, String[]> COMPARISONS = Map.of(
-            Tree.Kind.EQUAL_TO,           new String[]{"==", "!="},
-            Tree.Kind.NOT_EQUAL_TO,       new String[]{"!=", "=="},
-            Tree.Kind.LESS_THAN,          new String[]{"<",  ">="},
-            Tree.Kind.GREATER_THAN_EQUAL, new String[]{">=", "<"},
-            Tree.Kind.GREATER_THAN,       new String[]{">",  "<="},
-            Tree.Kind.LESS_THAN_EQUAL,    new String[]{"<=", ">"});
+    private static final Map<Tree.Kind, String[]> COMPARISONS = new java.util.HashMap<Tree.Kind, String[]>();
+    static {
+        COMPARISONS.put(Tree.Kind.EQUAL_TO,           new String[]{"==", "!="});
+        COMPARISONS.put(Tree.Kind.NOT_EQUAL_TO,       new String[]{"!=", "=="});
+        COMPARISONS.put(Tree.Kind.LESS_THAN,          new String[]{"<",  ">="});
+        COMPARISONS.put(Tree.Kind.GREATER_THAN_EQUAL, new String[]{">=", "<"});
+        COMPARISONS.put(Tree.Kind.GREATER_THAN,       new String[]{">",  "<="});
+        COMPARISONS.put(Tree.Kind.LESS_THAN_EQUAL,    new String[]{"<=", ">"});
+    }
 
     private static final Set<String> NUMERIC =
-            Set.of("int", "long", "short", "byte", "char", "float", "double");
+            new java.util.HashSet<String>(java.util.Arrays.asList(
+                    "int", "long", "short", "byte", "char", "float", "double"));
 
     /** One replacement: source[from,to) becomes text. */
-    private record Site(String operator, String where, long line, int from, int to, String text) { }
+    private static final class Site {
+        private final String operator, where, text;
+        private final long line;
+        private final int from, to;
+
+        Site(String operator, String where, long line, int from, int to, String text) {
+            this.operator = operator; this.where = where; this.line = line;
+            this.from = from; this.to = to; this.text = text;
+        }
+
+        String operator() { return operator; }
+        String where() { return where; }
+        long line() { return line; }
+        int from() { return from; }
+        int to() { return to; }
+        String text() { return text; }
+    }
 
     private Mutants() { }
 
@@ -63,7 +94,7 @@ public final class Mutants {
      * is a method that can never be mutated, so the two spellings have to be the same one.
      */
     public static List<Mutant> of(Path file, Set<String> scope) throws IOException {
-        String source = Files.readString(file);
+        String source = Text.read(file);
         List<Site> sites = sites(file, source, scope);
         List<Mutant> found = new ArrayList<>(sites.size());
         for (Site site : sites) {
@@ -94,14 +125,14 @@ public final class Mutants {
     /** How many mutants {@link #of} would yield, without building any of their sources —
      *  a cost estimate that costs as much as the run is not an estimate (`dev07-2-2`). */
     public static int count(Path file, Set<String> scope) throws IOException {
-        return sites(file, Files.readString(file), scope).size();
+        return sites(file, Text.read(file), scope).size();
     }
 
     private static List<Site> sites(Path file, String source, Set<String> scope) throws IOException {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         try (StandardJavaFileManager files = compiler.getStandardFileManager(null, null, null)) {
             JavacTask task = (JavacTask) compiler.getTask(
-                    null, files, diagnostic -> { }, List.of(), null,
+                    null, files, diagnostic -> { }, java.util.Collections.emptyList(), null,
                     files.getJavaFileObjects(file.toFile()));
             CompilationUnitTree unit = task.parse().iterator().next();
             Collector collector = new Collector(
@@ -161,7 +192,7 @@ public final class Mutants {
 
         private boolean inScope() {
             return method != null && !classes.isEmpty()
-                    && scope.contains(classes.peek() + "#" + method);
+                    && scope.contains(Name.of(classes.peek(), method));
         }
 
         @Override
@@ -204,8 +235,8 @@ public final class Mutants {
          *  the parenthesized tree itself would produce `if !(x)` and fail to compile. */
         private void negate(ExpressionTree condition) {
             if (!inScope()) return;
-            ExpressionTree inner =
-                    condition instanceof ParenthesizedTree paren ? paren.getExpression() : condition;
+            ExpressionTree inner = condition instanceof ParenthesizedTree
+                    ? ((ParenthesizedTree) condition).getExpression() : condition;
             int from = (int) positions.getStartPosition(unit, inner);
             int to = (int) positions.getEndPosition(unit, inner);
             if (from >= 0 && to > from) add(NEGATE_BRANCH, from, to, "!(" + source.substring(from, to) + ")");
@@ -257,7 +288,7 @@ public final class Mutants {
             // differs from its original, so checking the emitted form would make this test pass
             // always and let identity mutants back in.
             if (text.equals(source.substring(from, to))) return;
-            found.add(new Site(operator, classes.peek() + "#" + method,
+            found.add(new Site(operator, Name.of(classes.peek(), method),
                     unit.getLineMap().getLineNumber(from), from, to, text));
         }
     }

@@ -31,6 +31,8 @@ definite diff and the mechanism is open (``dev07-2-1``); it is also the single b
 cost above, which is why it is worth naming rather than quietly omitting.
 """
 
+from __future__ import annotations
+
 import os
 import subprocess
 import sys

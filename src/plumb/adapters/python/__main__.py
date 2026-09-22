@@ -12,6 +12,8 @@ is a third reader of this file.
 Usage: ``python -m plumb.adapters.python <run-file> <manifest-out>``
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 

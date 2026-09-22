@@ -14,6 +14,8 @@ in one line — the core reads only the manifest, so it touches no test framewor
 language.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field, replace
 
 from plumb.core.manifest import (

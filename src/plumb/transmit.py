@@ -6,6 +6,8 @@ attempt drains it. Nothing here raises into a caller's workflow — the return v
 happened and the work carries on either way.
 """
 
+from __future__ import annotations
+
 import json
 import urllib.error
 import urllib.request

@@ -13,9 +13,12 @@ name = "plumbspec"
 dynamic = ["version"]
 description = "Proof that a story is done — verified, not asserted"
 license = "Apache-2.0"
-# 3.11 is a real floor, not a preference: the tracer reads `code.co_qualname` (3.11+) to name a
-# frame. `sys.addaudithook` (3.8+) and `Path.is_relative_to` (3.9+) sit below it.
-requires-python = ">=3.11"
+# The same floor the adapter declares, so a project needs ONE Python rather than one for its tests
+# and a newer one for the tool that watches them. It was 3.11 while the tracer read
+# `code.co_qualname` to name a frame and `config` read `tomllib`; a frame is now named from source
+# where the runtime cannot report one, and the parser rides inside the artifact (`plumb._vendor`).
+# `sys.addaudithook` (3.8+) and `Path.is_relative_to` (3.9+) sit below this.
+requires-python = ">=3.9"
 dependencies = []
 
 # What the suite needs, and deliberately not what the tool needs — `dependencies = []` above is a

@@ -111,15 +111,23 @@ final class Pointcut {
     boolean drawingEdges() { return edges; }
 
     /**
-     * Whether a call from {@code caller} to {@code callee} is an edge worth a slot.
+     * Whether a call from one member to another is an edge worth a slot.
      *
      * <p>Both ends must be inside the declared surface. A call arriving from outside it has no far
      * end in the graph being drawn, and inventing one would put the test framework's own shape into
      * a picture of the system under it — the same rule the Python tracer follows when a test calls
      * into production.
+     *
+     * <p><b>A member is the grain, not a class.</b> Comparing the two classes dropped every call
+     * whose target was declared beside its caller, so a surface of one class drew no graph at all
+     * — while the Python recorder refused only a member calling itself. Two adapters drawing
+     * different graphs from one system is what ``dev07-1-3-sr08`` forbids; this is that rule, in
+     * the one place that builds a name.
      */
-    boolean joins(String caller, String callee) {
-        return edges && !caller.equals(callee) && inSurface(caller) && inSurface(callee);
+    boolean joins(String callerClass, String callerMember, String calleeClass, String calleeMember) {
+        return edges
+                && inSurface(callerClass) && inSurface(calleeClass)
+                && !Name.of(callerClass, callerMember).equals(Name.of(calleeClass, calleeMember));
     }
 
     /** Nothing on this class at all — the common answer, and the cheap one. */
@@ -176,7 +184,7 @@ final class Pointcut {
      */
     Advice onSurface(String className, String methodName) {
         if (!inSurface(className)) return null;
-        return scoping ? Advice.report("wired", className + "#" + methodName)
+        return scoping ? Advice.report("wired", Name.of(className, methodName))
                        : Advice.flag("ran");
     }
 

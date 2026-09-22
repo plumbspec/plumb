@@ -13,6 +13,8 @@ no account, no grant, no quota per holder. What it protects is a disk, and the o
 enforces is the one that keeps the disk from filling (`dev07-6-2`).
 """
 
+from __future__ import annotations
+
 import json
 import threading
 from datetime import datetime, timezone

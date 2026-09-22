@@ -15,7 +15,14 @@ The values are deliberately **adapter-native** (``dev07-1-3``). ``App#handleRequ
 spelling would mean every adapter translating out of a form none of them use.
 """
 
-import tomllib
+from __future__ import annotations
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    # Below 3.11 the same parser rides inside the artifact rather than being installed beside it
+    # (`plumb._vendor`). One reading of an adopter's file on every version Plumb runs on.
+    from plumb._vendor import tomli as tomllib
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 

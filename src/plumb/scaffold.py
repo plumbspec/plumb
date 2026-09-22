@@ -17,6 +17,8 @@ ids are opaque and Plumb keeps no catalog (``dev07-3-2``), and how a project wri
 is not something a tool gets to settle for it.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, replace
 from pathlib import Path
 

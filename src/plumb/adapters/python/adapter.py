@@ -15,6 +15,8 @@ window to the test body is what stops import-time frames being mistaken for the 
 production code (``dev07-1-4``).
 """
 
+from __future__ import annotations
+
 import sys
 from dataclasses import dataclass, field, replace
 

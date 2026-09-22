@@ -30,6 +30,11 @@ final class Probe {
     private final ByteArrayOutputStream out = new ByteArrayOutputStream();
     private String[] utf8;
     private String thisClass = "";
+
+    //: The methods this class declares, kept because `EnclosingMethod` is read after them: a class
+    //: file puts its own attributes last, so where a class came from is known only once every
+    //: member that has to be reported against it has gone by.
+    private final java.util.Set<String> ownMembers = new java.util.HashSet<String>();
     private final Pointcut where;
     private Constants pool;
     /** Advice for the method being written, and how far its body therefore moves. */
@@ -153,7 +158,14 @@ final class Probe {
      *  one that was read: a wrapped method leaves two behind it. */
     private int members(ByteArrayOutputStream to, boolean methods) {
         int count = u2();
+        // Gathered over the whole class rather than decided per member, because a bridge carries
+        // the flag and the name of the method it stands in front of: told member by member, the
+        // real one would be refused along with it.
+        java.util.Set<String> declared = new java.util.HashSet<String>();
+        java.util.Set<String> made = new java.util.HashSet<String>();
+        java.util.Map<String, int[]> spans = new java.util.HashMap<String, int[]>();
         for (int i = 0; i < count; i++) {
+            lowLine = highLine = -1;
             int access = u2();
             int nameIndex = u2();
             int descriptorIndex = u2();
@@ -181,14 +193,86 @@ final class Probe {
                 else { write2(to, attrName); long len = u4(); write4(to, len); to.write(bytes((int) len), 0, (int) len); }
             }
             if (exits) wrapped.add(new Wrapper.Wrapped(access, name, descriptor, nameIndex, descriptorIndex));
+            if (methods) {
+                ((access & Wrapper.ACC_SYNTHETIC) != 0 ? made : declared).add(name);
+                widen(spans, name, lowLine, highLine);
+                ownMembers.add(name);
+            }
+        }
+        for (String one : made) {
+            if (declared.contains(one)) continue;             // a bridge fronting a real method
+            String host = writtenInside(spans, declared, spans.get(one));
+            if (host != null) Sites.writtenInside(Name.of(thisClass, one), Name.of(thisClass, host));
+            else Sites.toolchainMade(Name.of(thisClass, one));
         }
         return count;
     }
 
+    private static void widen(java.util.Map<String, int[]> spans, String name, int low, int high) {
+        if (low < 0) return;
+        int[] held = spans.get(name);
+        if (held == null) spans.put(name, new int[]{low, high});
+        else { held[0] = Math.min(held[0], low); held[1] = Math.max(held[1], high); }
+    }
+
+    /**
+     * The declared method a compiler-made one was written inside, or null where none was.
+     *
+     * <p>The narrowest containing span wins, so a body inside a nested declaration reports the
+     * nearest one. {@code <init>} and {@code <clinit>} are not candidates: an accessor the compiler
+     * emits for a nested class reads carries the class's own line, which falls inside the implicit
+     * constructor and nowhere else — reporting a field read as a call to the constructor would be
+     * a false edge in place of an unsteady one. Those two names are the JVM's own and not a
+     * compiler's habit, so keying on them is not the guessing ``dev07-1-3-sr10`` rules out.
+     */
+    private static String writtenInside(java.util.Map<String, int[]> spans,
+                                        java.util.Set<String> declared, int[] mine) {
+        if (mine == null) return null;
+        String best = null;
+        int narrowest = Integer.MAX_VALUE;
+        for (String name : declared) {
+            if ("<init>".equals(name) || "<clinit>".equals(name)) continue;
+            int[] theirs = spans.get(name);
+            if (theirs == null || theirs[0] > mine[0] || theirs[1] < mine[1]) continue;
+            int width = theirs[1] - theirs[0];
+            if (width < narrowest) { narrowest = width; best = name; }
+        }
+        return best;
+    }
+
     private void copyAttribute(ByteArrayOutputStream to) {
-        write2(to, u2());
+        int nameIndex = u2();
+        write2(to, nameIndex);
         long len = u4(); write4(to, len);
-        to.write(bytes((int) len), 0, (int) len);
+        byte[] payload = bytes((int) len);
+        if ("EnclosingMethod".equals(utf8[nameIndex])) declaredInside(payload);
+        to.write(payload, 0, payload.length);
+    }
+
+    /**
+     * A class the source declared inside a method, and the method that declared it
+     * (``dev07-1-3-sr10``).
+     *
+     * <p>{@code EnclosingMethod} is the class file's own account of where a class came from, so
+     * one written inside a method is reported against that method and its number stops mattering.
+     * A compiler numbers anonymous classes in declaration order — add one above and every one
+     * below is renamed, while nothing the source says has changed.
+     *
+     * <p>A named nested class carries no such attribute and stays a member of its own: it was
+     * declared beside the methods rather than inside one.
+     *
+     * <p>The method index is zero where a class was declared in an initializer and not in a
+     * method. There is no member to report against then, and the class keeps its own name.
+     */
+    private void declaredInside(byte[] payload) {
+        if (payload.length < 4) return;
+        int classIndex = ((payload[0] & 0xFF) << 8) | (payload[1] & 0xFF);
+        int nameAndType = ((payload[2] & 0xFF) << 8) | (payload[3] & 0xFF);
+        if (nameAndType <= 0 || nameAndType >= refName.length) return;
+        int name = refName[nameAndType];
+        if (name <= 0 || name >= utf8.length || utf8[name] == null) return;
+        String host = Name.of(className(classIndex).replace('/', '.'), utf8[name]);
+        for (String mine : ownMembers) Sites.writtenInside(Name.of(thisClass, mine), host);
     }
 
     /**
@@ -200,14 +284,14 @@ final class Probe {
      */
     private byte[][] callSites(byte[] body, String methodName) {
         byte[][] insertAt = new byte[body.length][];
-        String caller = thisClass + "#" + methodName;
+        String caller = Name.of(thisClass, methodName);
         for (int p = 0; p < body.length; ) {
             int op = body[p] & 0xFF;
             if (op >= 0xB6 && op <= 0xB9) {                       // invokevirtual/special/static/interface
                 int ref = ((body[p + 1] & 0xFF) << 8) | (body[p + 2] & 0xFF);
-                String owner = refOwner(ref);
-                if (where.joins(thisClass, owner)) {
-                    int slot = Sites.claim(caller, owner + "#" + refMethod(ref));
+                String owner = refOwner(ref), member = refMethod(ref);
+                if (where.joins(thisClass, methodName, owner, member)) {
+                    int slot = Sites.claim(caller, Name.of(owner, member));
                     if (slot >= 0) {
                         ByteArrayOutputStream one = new ByteArrayOutputStream();
                         Advice.site(slot).emit(one, pool);
@@ -218,6 +302,28 @@ final class Probe {
             p += Remap.instructionLength(body, p);
         }
         return insertAt;
+    }
+
+    /** Lowest and highest source line the method being rewritten carries, or -1 for neither. */
+    private int lowLine = -1, highLine = -1;
+
+    /**
+     * Read the lines a method covers out of its own table.
+     *
+     * <p>A row is {@code start_pc, line_number}. The span is what says which declared method a
+     * compiler-made one was written inside: a lambda body carries the lines of the expression it
+     * came from, and those lie within the method that wrote it.
+     */
+    private void span(byte[] lineTable) {
+        lowLine = highLine = -1;
+        int rows = ((lineTable[0] & 0xFF) << 8) | (lineTable[1] & 0xFF);
+        for (int r = 0; r < rows; r++) {
+            int at = 2 + r * 4 + 2;
+            if (at + 1 >= lineTable.length) break;
+            int line = ((lineTable[at] & 0xFF) << 8) | (lineTable[at + 1] & 0xFF);
+            if (lowLine < 0 || line < lowLine) lowLine = line;
+            if (line > highLine) highLine = line;
+        }
     }
 
     /** The whole edit. Read the Code attribute, rewrite it `inserted` bytes longer, emit it. */
@@ -291,6 +397,7 @@ final class Probe {
             long len = u4();
             byte[] payload = bytes((int) len);
             String kind = String.valueOf(utf8[nameIndex]);
+            if ("LineNumberTable".equals(kind)) span(payload);
             byte[] fixed;
             if (map != null) {
                 fixed = "LineNumberTable".equals(kind) ? map.fixLines(payload)

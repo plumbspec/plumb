@@ -5,6 +5,8 @@ import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * Run a JUnit Platform suite and emit the manifest. This is the adapter's whole entry point:
@@ -21,14 +23,14 @@ public final class PlumbRunner {
         // as answering for all of it.
         java.util.Set<Path> classes = new java.util.LinkedHashSet<>();
         for (String one : args[0].split(java.io.File.pathSeparator))
-            if (!one.isBlank()) classes.add(Path.of(one));
-        Path out = Path.of(args.length > 1 ? args[1] : "manifest.json");
+            if (!one.trim().isEmpty()) classes.add(Paths.get(one));
+        Path out = Paths.get(args.length > 1 ? args[1] : "manifest.json");
 
         // **Before the suite runs, and whether or not this is a mutation run** (`dev07-2-3`). A
         // mutant left by a killed run is silent: the source compiles, the tests pass or fail
         // against code the project never wrote, and the board reports it as the project. Recovered
         // here rather than only in `Mutate` because an ordinary board is what an adopter runs next.
-        Path put = Mutate.restore(out.toAbsolutePath().getParent());
+        Path put = Rescue.restore(out.toAbsolutePath().getParent());
         if (put != null)
             System.out.println("plumb: put back " + put + " — a previous mutation run was interrupted");
 
@@ -39,11 +41,11 @@ public final class PlumbRunner {
         listener.reportProgressTo(out.resolveSibling("progress.txt"));
         // What made these measurements, carried beside them (`dev07-3-1`). One mechanism now: there is
         // no second process, so there is no run that produced facts a different way.
-        Path runFile = args.length > 2 ? Path.of(args[2]) : null;
+        Path runFile = args.length > 2 ? Paths.get(args[2]) : null;
         boolean declaredEntryPoints = !RunFile.read(runFile, "entrypoint").isEmpty();
         // Told, never known: this jar ships inside the tool, so the tool is the only thing that
         // can say which version it is. A constant here is a second home for that fact.
-        var declaredVersion = RunFile.read(runFile, "version");
+        List<String[]> declaredVersion = RunFile.read(runFile, "version");
         // dev07-4-2: the archetype is declared on the story, in the spec — never on the test, which
         // would let the thing being judged pick its own gate. This adapter no longer keeps its
         // own copy: the launcher resolves them and hands them over already decided, so there is
@@ -84,7 +86,7 @@ public final class PlumbRunner {
         listener.manifest().stories().forEach((story, cited) -> cited.forEach(c ->
                 citations.append(story).append('\t').append(c.test())
                          .append('\t').append(c.result()).append('\n')));
-        java.nio.file.Files.writeString(out.resolveSibling("citations.tsv"), citations.toString());
+        Text.write(out.resolveSibling("citations.tsv"), citations.toString());
         // `test<TAB>site,site,...`, beside the citations, for the same reason: chapter 4 runs as a
         // separate process after this one and needs both as data. Written on every run, empty when
         // nothing was scoping — a file that is present and empty says "asked, nothing drove
@@ -92,14 +94,14 @@ public final class PlumbRunner {
         StringBuilder drove = new StringBuilder();
         listener.wiredByTest().forEach((test, sites) ->
                 drove.append(test).append('\t').append(String.join(",", sites)).append('\n'));
-        java.nio.file.Files.writeString(out.resolveSibling("wired.txt"), drove.toString());
+        Text.write(out.resolveSibling("wired.txt"), drove.toString());
         // `caller<TAB>callee`, one line per distinct edge, beside the citations for the same reason
         // the scope is (`dev07-1-3`). A set, so the file says which joins exist and never how often
         // one was taken. Written on every run and empty when edges were not asked for — present
         // and empty is "asked, nothing joined", which an absent file cannot say.
         StringBuilder joins = new StringBuilder();
         for (String edge : Sites.taken()) joins.append(edge).append('\n');
-        java.nio.file.Files.writeString(out.resolveSibling("edges.tsv"), joins.toString());
+        Text.write(out.resolveSibling("edges.tsv"), joins.toString());
         // `dev07-1-3`, with the cause it has now. `not-checked` from `dev07-1-4` means nobody said where
         // the wired system begins; from here it means they did and the instrument never reached it,
         // and the reader's next move differs. One word, two causes, said apart.

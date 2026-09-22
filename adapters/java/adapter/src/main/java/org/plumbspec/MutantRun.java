@@ -66,7 +66,7 @@ public final class MutantRun {
         LauncherFactory.create().execute(
                 LauncherDiscoveryRequestBuilder.request()
                         .selectors(Arrays.stream(args)
-                                .map(DiscoverySelectors::selectUniqueId).toList())
+                                .map(DiscoverySelectors::selectUniqueId).collect(java.util.stream.Collectors.toList()))
                         .build(),
                 watching);
 
