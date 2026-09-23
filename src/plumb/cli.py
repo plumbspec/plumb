@@ -1,7 +1,7 @@
 """``plumb`` — the command line: the board, and friction capture.
 
 ``plumb board`` runs the adapter over a test run and emits the derived result (``dev07-5-1``).
-``plumb support`` captures what rubbed (``ch6-1``, ``ch6-10``).
+``plumb support`` addresses a support service (``ch6-1``).
 """
 
 from __future__ import annotations
@@ -29,16 +29,28 @@ from plumb.support import (ABSENT, DEFAULT_KIND, INAPPLICABLE, KINDS, SupportRec
                            InvalidRecord, excerpt)
 from plumb.store import SupportStore, mint_id, utc_now
 from plumb.transmit import drain, send_one
-from plumb.triggers import instruction
 
 #: A record is no longer only friction — `ch6-31` gave it a kind, and `friction` is one of four.
 #: The container took the chapter's own name and `friction` kept the shape it always described.
-_DATA = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "plumb"
-DEFAULT_STORE = Path(
-    os.environ.get("PLUMB_SUPPORT_DIR")
-    or os.environ.get("PLUMB_FRICTION_DIR")      # the old name, still honoured
-    or _DATA / "support"
-)
+def _data_home() -> Path:
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "plumb"
+
+
+def default_store() -> Path:
+    """Where records live, resolved **when asked**.
+
+    A function and not only a constant, because every location here honours an `XDG_*` variable and
+    a constant answers with whatever the environment said at import. `plumb footprint` exists to
+    show an adopter *their* paths, so it has to ask at the moment it prints rather than read a
+    snapshot taken before the process had finished starting.
+    """
+    return Path(os.environ.get("PLUMB_SUPPORT_DIR")
+                or os.environ.get("PLUMB_FRICTION_DIR")     # the old name, still honoured
+                or _data_home() / "support")
+
+
+_DATA = _data_home()
+DEFAULT_STORE = default_store()
 #: Where records used to live. Carried rather than abandoned, once, and said aloud — a relocation
 #: is not a reason to lose the thing being relocated (the same rule `_accounts_file` follows).
 FORMER_STORE = _DATA / "friction"
@@ -576,11 +588,6 @@ def cmd_manifest_migrate(args) -> int:
     return 0
 
 
-def cmd_why(args) -> int:
-    print(instruction())
-    return 0
-
-
 def cmd_init(args) -> int:
     """``ado2``, ``ado3`` — write what is missing, keep what is there, say what to do next."""
     from plumb.scaffold import init, next_steps
@@ -968,7 +975,7 @@ def cmd_footprint(args) -> int:
             print(f"  {wrote.where}" + (f"   [{marks}]" if marks else ""))
             for line in textwrap.wrap(wrote.what, 72):
                 print(f"      {line}")
-    print("\nThe two worth worrying about are a series and untransmitted friction: nothing else\n"
+    print("\nThe two worth worrying about are a series and an untransmitted support record: nothing else\n"
           "holds them. A passphrase is not here because it is never written down — losing it\n"
           "loses the account, and no backup helps.")
     return EXIT_OK
@@ -1432,29 +1439,6 @@ def build_parser() -> argparse.ArgumentParser:
     board.add_argument("--enrolment", help=ENROLMENT_HELP)
     board.set_defaults(func=cmd_board)
 
-    series = groups.add_parser("series", help="the run history a manifest deliberately is not")
-    ser = series.add_subparsers(dest="series_command", required=True)
-    pushed = ser.add_parser("push", help="send what the holder has not been given yet")
-    pushed.add_argument("--dry-run", action="store_true",
-                        help="print exactly what would be sent, and send nothing")
-    pushed.add_argument("file", help="the series to push")
-    pushed.add_argument("--project", metavar="DIR", help=PROJECT_HELP)
-    pushed.add_argument("--enrolment", help=ENROLMENT_HELP)
-    pushed.set_defaults(func=cmd_series_push)
-
-    shown = ser.add_parser("show", help="read a history back — when it changed, when we last looked")
-    shown.add_argument("file", help="the series to read")
-    shown.add_argument("--subject", help="one subject's transitions, oldest first, instead of the "
-                                         "summary over all of them")
-    shown.set_defaults(func=cmd_series_show)
-
-    pulled = ser.add_parser("pull", help="fetch the history the holder keeps for you")
-    pulled.add_argument("file", help="where to write it")
-    pulled.add_argument("--subject", help="which series to ask for (default: plumb.toml's)")
-    pulled.add_argument("--project", metavar="DIR", help=PROJECT_HELP)
-    pulled.add_argument("--enrolment", help=ENROLMENT_HELP)
-    pulled.set_defaults(func=cmd_series_pull)
-
     init = groups.add_parser("init", help="set a project up to run a board")
     init.add_argument("--project", metavar="DIR", default=".",
                       help="the project to write plumb.toml into (default: this directory)")
@@ -1551,12 +1535,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     f = sub.add_parser("file", help="file a support record")
     f.add_argument("--kind", choices=KINDS, default=DEFAULT_KIND,
-                   help="what shape this is (default: friction). `--implication` is required for "
-                        "friction and not asked of the rest")
-    f.add_argument("--observation", required=True, help="what rubbed, in your words")
+                   help=f"what shape this is (default: {DEFAULT_KIND})")
+    f.add_argument("--observation", required=True, help="what you are reporting, in your words")
     f.add_argument("--implication",
-                   help="what the rub means for the method — not just what happened. Required for "
-                        "friction, which is the kind that claims a cost")
+                   help="what it means beyond what happened. Never required")
     f.add_argument("--story", help="the story it bears on, in your own ids — e.g. APP-142")
     f.add_argument("--depth", help="unit | component | wiring | standards-integration | smoke")
     f.add_argument("--project", help="project name (default: none recorded)")
@@ -1570,7 +1552,6 @@ def build_parser() -> argparse.ArgumentParser:
     for name, fn, help_text in (
         ("list", cmd_list, "list records; * marks awaiting transmission"),
         ("send", cmd_send, "retry anything queued"),
-        ("why", cmd_why, "print when to file"),
         ("migrate", cmd_migrate, "rewrite records written by an older schema"),
     ):
         p = sub.add_parser(name, help=help_text)
@@ -1601,7 +1582,24 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("id")
         p.set_defaults(func=fn)
 
+    modules = groups.add_parser("modules", help="what is mounted, what it adds, and what it reaches")
+    modules.set_defaults(func=cmd_modules)
+
+    # Last, and after every core verb exists, because what the core owns is the set a module may
+    # not name (`mod2-ur1`) — and that set is only complete here. A mount placed earlier would let
+    # whichever module happened to load first take a name the core was about to add.
+    from plumb.modules import mount
+
+    mount(groups, reserved=set(groups.choices), say=lambda line: print(line, file=sys.stderr))
     return parser
+
+
+def cmd_modules(args) -> int:
+    """``mod4`` — the mounted modules, their verbs, their surfaces and their reach."""
+    from plumb.modules import discover, render
+
+    print(render(discover(reserved=set())))
+    return 0
 
 
 def main(argv=None) -> int:

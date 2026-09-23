@@ -41,6 +41,13 @@ marker speaks about a field that could have carried something and implication do
 away from friction. A marker or the bare word there is refused. On friction: missing is
 refused, real text is required.
 
+> **This client no longer produces `friction`.** The kind is retired with no replacement — it was
+> an alpha-testing practice and an open-source tool does not carry a local support desk — so
+> `plumb support file` writes `question`, `idea` or `report`, and no kind it writes requires an
+> implication. The rule above stays because the **wire** is not this client: a receiver still
+> holds records filed as friction, and a client older than this release still sends them. What a
+> service accepts is the service's to narrow, and not ours to narrow on its behalf.
+
 **Intake** — asked of the person, held apart from the conditional list because that one
 describes the machine and the run: `attempting` (one line of free text) · `instead`
 (`carried-on · worked-around · stopped · abandoned · unknown`) · `recurrence` (`first-time ·

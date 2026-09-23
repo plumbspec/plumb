@@ -27,7 +27,6 @@ from plumb.support import INAPPLICABLE, SupportRecord
 from plumb.series_holder import build
 from plumb.store import SupportStore, mint_id
 from plumb.transmit import drain, send_one
-from plumb.triggers import instruction
 
 RUB = "The gate accepted a test that touched nothing. Second time this week."
 MEANS = "A check earns its place by what it rejects, not by what it was designed to catch."
@@ -77,13 +76,20 @@ def test_filing_a_record_is_one_command(tmp_path, capsys):
     assert filed[0].id in capsys.readouterr().out
 
 
-def test_a_record_with_no_implication_is_refused_at_the_command_line(tmp_path, capsys):
-    code = cli.main(["support", "--store", str(tmp_path), "file",
-                     "--observation", RUB, "--implication", "   "])
+def test_a_record_with_no_implication_is_filed(tmp_path, capsys):
+    """The bar went with `friction`, which is the only kind that ever claimed one.
 
-    assert code == 1
-    assert "implication is required" in capsys.readouterr().err
-    assert SupportStore(tmp_path).all() == ([], [])
+    This asserted the opposite while a record had to say what the rub cost the method. Nothing
+    refuses an absent implication now, because no kind requires one — and a validator demanding a
+    cost from a question produces an implication invented to satisfy it, which is what `ch6-4`
+    refuses in the other direction.
+    """
+    code = cli.main(["support", "--store", str(tmp_path), "file", "--observation", RUB])
+
+    assert code == 0, capsys.readouterr().err
+    filed, unreadable = SupportStore(tmp_path).all()
+    assert len(filed) == 1 and not unreadable
+    assert filed[0].kind == "report"
 
 
 def test_the_cli_carries_the_code_that_rubbed(tmp_path):
@@ -98,10 +104,38 @@ def test_the_cli_carries_the_code_that_rubbed(tmp_path):
     assert "the_thing" in record.excerpt
 
 
-def test_the_trigger_conditions_ship_with_the_tool():
-    text = instruction()
-    assert "re-read" in text and "worked-around" in text
-    assert "implication" in text.lower()
+def test_friction_is_retired_and_nothing_replaced_it():
+    """An alpha-testing practice, not a thing an open-source tool carries.
+
+    `plumb support why` shipped a list of moments to file at and a bar to file against — a local
+    support desk, in a project that does not offer support. It is gone, and no kind now claims an
+    implication, so nothing is refused for failing a bar that no longer exists.
+    """
+    from plumb.support import CLAIMS_AN_IMPLICATION, DEFAULT_KIND, KINDS
+
+    assert "friction" not in KINDS, KINDS
+    assert DEFAULT_KIND in KINDS and DEFAULT_KIND != "friction"
+    assert CLAIMS_AN_IMPLICATION == (), CLAIMS_AN_IMPLICATION
+
+    with pytest.raises(ImportError):
+        import plumb.triggers  # noqa: F401
+
+    from plumb import cli
+    assert "why" not in _support_verbs(cli.build_parser())
+
+
+def _support_verbs(parser) -> set:
+    import argparse
+
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            support = action.choices.get("support")
+            if support is None:
+                continue
+            for under in support._actions:
+                if isinstance(under, argparse._SubParsersAction):
+                    return set(under.choices)
+    return set()
 
 
 def test_an_id_is_minted_from_the_observation_and_is_stable():

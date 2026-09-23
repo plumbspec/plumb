@@ -15,9 +15,10 @@ most confusion comes from not knowing which ones cancel each other out.
     plumb board      [--json] [--manifest FILE] [--emit-manifest FILE] [--mutation] [--survivors] [--tests] [--scope NS] [--project DIR]
                      [--series FILE [--push] [--enrolment FILE]]
     plumb series     {show|pull|push} FILE [--subject ID] [--enrolment FILE] [--dry-run]
+    plumb modules                                      what is mounted, and what it reaches
     plumb init       [--project DIR]
     plumb manifest   migrate FILE
-    plumb support    [--store DIR] [--enrolment FILE]  {file|list|send|show|withdraw|why|migrate|pull}
+    plumb support    [--store DIR] [--enrolment FILE]  {file|list|send|show|withdraw|migrate|pull|poll|turn}
     plumb account    [--account FILE]                  {create|open|redeem|export|show}
                      create [--endpoint URL] · export [--passphrase P]
 
@@ -343,7 +344,17 @@ and it is one we can keep: what is left to do lives with you, where it is curren
 ---
 
 
-## `plumb series`
+## `plumb series` — the first module
+
+**These verbs come from a module, not from the core.** `plumb.cli` names none of them: they reach
+the command line through the mount every contributed module uses, declared by the `plumb.modules`
+entry point in this distribution's own metadata. Remove that entry and `plumb series` leaves the
+tool without a line of the core changing.
+
+One consequence worth knowing before it surprises you: **a module is discoverable only where its
+distribution is installed.** `pip install plumbspec` has it. A source checkout on `PYTHONPATH`, or a
+zipapp run against an interpreter that has not been installed into, sees no modules at all — and
+`plumb series` is simply absent rather than broken. `plumb modules` says which are mounted.
 
 The run history a manifest deliberately is not. A manifest is unlinked before every run so a stale
 one can never answer for a failed one — which is right, and means *when did this break*, *which test
@@ -456,6 +467,31 @@ reason that has nothing to do with the project.
 
 ---
 
+## `plumb modules`
+
+What is mounted, what each module adds, what surfaces it speaks and whether it reaches the network
+— the list `mod2` exists to make readable, so trusting a module is a decision over what it declares
+rather than a hope.
+
+    $ plumb modules
+      series 1.0.0  verbs: series (push|show|pull)  speaks: series 1  network: yes
+          writes the series file named on the command line, and its `.sent` mark beside it
+
+A module that did not mount is listed too, with the reason, rather than being missing:
+
+    $ plumb modules
+      telemetry  NOT MOUNTED — speaks `telemetry`, which the core publishes no version of
+
+The core refuses a module that names a verb the core already owns, one that speaks a surface the
+core publishes no version of or a version it cannot give, and one that will not import. **A module
+that fails to import is named and every other module still mounts** — one broken extension never
+costs the tool. Nothing here probes whether a module can reach what it needs: a module that cannot
+is inert, and its own verbs report their own standing, because the core cannot tell a service being
+down from a credential being wrong.
+
+The surfaces the core publishes, each versioned on its own, are the **board** and the **series
+interface**. A module declares the version it speaks per surface.
+
 ## `plumb manifest`
 
 Works with a manifest a run produced. One subcommand.
@@ -502,7 +538,6 @@ path forward.
 Captures what rubbed while using the method. Records stay on your machine unless this installation
 is enrolled.
 
-    plumb support why                    # when to file
     plumb support file --observation "…" --implication "…"
     plumb support list
     plumb support send                   # retry anything queued
@@ -549,22 +584,23 @@ record already present is left exactly as it is, because the received copy is th
 local file that differs is a divergence to look at rather than something to overwrite.
 
 > **Sharp edge — the options come *before* the subcommand.** `--store` and `--enrolment` belong to
-> `friction`, not to `file`:
+> `support`, not to `file`:
 >
 >     plumb support --store /tmp/f file --observation "…"    # correct
 >     plumb support file --store /tmp/f --observation "…"    # error
 >
 
-`file` always requires `--observation`. `--implication` is required for **friction** — the kind
-that claims a cost — and not asked of the rest: a question has no rub to price, and an implication
-invented to satisfy a validator is worse than none. Say what shape it is with `--kind`:
+`file` requires `--observation` and nothing else. Say what shape it is with `--kind`:
 
     plumb support file --kind question   --observation "how do I declare an entry point in a reactor?"
     plumb support file --kind idea       --observation "the board could name the door a test came in by"
     plumb support file --kind report     --observation "the Maven classpath instructions worked first time"
 
-A **friction** record without an implication is an anecdote, and it is refused while you still have the
-context to fix it.
+**`friction` is retired, and nothing replaced it.** It was a local capture practice from alpha
+testing — a list of moments to file at, and an implication to file against — and an open-source
+tool does not carry a support desk. `plumb support why`, which printed that guidance, is gone with
+it. No kind requires an implication now; state one where it helps a reader and leave it out where
+it does not.
 
 ### The options on `plumb support file`
 
@@ -574,8 +610,8 @@ of these answers a question a reader of that record would otherwise have to ask 
 | Option | What it does |
 |---|---|
 | `--observation` | **required** — what happened, in your words |
-| `--kind` | `friction` (default), `question`, `idea` or `report` — what shape this is |
-| `--implication` | **required for friction** — what the rub cost the method, not just what happened |
+| `--kind` | `report` (default), `question` or `idea` — what shape this is |
+| `--implication` | optional, and never required — what it means beyond what happened |
 | `--story` | the story it bears on, in **your** ids (`APP-142`) — Plumb never parses it |
 | `--depth` | `unit` \| `component` \| `wiring` \| `standards-integration` \| `smoke` |
 | `--code` | carry the code that rubbed, as `PATH:START-END` |
@@ -649,14 +685,14 @@ irreplaceable; everything else is either in your repository already or rebuilt o
 |---|---|---|
 | `~/.config/plumb/account.json` | endpoint, the public half of your account, and this key's counter. **No secret** — the identity is derived from your passphrase and is never written down | yes, but it is **shared** across every project pushing to that holder |
 | `~/.config/plumb/enrolment.json` | an operator-issued enrolment, file form — **this one carries a credential** | yes, and never into an archive |
-| `~/.local/share/plumb/friction/` | friction records, and an outbox of what has not reached a support service | **irreplaceable** — nothing else holds an untransmitted record |
+| `~/.local/share/plumb/support/` | support records, and an outbox of what has not reached a support service | **irreplaceable** — nothing else holds an untransmitted record |
 | `~/.local/state/plumb/` | a session's opening reading, keyed by project path | no — scratch; a session that loses it is simply told its delta cannot be computed |
 | `~/.cache/plumb/` | a per-version cache | no — rebuilt when missing |
 
 Each honours its `XDG_*` variable; `PLUMB_ACCOUNT` and `PLUMB_FRICTION_DIR` override the first and
 third outright.
 
-**The two to actually worry about** are your `series` and any untransmitted friction. The account
+**The two to actually worry about** are your `series` and any untransmitted support record. The account
 file matters less than it looks: everything in it except the counter rebuilds from your passphrase,
 and the passphrase is the thing to keep safe — losing it loses the account, and no backup helps,
 because it was never stored anywhere to be backed up.
@@ -664,7 +700,7 @@ because it was never stored anywhere to be backed up.
     $ plumb footprint
 
 prints the same list with **your** paths filled in, which this page cannot: every location honours
-its `XDG_*` variable, so where your friction store actually is is a property of your machine.
+its `XDG_*` variable, so where your support store actually is is a property of your machine.
 
 | Option | What it does |
 |---|---|

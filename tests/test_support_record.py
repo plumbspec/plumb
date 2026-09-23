@@ -20,10 +20,12 @@ def test_the_wire_never_carries_a_marker_and_the_disk_always_does():
     disk = json.loads(question.to_json())
     assert disk["excerpt"] == "n/a", "the disk shape keeps its markers"
 
-    friction = SupportRecord(id="f-1", observed_at="2026-09-13T00:00:00Z", source="self",
-                             observation="rubbed", kind="friction", implication="costs an hour",
-                             recurrence="unknown")
-    wire = json.loads(friction.to_wire())
+    # An implication is never required now that `friction` is retired, and a record that states
+    # one anyway still carries it — the field outlived the kind that demanded it.
+    stated = SupportRecord(id="f-1", observed_at="2026-09-13T00:00:00Z", source="self",
+                           observation="rubbed", kind="report", implication="costs an hour",
+                           recurrence="unknown")
+    wire = json.loads(stated.to_wire())
     assert wire["implication"] == "costs an hour"
     assert wire["recurrence"] == "unknown", \
         "unknown answered deliberately is a value, and survives — the whole point of the None default"

@@ -17,6 +17,19 @@ git commit -s -m "your message"
 This appends a line like `Signed-off-by: Your Name <you@example.com>` using your `git config`
 name and email. A PR whose commits are not signed off cannot be merged.
 
+## Running the suite
+
+    pip install -e ".[dev]"
+    pytest
+
+**The install is not optional any more.** `plumb series` is a module, mounted through the
+`plumb.modules` entry point, and entry points are read from installed distribution metadata — so a
+bare checkout on `PYTHONPATH` has no modules and the series tests fail with `invalid choice`. The
+same is true of the tool itself: run it from a checkout and `plumb series` is simply absent.
+
+If an `src/plumbspec.egg-info/` is present and stale, it shadows the real metadata and the entry
+point disappears with it. Delete it and reinstall.
+
 ## Ground rules
 
 - **The spec is the authority.** `spec/` is Plumb's own gold-spec — the chapter modules plus

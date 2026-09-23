@@ -40,6 +40,17 @@ def _home(variable: str, fallback: str) -> Path:
     return Path(os.environ.get(variable) or Path.home() / fallback)
 
 
+def _support_store() -> Path:
+    """Where records actually live, asked of the module that resolves it.
+
+    Imported here rather than at module scope because `cli` imports this one; the cycle is real
+    and the lazy import is what keeps one answer to the question rather than two.
+    """
+    from plumb.cli import default_store
+
+    return default_store()
+
+
 def user_level() -> tuple[Wrote, ...]:
     """What the tool writes outside any project — the half a repository does not carry."""
     config = _home("XDG_CONFIG_HOME", ".config") / "plumb"
@@ -51,9 +62,13 @@ def user_level() -> tuple[Wrote, ...]:
         Wrote(str(config / "enrolment.json"),
               "an operator-issued enrolment — the file form, which carries a credential",
               keep=True, shared=True, secret=True),
-        Wrote(str(Path(os.environ.get("PLUMB_FRICTION_DIR")
-                       or _home("XDG_DATA_HOME", ".local/share") / "plumb" / "friction")),
-              "friction records, and an outbox of what has not reached a holder yet. "
+        # Read off the one place that decides it, never recomputed here. This carried its own copy
+        # of the rule and the copy went stale: it honoured only the superseded `PLUMB_FRICTION_DIR`
+        # and pointed at `plumb/friction`, a directory the tool stopped writing to — so `plumb
+        # footprint` named somewhere that does not exist and missed the store that does. What is
+        # irreplaceable is exactly what a footprint must not get wrong.
+        Wrote(str(_support_store()),
+              "support records, and an outbox of what has not reached a holder yet. "
               "Irreplaceable — nothing else holds an untransmitted record",
               keep=True),
         Wrote(str(_home("XDG_STATE_HOME", ".local/state") / "plumb"),

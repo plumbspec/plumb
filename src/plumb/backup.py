@@ -8,7 +8,7 @@ both directions at once, and each direction has a different victim:
 sweeping it into a per-project archive and restoring it elsewhere rebinds an identity that was never
 this project's. *A secret.* The file form of an enrolment carries a credential (``ado4-ur4``), and an
 archive is precisely the artifact that gets attached to a ticket and left in a downloads directory.
-*Too little.* The irreplaceable things are the ones nobody lists: untransmitted friction, which
+*Too little.* The irreplaceable things are the ones nobody lists: an untransmitted support record, which
 exists nowhere else until it reaches a holder, and a series, which is lossless only while every
 transition survives.
 

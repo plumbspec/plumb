@@ -22,6 +22,41 @@ Same command, same `plumb.toml`, same citations.
 belongs to, so work done inside a lambda or a comprehension counts toward the function or method
 holding it. A story whose tests drive that kind of code may come back with a different score.
 
+### `plumb series` is the first module
+
+**The one CLI can be extended without touching the core.** An installed package declaring the
+`plumb.modules` entry point has its verbs mounted into `plumb`, and `plumb series` is now the first
+thing to arrive that way — `plumb.cli` names none of its commands. `plumb series push` works
+exactly as it did.
+
+`plumb modules` lists what is mounted, what each one adds, which surfaces it speaks and whether it
+reaches the network, so trusting a module is a decision about a list. A module that names a verb
+the core owns, speaks a surface the core publishes no version of, or fails to import is named and
+refused — and every other module still mounts.
+
+**What this asks of you.** A module is discoverable only where its distribution is installed.
+`pip install plumbspec` has `plumb series` as before. A source checkout run from `PYTHONPATH`, or a
+zipapp run against an interpreter nothing was installed into, has no modules and `plumb series` is
+absent rather than broken. Running the suite now needs `pip install -e ".[dev]"` for the same
+reason.
+
+The core publishes two versioned surfaces for a module to build against: the board, and the series
+interface — which now carries a version at all, where it published none.
+
+### `friction` is retired, with no replacement
+
+`plumb support file --kind friction` and `plumb support why` are gone. Filing what rubbed against a
+bar, locally, was an alpha-testing practice, and an open-source tool does not carry a support desk.
+Nothing took its place.
+
+What is left is the three shapes that address somebody else — `question`, `idea` and `report`,
+which is now the default — and **no kind requires `--implication`**. State one where it helps a
+reader; a record without one is no longer refused. A record you file with one is carried on the
+wire whatever its kind, where it used to be dropped for every kind but friction.
+
+The wire itself is unchanged: a support service still holds records filed as friction and older
+clients still send them, and what a service accepts is the service's to narrow.
+
 ### Fixed
 
 - **`plumb support` works on 3.9.** The record's own timestamp parser refused the `Z` it writes, so
@@ -32,6 +67,10 @@ holding it. A story whose tests drive that kind of code may come back with a dif
 - **The Java sample builds at Java 8**, so the one example you can copy compiles on the JDK the
   install page tells you to have.
 - **`pip install plumbspec[dev]` resolves on 3.9.** It pinned a pytest that does not reach it.
+- **`plumb footprint` names the directory your records are actually in.** It carried its own copy
+  of where the store lives, and the copy went stale — it pointed at `plumb/friction`, which the
+  tool stopped writing to, and honoured only the superseded `PLUMB_FRICTION_DIR`. The one command
+  whose job is to say what is irreplaceable was naming somewhere that does not exist.
 
 ### Smaller things
 
