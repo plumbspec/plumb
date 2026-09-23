@@ -1,6 +1,6 @@
 # ado · bring plumb to a project
 
-**Last updated** 2026-09-14 v5
+**Last updated** 2026-09-23 v6
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -162,28 +162,33 @@ flowchart TD
 | ado4-inf1 | In | `install.channel` | yes | observed |
 | ado4-inf2 | In | `footprint_entry` | yes | generated |
 | ado4-inf5 | In | `release_statement` | optional | authored |
-| ado4-inf3 | Out | `archive` | optional | generated |
-| ado4-inf4 | Out | `restore` | optional | derived |
+| ado4-inf6 | Out | `footprint` | yes | derived |
 
 #### User Requirements
   * ado4-ur1 - an upgrade stays on the stream the install was on, decided against the statement
     of what changed
   * ado4-ur2 - every footprint entry carries a disposition: rebuilds itself, the repository has
     it, this project's alone, or must never leave the machine
-  * ado4-ur3 - one archive, restorable, holding what a repository does not carry; what it
-    excludes travels as a written record
-  * ado4-ur4 - an identity shared across projects and anything carrying a credential are taken
-    only when asked for
-  * ado4-ur5 - a file the archive cannot read is named, in the archive's own record and in the
-    run's report
+  * ado4-ur6 - the list names which entries are irreplaceable, so somebody can point the backup
+    they already run at them
 
 #### System Requirements
   * ado4-sr1 - the footprint list lives beside the code that writes, and the documentation is a
     view of it
 
 #### Non-Functional Requirements
+  * ado4-nfr1 - a tool that takes the archive owns what counts as a secret, what a repository
+    already carries, and what a restore may refuse — three policies belonging to whoever runs the
+    machine, who is already backing it up; holding the list leaves each of them where it is and
+    still removes the reason anybody read the source
+  * ado4-nfr2 - an archive that silently omitted a credential and one that had nothing to omit are
+    the same bytes, and whoever finds out is whoever is restoring after a disk failure — a hazard
+    that exists only for a tool that offers the archive
 
 #### Unknowns
+  * ado4-u1 - whether the list should be emitted in a form another tool consumes rather than read
+    by a person is undecided; the answer decides whether *point your backup at these* is a
+    sentence or an integration
 
 
 ### ado5 · add a module
