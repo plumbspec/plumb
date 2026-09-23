@@ -5,7 +5,7 @@ travels with the capability rather than living in a wiki nobody opens. These are
 conditions, not an exhortation to be observant: each one is a thing that either happened in the
 last few minutes or did not.
 
-Emitted by ``plumb friction why`` so an agent can read it without leaving the tool.
+Emitted by ``plumb support why`` so an agent can read it without leaving the tool.
 """
 
 TRIGGERS = (
@@ -46,8 +46,8 @@ def instruction() -> str:
         "",
         "HOW",
         "",
-        "  plumb friction file --observation '...' --implication '...' [--story APP-142]",
-        "                      [--code PATH:START-END] [--tag NAME]",
+        "  plumb support file --observation '...' --implication '...' [--story APP-142]",
+        "                     [--code PATH:START-END] [--tag NAME]",
         "",
         "Capture is local by default and never transmits unless this installation was enrolled",
         "Filing writes nothing to the project you are working in.",

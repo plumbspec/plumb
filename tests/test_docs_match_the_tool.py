@@ -400,3 +400,33 @@ def test_the_schema_versions_in_the_docs_are_the_ones_this_release_reads():
         assert f"already at schema {gone}." not in pages, (
             f"a transcript still shows schema {gone} as current; this release writes "
             f"{SCHEMA_VERSION} and reads {reads}")
+
+
+def test_every_command_the_tool_prints_is_a_command_the_tool_has():
+    """What the tool tells you to run, held against what it accepts.
+
+    The documentation is checked both ways by the tests above; the tool's own *output* was not, and
+    `plumb support why` went on printing `plumb friction file --observation …` through the release
+    that renamed the verb. That line exists to be copied — it is the one an agent is told to run —
+    so the rename left a worked example that fails with `invalid choice`, in the one place a reader
+    is least likely to doubt.
+
+    Scanned across the whole shipped tree rather than that one string, because a verb is named in
+    docstrings, hints and error remedies too, and the next rename will land somewhere else.
+    """
+    import re
+
+    real = {path.split()[0] for path in subcommands()}
+    stale = {}
+    for source in sorted((Path(__file__).resolve().parent.parent / "src").rglob("*.py")):
+        for found in re.finditer(r"plumb(?:-series-holder)?[ ]+([a-z][a-z-]{2,})",
+                                 source.read_text(encoding="utf-8")):
+            verb = found.group(1)
+            # `from plumb import …` is the language, not an invocation.
+            if verb != "import" and verb not in real:
+                stale.setdefault(verb, set()).add(source.name)
+
+    assert not stale, (
+        "the tool prints commands it does not accept: "
+        + "; ".join(f"`plumb {verb}` in {sorted(where)}" for verb, where in sorted(stale.items()))
+        + ". A reader copies that line and is told `invalid choice`")
