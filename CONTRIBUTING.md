@@ -29,6 +29,11 @@ name and email. A PR whose commits are not signed off cannot be merged.
   [`docs/adapter-contract.md`](docs/adapter-contract.md) and produce the manifest from a real test
   run.
 
+## Checking the documentation is true
+
+[`QUALITY.md`](QUALITY.md) — three passes over the documentation, and the rule that every finding a
+test could hold becomes a test. Run when a change alters what the pages assert.
+
 ## Scope
 
 Plumb keeps its scope tight on purpose. Before a large change, open an issue so we can agree it
