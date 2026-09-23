@@ -12,6 +12,10 @@ answer is behind rather than exempt — an element the table marks mandatory is 
 one implementation has not caught up.
 """
 
+# `X | None` in a signature is evaluated at import on 3.9, so without this the module does not
+# collect at the floor this project declares.
+from __future__ import annotations
+
 import json
 import os
 import subprocess

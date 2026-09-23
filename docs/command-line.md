@@ -18,8 +18,8 @@ most confusion comes from not knowing which ones cancel each other out.
     plumb init       [--project DIR]
     plumb manifest   migrate FILE
     plumb support    [--store DIR] [--enrolment FILE]  {file|list|send|show|withdraw|why|migrate|pull}
-    plumb account    [--account FILE]                  {create|open|redeem|show|add-key|remove-key}
-                     create [--endpoint URL] · add-key/remove-key KEY [--passphrase P]
+    plumb account    [--account FILE]                  {create|open|redeem|export|show}
+                     create [--endpoint URL] · export [--passphrase P]
 
 ---
 
@@ -474,19 +474,19 @@ case where that run cannot be reproduced — an archived CI artifact, a decommis
 handover.
 
     $ plumb manifest migrate archived.json
-    archived.json: schema 5 -> 7.0
+    archived.json: schema 7 -> 9.0
 
 Already current, and nothing is written — not one byte, so a file's timestamp keeps meaning *this
 was brought forward*:
 
     $ plumb manifest migrate current.json
-    current.json is already at schema 7.0
+    current.json is already at schema 9.0
 
 Below the chain there is no path, and it says so rather than naming itself:
 
     $ plumb manifest migrate ancient.json
-    ancient.json: schema_version 3 is older than this Plumb reads (6.x, 7.x). ...
-    no migration path exists — the chain reaches back to 5.x, and a shape below it
+    ancient.json: schema_version 3 is older than this Plumb reads (7.x, 8.x, 9.x). ...
+    no migration path exists — the chain reaches back to 7.x, and a shape below it
     cannot be inferred
 
 Exits `0` when the file is current or was brought forward, `1` when it cannot be read or has no

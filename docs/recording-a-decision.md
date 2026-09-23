@@ -48,17 +48,36 @@ answer. Without it there is nothing to derive from and the record is a note.
 
 ## Declare the subject
 
-A decision is declared in your [story feed](command-line.md) like any other subject — the same CSV
-or JSON, pointed at by `stories` in `plumb.toml` — with three columns doing the work:
+A decision is declared in `plumb.toml`, in three tables keyed by the subject's id. There is no
+list of subjects to keep: an id nothing here mentions is an ordinary story, so these tables hold
+only what differs.
 
-    id,lexicon,reduce,aspects
-    D27,decision,worst,levers|outcome|falsifier
+    [lexicon]
+    D27 = "decision"
 
-| column | why |
+    [reduce]
+    D27 = "worst"
+
+    [aspects]
+    D27 = ["levers", "outcome", "falsifier"]
+
+| table | why |
 |---|---|
-| `lexicon: decision` | picks the vocabulary above. The default, `story`, would say *proven* |
-| `reduce: worst` | one fired condition breaches the decision whatever else holds. Stories reduce `best` — one qualifying citation is enough — and that is the wrong way round here |
-| `aspects` | a decision makes several claims and each gets its own verdict. List them separated by a vertical bar, as above |
+| `lexicon` | picks the vocabulary above. The default, `story`, would say *proven* |
+| `reduce` | `worst` — one fired condition breaches the decision whatever else holds. Stories reduce `best`, where one qualifying citation is enough, and that is the wrong way round here |
+| `aspects` | a decision makes several claims and each gets its own verdict. One list per subject |
+
+**Put these tables below everything else in `plumb.toml`.** In TOML a key written after a `[header]`
+belongs to that section, so `production` and `entry_points` sitting underneath `[lexicon]` are read
+as settings of the lexicon and your project declares no production code at all. Plumb refuses that
+file rather than running on it, and names the key — but the shape is easier to avoid than to read
+about afterwards.
+
+Each run says which of these it applied, so a table that never reaches a subject is visible:
+
+    stories: D27 declares aspects=('levers', 'outcome', 'falsifier') in plumb.toml, overriding () from the run
+    stories: D27 declares reduce='worst' in plumb.toml, overriding 'best' from the run
+    stories: D27 declares lexicon='decision' in plumb.toml, overriding 'story' from the run
 
 `reduce: worst` is the one people miss. Left at the default, a decision with one clause holding
 and one fired reads as **holding**, because best-of picked the clause that passed.

@@ -33,9 +33,8 @@ The PM runs a closed, agile loop that still keeps a schedule.
 proven story in about fifteen minutes. [All the documentation](docs/README.md) is organised
 by what you are trying to do, and says who each page is for.
 
-**Already installed?** The [changelog](https://plumbspec.org/changelog.html) says what each release
-changed and whether taking it asks anything of you. It sits outside the version tree deliberately,
-so the copy you read is the current one whatever you have pinned.
+**Already installed?** [CHANGELOG.md](CHANGELOG.md) says what each release changed and whether
+taking it asks anything of you.
 
 One file, both language adapters inside it, no package index and no account. Needs **Python 3.9+**
 on the machine — the same one your tests run under, so a Python project needs one interpreter and

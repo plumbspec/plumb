@@ -332,11 +332,12 @@ its single observer is attached to every fact in it.
 
 Every refusal tells you what this Plumb reads:
 
-    schema_version 99 is newer than this Plumb understands (reads: 6.x, 7.x). Upgrade Plumb,
+    schema_version 99 is newer than this Plumb understands (reads: 7.x, 8.x, 9.x). Upgrade Plumb,
     or emit an older version — a newer shape cannot be guessed at
 
-    S-1: citation: field(s) ['confidence'] are not defined by schema_version 6.0 — it defines
-    ['depth', 'grounding', 'observer', 'reached_outside_entry', 'ref', 'result', 'test']
+    S-1: citation: field(s) ['confidence'] are not defined by schema_version 9.0 — it defines
+    ['about', 'depth', 'entered_through', 'grounding', 'observer', 'reached_outside_entry',
+     'ref', 'result', 'test', 'when']
 
 `mutation` sits on the **story**, not the citation: a mutant is run against every test citing the
 story, so the result is one fact about the story rather than the same number repeated per

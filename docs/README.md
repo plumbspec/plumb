@@ -22,6 +22,7 @@
 *Exact behaviour, when you already know what you want.*
 
 - [The adapter contract](adapter-contract.md) — What a language adapter must produce for the core to read it.
+- [The Java adapter](../adapters/java/README.md) — How the JVM adapter observes a JUnit run, and what its build does and does not do. The only page that explains the Java side, and nothing linked to it.
 - [The board, as JSON](consuming-the-board.md) — The JSON document `plumb board --json` emits, field by field, for the tooling that parses it.
 - [The command line](command-line.md) — Every command and option, and how they cancel each other out.
 

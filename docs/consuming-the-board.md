@@ -43,7 +43,7 @@ names.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `status` | string | `proven`, `unproven`, or `passed — wiring not verified` |
+| `status` | string | `proven`, `passed-wiring-not-verified`, `unproven`, or `not-passed`. Spelled exactly like that — hyphenated, lower case, and never the prose form a reader sees |
 | `label` | string | The word a reader sees. Derived from `status` plus a condition already carried — never a second status |
 | `achieved` | list | The depth rungs this subject actually reached |
 | `conditions` | list | Why it reads as it does, as condition objects |
@@ -72,7 +72,7 @@ Conditions appear on the run and on each story, and have the same shape:
 | `grounding` | `grounded`, `ungrounded`, `inert`, `untouched`, `not-checked`, or `dispatched` |
 | `entered_through` | **Which declared entry points this test came in through**, outermost — the door it arrived at, where `grounding` says only that it reached the wired system. A test that enters at your front door and reaches a subsystem door on the way names the front one. `null` is *not reported* (an adapter below manifest major 9); `[]` means it entered by none |
 | `when` | When **this fact was measured**, which is not when the board was rendered. A board can carry facts from several runs, so a document-level time would be a false claim for all but one of them. `null` is *not reported* and must not be read as now |
-| `ref` | **Your own key, carried untouched.** Plumb mints it, owns it and reads it never. `null` if the citation set none |
+| `ref` | **Your own key, carried untouched.** You mint it, you own it, you join on it; Plumb neither mints nor parses one. `null` if the citation set none |
 | `about` | Which aspect this citation is about. `null` means the only one |
 
 ## Exit codes

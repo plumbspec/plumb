@@ -668,3 +668,37 @@ def test_the_written_config_carries_no_note_that_acting_on_it_makes_false(tmp_pa
             f"`plumb init` wrote a note into the config it is describing: {note!r} — acting on it "
             "is what makes it false, and the file is where the adopter looks to learn otherwise")
     assert "Still to do" not in written
+
+
+def test_init_reports_against_the_file_it_kept_and_not_against_a_fresh_project(tmp_path):
+    """`plumb init` is a command an adopter runs again, so it has to read what they did.
+
+    `detect` reads the filesystem and never the config, because its job is to propose one — so
+    every note it carries describes a project that has declared nothing. Observed: `still to do:
+    entry_points is empty` printed directly above a file naming two, on the same run that said
+    `kept plumb.toml (left exactly as it is)`. The one command an adopter runs to find out whether
+    they are set up told them they were not, about the file it had just read and declined to change.
+    """
+    from plumb.scaffold import init
+
+    (tmp_path / "src" / "app").mkdir(parents=True)
+    (tmp_path / "src" / "app" / "__init__.py").write_text("")
+
+    fresh = init(tmp_path)
+    assert any("entry_points is empty" in note for note in fresh.detected.notes), (
+        "a project that has declared nothing should be told so — this is the note's real job")
+
+    (tmp_path / "plumb.toml").write_text(
+        'production   = ["src/app"]\nentry_points = ["app.main:run"]\n')
+
+    again = init(tmp_path)
+    assert "plumb.toml" in again.kept, "the existing declaration must be left exactly as it is"
+    assert again.detected.entry_points == ("app.main:run",), (
+        "init did not read the entry points the project declares, so everything it says about "
+        "them is about a project that is not this one")
+    assert not any("entry_points is empty" in note for note in again.detected.notes), (
+        f"init still reports an empty entry_points over a file naming one: {again.detected.notes}")
+
+    from plumb.scaffold import next_steps
+    assert "Name where your wired system begins" not in next_steps(again.detected), (
+        "the numbered steps still open with a step this project has taken")

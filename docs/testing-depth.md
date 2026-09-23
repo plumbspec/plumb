@@ -9,7 +9,7 @@ summary: What a depth claim means, and which role each rung serves.
 **For QA, engineers and programmers** deciding what depth to claim.
 
 "Done" in Plumb is a **vector over testing depth**, not a single green bit (see Plumb's own gold spec,
-`spec/chapter_01_proof.py` → `dev07-4-3`). Each **rung** proves a different thing, **assumes** the rung
+`spec/diagrams/dev07-4-decide-whether-it-is-proven.md` → `dev07-4-3`). Each **rung** proves a different thing, **assumes** the rung
 below it, and hands its assumption up to be **discharged** by a rung above — so a run stays fast and
 non-redundant, and a story proven only at the bottom reads as *only* that deep. The same rungs map to
 who does the work in an organization: each is written by a role and assures another.

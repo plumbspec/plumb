@@ -357,15 +357,15 @@ merge, and whatever holds the backlog reads it from there.
 
 | Information | IO | Description | Required | Provenance |
 |---|---|---|---|---|
-| dev10-inf1 | In | `cursor` | yes | dev03 |
-| dev10-inf2 | In | `board` | yes | dev07 |
-| dev10-inf3 | In | `reading` | optional | dev03 |
-| dev10-inf4 | In | `commit` | yes | dev09 |
-| dev10-inf5 | In | `tree_state` | yes | dev03 |
-| dev10-inf6 | In | `manifest` | yes | dev07 |
-| dev10-inf7 | In | `story.id` | yes | dev01 |
-| dev10-inf8 | Out | `delta` | optional | derived |
-| dev10-inf9 | Out | `cursor` | yes | derived |
+| dev10-inf01 | In | `cursor` | yes | dev03 |
+| dev10-inf02 | In | `board` | yes | dev07 |
+| dev10-inf03 | In | `reading` | optional | dev03 |
+| dev10-inf04 | In | `commit` | yes | dev09 |
+| dev10-inf05 | In | `tree_state` | yes | dev03 |
+| dev10-inf06 | In | `manifest` | yes | dev07 |
+| dev10-inf07 | In | `story.id` | yes | dev01 |
+| dev10-inf08 | Out | `delta` | optional | derived |
+| dev10-inf09 | Out | `cursor` | yes | derived |
 | dev10-inf10 | Out | `bracketed_transition` | optional | derived |
 
 #### User Requirements

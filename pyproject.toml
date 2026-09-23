@@ -27,7 +27,9 @@ dependencies = []
 # there was a machine like that, it was written down nowhere: the first cold run failed on `No
 # module named pytest`, having passed here for months.
 [project.optional-dependencies]
-dev = ["pytest>=9"]
+# `>=8` rather than `>=9`: pytest 9 does not reach 3.9, so pinning it made
+# `pip install plumbspec[dev]` unsatisfiable on the floor this project declares one line above.
+dev = ["pytest>=8"]
 
 # The signing back end for `plumb account`. An extra rather than a dependency, because
 # `dependencies = []` above is a runtime claim that is load-bearing — it is what makes a single-file

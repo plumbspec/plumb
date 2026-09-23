@@ -17,8 +17,14 @@ A threshold, a window, a limit — `retry_after: 100`, a 20-day lookback. Where 
 connecting the value to something measurable, and you have the measurement, it derives exactly as
 a decision does and reads differently:
 
-    id,lexicon,reduce,aspects
-    retry_after,parameter,worst,measured|beats-baseline|holds-under-load
+    [lexicon]
+    retry_after = "parameter"
+
+    [reduce]
+    retry_after = "worst"
+
+    [aspects]
+    retry_after = ["measured", "beats-baseline", "holds-under-load"]
 
 | word | what happened |
 |---|---|

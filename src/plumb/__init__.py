@@ -7,7 +7,7 @@
 #: actually is gets derived from the commit it was cut at (`tools/product.Product.derived_version`)
 #: and stamped into the artifact, because a version restated in three files is three facts that
 #: drift and nothing compares them.
-BASE_VERSION = "0.6.0"
+BASE_VERSION = "0.7.0"
 
 try:  # written into the artifact at build time; absent in a checkout, which is not a build
     from plumb._built import VERSION as __version__

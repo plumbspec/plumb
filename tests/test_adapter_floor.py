@@ -15,6 +15,10 @@ structural subject (``dev07-4-2``), and the floor requirements are behavioural â
 refusal wants its own test when it is built.
 """
 
+# `X | None` in a signature is evaluated at import on 3.9, so without this the module does not
+# collect at the floor this project declares â€” which is the floor this module exists to hold.
+from __future__ import annotations
+
 import ast
 import re
 import struct
