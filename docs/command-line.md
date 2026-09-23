@@ -737,73 +737,26 @@ hand-kept list of paths stays right until somebody adds a writer, and nothing go
 
 ---
 
-## `plumb backup` and `plumb restore`
+## Backing up — what Plumb tells you, and does not do for you
 
-One archive of what your repository does not already carry, and putting it back.
+**Plumb takes no archive.** `plumb footprint` names everything it wrote and marks what is
+`IRREPLACEABLE`; point whatever you already back up at those paths.
 
-    $ plumb backup
-      archive   plumb-backup-myproject-20260805-142233.tgz
-        took    history.jsonl
-            the history: every transition, losslessly. Irreplaceable — a run that
-            is not recorded cannot be recovered from a later one
+That is a deliberate retirement. `plumb backup` and `plumb restore` existed, and taking custody of
+your files meant Plumb deciding what counts as a secret, what your repository already carries and
+what a restore may overwrite — three policies belonging to whoever runs the machine, on a machine
+that is already being backed up somehow. Holding the list removes the reason anybody read the
+source, which is all the story ever asked for.
 
-      left out, and a restore is incomplete without it:
-        ~/.config/plumb/enrolment.json
-            carries a credential, and an archive is the wrong place for one —
-            supply it again by hand, or ask for it with --with-credentials
+Two things nothing else holds, so they are the two to point your backup at:
 
-      left out, and nothing is missing for it:
-        plumb.toml — your version control already carries it
-        ~/.cache/plumb — rebuilt on demand
-
-**Carried means tracked, not merely inside your tree.** A series usually lives in the project *and*
-is usually gitignored — deciding by location would drop the one file you cannot rebuild. A project
-with no version control at all has everything taken.
-
-**What it leaves is written inside the archive**, so a restore says so too. An archive that silently
-omitted a credential and one that never had anything to omit are otherwise the same bytes, and the
-person who finds out is the person restoring after a disk failure.
-
-Friction records are filtered to this project — one store holds every project's, and the count left
-behind is reported rather than silently dropped.
-
-| Option | What it does |
+| | |
 |---|---|
-| `--project DIR` | the project to read `plumb.toml` from |
-| `--out FILE` | where to write it |
-| `--dry-run` | say what it would take and leave, and write nothing |
-| `--with-credentials` | also take the account and enrolment — see below |
-| `--force` | replace an archive that is already there |
+| your **series** | every transition, losslessly. A run that is not recorded cannot be recovered from a later one — and it commonly sits inside the project *and* is git-ignored, so a rule about tracked files will miss it |
+| the **support store** | records and an outbox of what has not reached a holder yet |
 
-### `--with-credentials`
-
-Off by default. Your account and enrolment are excluded because an account is shared with every
-project pushing to that holder, and an enrolment file carries a credential.
-
-Moving a machine is a real thing to want, though, and a tool that forbade it would just be routed
-around with `tar` — same archive, none of the care. So ask, and the archive changes accordingly: it
-records `carries_credentials` inside itself, is created mode `0600` before a byte goes into it, and
-is named as a secret every time the tool mentions it. **Do not attach one to a ticket.**
-
-### `plumb restore ARCHIVE`
-
-    $ plumb restore move.tgz --project ../new-checkout
-
-Overwrites nothing unless you pass `--force`, and says what it kept — a restore is usually run
-beside live work, not onto bare ground, and the sharpest case is the account this machine is already
-pushing with. User-level files are resolved **on this machine**: the path in the archive belongs to
-the machine that wrote it, and honouring it would put a credential where nothing here reads.
-
-Restoring to a different directory is fine and is said: a session reading is keyed by project path,
-so the next `plumb session wrap-up` will report it has nothing to difference against. Nothing else
-moves.
-
-| Option | What it does |
-|---|---|
-| `--project DIR` | where to restore into (default: `.`) |
-| `--force` | overwrite files that are already there |
-
----
+A passphrase is in neither, because it is never written down: losing it loses the account, and no
+backup helps.
 
 ## `plumb session`
 

@@ -105,8 +105,14 @@ def test_the_footprint_is_printed_with_the_paths_this_machine_actually_uses(monk
     assert cli.main(["footprint", "--project", str(root)]) == 0
     shown = capsys.readouterr().out
     assert str(tmp_path / "elsewhere") in shown, "the override, not the documented default"
-    assert "history.jsonl" in shown and "Irreplaceable" in shown, "and what it would cost to lose"
-    assert "SECRET — never into an archive" in shown, "with the one that may not be copied marked"
+    # `ado4-ur3` — the list marks what nothing else holds, so a person can point the backup they
+    # already run at it. It used to say "Irreplaceable" inside the prose of one entry; it is a
+    # marker on the entry now, and it reaches the series, which lives in the project and is
+    # commonly git-ignored.
+    assert "history.jsonl" in shown and "IRREPLACEABLE" in shown, "and what it would cost to lose"
+    # "never into an archive" named a verb this tool no longer has. The rule did not change with it:
+    # what may not leave the machine may not leave it by any route.
+    assert "SECRET — never copy it anywhere" in shown, "with the one that may not be copied marked"
 
 
 @pytest.mark.proves("ado4", depth="component")

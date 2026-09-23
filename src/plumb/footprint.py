@@ -32,8 +32,14 @@ class Wrote:
     #: Not this project's alone. One account serves every repository that pushes to one holder,
     #: so restoring it *for* a project silently rebinds an identity that was never that project's.
     shared: bool = False
-    #: Must never leave the machine, whatever the archive is for (``ado4-ur2``).
+    #: Must never leave the machine (``ado4-ur2``).
     secret: bool = False
+    #: Nothing else holds this. **Stated, never derived** (``ado4-ur3``): a series lives inside the
+    #: project and is commonly git-ignored, so deciding by location marks everything in the tree as
+    #: carried and drops the one file most worth naming. Irreplaceability is a property of the
+    #: artifact — a run that was not recorded cannot be recovered from a later one — and not of
+    #: which directory it landed in.
+    irreplaceable: bool = False
 
 
 def _home(variable: str, fallback: str) -> Path:
@@ -68,9 +74,9 @@ def user_level() -> tuple[Wrote, ...]:
         # footprint` named somewhere that does not exist and missed the store that does. What is
         # irreplaceable is exactly what a footprint must not get wrong.
         Wrote(str(_support_store()),
-              "support records, and an outbox of what has not reached a holder yet. "
-              "Irreplaceable — nothing else holds an untransmitted record",
-              keep=True),
+              "support records, and an outbox of what has not reached a holder yet — nothing "
+              "else holds an untransmitted record",
+              keep=True, irreplaceable=True),
         Wrote(str(_home("XDG_STATE_HOME", ".local/state") / "plumb"),
               "the opening reading of a session, keyed by project path. Scratch: a session that "
               "loses it is told its delta cannot be computed, and nothing else changes",
@@ -96,9 +102,9 @@ def in_project(config, project: Path = Path(".")) -> tuple[Wrote, ...]:
                            keep=True, in_repo=True))
     if config.series:
         found.append(Wrote(config.series,
-                           "the history: every transition, losslessly. Irreplaceable — a run that "
-                           "is not recorded cannot be recovered from a later one",
-                           keep=True, in_repo=True))
+                           "the history: every transition, losslessly — a run that is not "
+                           "recorded cannot be recovered from a later one",
+                           keep=True, in_repo=True, irreplaceable=True))
         found.append(Wrote(str(series.sent_mark(Path(config.series))),
                            "how far that history has been transmitted", keep=True, in_repo=True))
     return tuple(found)
