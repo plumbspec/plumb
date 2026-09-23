@@ -1,7 +1,7 @@
 """``plumb`` — the command line: the board, and friction capture.
 
 ``plumb board`` runs the adapter over a test run and emits the derived result (``dev07-5-1``).
-``plumb friction`` captures what rubbed (``ch6-1``, ``ch6-10``).
+``plumb support`` captures what rubbed (``ch6-1``, ``ch6-10``).
 """
 
 from __future__ import annotations
@@ -340,7 +340,7 @@ def _push_series(store: Path, enrolment: str | None, project: str | None = None)
     """Send what the service has not been given, and say what happened in one line.
 
     Shared by `board --push` and `plumb series push` so there is one implementation and two
-    triggers — the shape `plumb friction file` and `plumb friction send` already use. Which one you
+    triggers — the shape `plumb support file` and `plumb support send` already use. Which one you
     reach for is a question about *when*, never about *what*, and two answers to *what* would drift.
     """
     from plumb.transmit import push_series
