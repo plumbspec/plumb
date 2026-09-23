@@ -294,15 +294,23 @@ def push_series(store: Path, enrolment_path: Path | None = None,
     """
     from plumb.core.series import InvalidSeries, mark_sent, unsent
 
+    from plumb.transport import for_capability, variables
+
     account = _signing(project) if enrolment_path is None else None
-    enrolment = None
+    destination = None
     if account is None:
-        try:
-            enrolment = load(enrolment_path, root=project or Path(store).parent)
-        except NotEnrolled as reason:
-            return Outcome(reason=str(reason))
-    endpoint = (account or enrolment).endpoint
-    subject = (enrolment.subject if enrolment else "") or _configured_subject(store, project)
+        # This capability's own destination, so a team self-hosting a holder is not thereby choosing
+        # who answers its support (`snd-D1`). An enrolment still answers where nothing more specific
+        # is named, so a project that had one keeps pushing exactly where it did.
+        destination = for_capability("series", enrolment_path=enrolment_path,
+                                     root=project or Path(store).parent)
+        if destination is None:
+            endpoint_var, credential_var, _ = variables("series")
+            return Outcome(reason=(
+                f"no destination named for series — set {endpoint_var} and {credential_var}, or "
+                f"enrol. A history stays on this machine, which is the default and not a fault"))
+    endpoint = account.endpoint if account else destination.url
+    subject = (destination.subject if destination else "") or _configured_subject(store, project)
     if not subject:
         return Outcome(reason=(
             "no subject to push under: name one with `subject = \"…\"` in plumb.toml. It names a "
@@ -328,7 +336,7 @@ def push_series(store: Path, enrolment_path: Path | None = None,
             if account is not None:
                 verdict, detail, account = _deliver_signed(endpoint, subject, batch, account)
             else:
-                verdict, detail = _deliver_batch(url, batch, enrolment)
+                verdict, detail = _deliver_batch(url, batch, destination)
             if verdict != RESYNCED:
                 break
             if attempt == RESYNC_RETRIES:
@@ -502,7 +510,7 @@ def _deliver_signed(endpoint: str, subject: str, batch: list, config):
         return RETRY, f"support service unreachable: {unreachable}", advanced
 
 
-def _deliver_batch(url: str, batch: list, enrolment: Enrolment) -> tuple[str, str]:
+def _deliver_batch(url: str, batch: list, sending_as) -> tuple[str, str]:
     """One request. Same three verdicts as :func:`deliver`, and never raises for a network
     condition — see the module docstring."""
     request = urllib.request.Request(
@@ -510,7 +518,7 @@ def _deliver_batch(url: str, batch: list, enrolment: Enrolment) -> tuple[str, st
         data=json.dumps({"records": [asdict(r) for r in batch]}).encode("utf-8"),
         method="POST",
         headers={"Content-Type": "application/json",
-                 "Authorization": f"Bearer {enrolment.credential}",
+                 "Authorization": f"Bearer {sending_as.credential}",
                  VERSION_HEADER: str(PROTOCOL_VERSION)})
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS):

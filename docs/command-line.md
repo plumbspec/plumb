@@ -647,10 +647,36 @@ written — and `--dry-run` says which of the two you are on.
 
 Only one value Plumb reads is a secret, and it travels on its own.
 
-    PLUMB_CREDENTIAL   the enrolment credential — the only secret here
+    PLUMB_CREDENTIAL   the credential every capability sends with — the only secret here
     PLUMB_PASSPHRASE   a self-provisioned account's passphrase — likewise
-    PLUMB_ENDPOINT     the holder to send to; or set `endpoint` in plumb.toml
+    PLUMB_ENDPOINT     the address every capability sends to
     PLUMB_ENROLMENT    path to an enrolment file — the escape hatch, see below
+
+### A destination belongs to a capability, not to the machine
+
+One address for everything is a choice between two products the moment you self-host one of them:
+a team running its own series holder had to accept whoever answered that address for support as
+well, because both hung off it. So each capability may name its own, and the specific wins:
+
+    PLUMB_SERIES_ENDPOINT     where run histories go
+    PLUMB_SERIES_CREDENTIAL   and what they go with
+    PLUMB_SERIES_SUBJECT      which series there this credential owns
+
+    PLUMB_SUPPORT_ENDPOINT    where records go — a different host, if you want one
+    PLUMB_SUPPORT_CREDENTIAL
+
+The name is the capability's, upper-cased, with anything that is not a letter or a digit becoming
+an underscore. Three places are read, most specific first: **the capability's own pair**, then
+**the machine-wide pair above**, then **an enrolment file**. One address for everything still
+works and is no longer the only thing you can say.
+
+**Both halves or neither.** An endpoint with no credential is a half-configured runner, and
+answering with it would send unauthenticated and report the refusal as the service's.
+
+**Naming none is the ordinary state.** With no destination for a capability, what that capability
+produced stays on this machine and the run says so. That is what makes *nothing leaves without
+being told where* a guarantee rather than a promise about your configuration: there is no default
+address to forget to change.
 
 The address is **configuration**: put `endpoint = "https://…"` in `plumb.toml` where a reviewer can
 see it. Keeping it out of the secret store is what makes "which holder is this CI pushing to?"

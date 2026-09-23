@@ -97,8 +97,9 @@ def published() -> dict:
     """
     from plumb.core.board import BOARD_VERSION
     from plumb.core.series import SERIES_VERSION
+    from plumb.transport import TRANSPORT_VERSION
 
-    return {"board": BOARD_VERSION, "series": SERIES_VERSION}
+    return {"board": BOARD_VERSION, "series": SERIES_VERSION, "transport": TRANSPORT_VERSION}
 
 
 def _entry_points():

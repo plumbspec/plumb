@@ -194,3 +194,26 @@ def from_enrolment(enrolment_path: Path | None = None, root=None) -> tuple[Chann
     if not enrolment.endpoint:
         return None, "no endpoint configured — records stay local"
     return Channel(enrolment.endpoint, enrolment.credential), ""
+
+
+def for_capability(capability: str = "support", enrolment_path=None, root=None):
+    """The channel this capability sends on, or ``None`` after saying why not (`snd1`).
+
+    Asks `transport` rather than reading the enrolment directly, so `support` and `series` can name
+    different hosts — which is the whole of `snd-D1`. Falls back to the enrolment for a project that
+    has one and has named nothing more specific, so nothing that worked stops.
+    """
+    from plumb.transport import for_capability as destination_for
+
+    found = destination_for(capability, enrolment_path=enrolment_path, root=root or ".")
+    if found is None:
+        endpoint, credential, _ = _variables(capability)
+        return None, (f"no destination named for {capability} — set {endpoint} and {credential}, "
+                      f"or enrol. Records stay local, which is the default and not a fault")
+    return Channel(found.url, found.credential), ""
+
+
+def _variables(capability: str) -> tuple:
+    from plumb.transport import variables
+
+    return variables(capability)

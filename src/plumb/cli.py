@@ -242,9 +242,12 @@ def cmd_pull(args) -> int:
 
 def _support_channel(args):
     """The channel this machine is enrolled on, or `None` after saying why not."""
-    from plumb.channel import from_enrolment
+    from plumb.channel import for_capability
 
-    channel, why = from_enrolment(args.enrolment)
+    # Named for what it is, so a project self-hosting a holder and answered by a support service
+    # can point them at two hosts (`snd-D1`). An enrolment still answers for both where nothing
+    # more specific is named.
+    channel, why = for_capability("support", enrolment_path=args.enrolment)
     if channel is None:
         print(f"plumb: {why}")
     return channel
