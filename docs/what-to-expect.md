@@ -327,8 +327,16 @@ Two consequences worth knowing before you adopt:
 - **For a Python project, the adapter runs in *your* interpreter, not Plumb's** — which is why
   the two floors are the same **3.9**, and why there is one interpreter to install rather than two.
   The adapter has to import your code and your test framework. Plumb finds your virtualenv (`.venv`, `venv`, or an active
-  one) and runs the adapter there, adding itself to `PYTHONPATH` — nothing is installed into your
-  environment. If your interpreter lives somewhere unusual, name it:
+  one) and runs the adapter there — nothing is installed into your environment.
+
+  **`PYTHONPATH` for that run is your import roots first, anything you had set next, and the
+  artifact last.** The roots are derived from your declared `production` paths: the parent of each
+  one that is a package, the path itself where it is not. Worth knowing for one reason — it means
+  `plumb board` can collect a suite that plain `pytest` cannot, if your own run depended on a path
+  setting Plumb supplies for you. If the two disagree, that is where to look. The artifact goes
+  last so a project that ships its own `plumb` package gets its own, and the run says which it used.
+
+  If your interpreter lives somewhere unusual, name it:
 
       [python]
       interpreter = ".tox/py311/bin/python"
@@ -402,7 +410,7 @@ If you *are* enrolled, three outcomes are possible and they mean different thing
 | | what happened | what to do |
 |---|---|---|
 | `sent` | it arrived | nothing |
-| `queued` | it has not arrived **yet** — unreachable, or the support service does not speak your record version | nothing; `plumb friction send` drains it later |
+| `queued` | it has not arrived **yet** — unreachable, or the support service does not speak your record version | nothing; `plumb support send` drains it later |
 | `REFUSED` | the holder read it and would not take the content | look at it; it stays in your outbox |
 
 The distinction between the middle and last rows is the one worth knowing. A holder running

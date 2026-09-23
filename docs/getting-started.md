@@ -91,11 +91,20 @@ needs it written down:
 
 **With Maven:**
 
-    mvn -q test-compile dependency:build-classpath -Dmdep.outputFile=target/plumb-classpath.txt
-    printf ':target/classes:target/test-classes' >> target/plumb-classpath.txt
+    mvn -q test-compile dependency:build-classpath -Dmdep.outputFile=target/plumb-deps.txt
+    { printf '%s:' 'target/test-classes:target/classes'; cat target/plumb-deps.txt; } \
+        > target/plumb-classpath.txt
 
 The second line is not optional. `build-classpath` lists your *dependencies* and leaves out your own
 compiled code, so without it Plumb finds no tests at all.
+
+**Test outputs first, then main outputs, then the dependencies — Surefire's own order**, which is
+why this line prepends rather than appends. Maven copies `src/test/resources` into
+`target/test-classes` and `src/main/resources` into `target/classes`, so a project holding
+`application.properties` in both loads whichever comes first. Put main ahead of test and the run
+Plumb observes silently uses your production configuration — a different run from the one your
+build performs, reported as your tests failing. Plumb refuses a classpath in that order and prints
+this same line back to you, built from the directories your project actually writes.
 
 **If your build has more than one module, append every module's output, not just this one's.**
 `build-classpath` resolves a sibling module to whatever is installed in `~/.m2`; your build uses the

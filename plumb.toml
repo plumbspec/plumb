@@ -38,7 +38,12 @@ repos  = ["."]
 # begins, and every other public function here is reached through one of these or is not wired at
 # all — which is precisely what grounding is for finding out (dev07-1-3).
 production   = ["src/plumb"]
-entry_points = ["plumb.cli:main", "plumb.receiver:main"]
+# `plumb.receiver:main` stood here and there is no `plumb.receiver` — the holder is
+# `plumb.series_holder`, and `pyproject.toml` has named it that all along. A declared entry
+# point into a module that does not exist grounds nothing and reports nothing: the run
+# simply never reaches it, and every story behind it reads not-wired for a reason no
+# message names. This project was carrying that on its own board.
+entry_points = ["plumb.cli:main", "plumb.series_holder:main"]
 
 # Off because it is slow, not because it is optional (dev07-2-2). `plumb board --mutation` turns it on
 # for a run; see docs/what-to-expect.md for what a full pass costs.

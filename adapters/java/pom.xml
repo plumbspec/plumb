@@ -27,8 +27,12 @@
     <!-- The adapter runs on the ADOPTER's JVM, never on the one that built it, so the bytecode
          floor is a compatibility promise and not a build detail. Without it javac emits for
          whatever JDK happens to be building, and an artifact built on a newer JDK dies with
-         UnsupportedClassVersionError before main. -->
-    <plumb.java.release>17</plumb.java.release>
+         UnsupportedClassVersionError before main.
+
+         Each module sets `maven.compiler.release` itself, which is the property the compiler
+         plugin reads. A `plumb.java.release` sat here naming 17 and referenced by nothing, so it
+         went on saying 17 through the release that took the floor to 8 — a promise stated where
+         no build could disagree with it. -->
     <junit.jupiter.version>5.12.2</junit.jupiter.version>
     <junit.platform.version>1.12.2</junit.platform.version>
   </properties>

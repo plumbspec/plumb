@@ -308,9 +308,17 @@ class SupportRecord:
 
 
 def _is_utc(stamp: str) -> bool:
+    """Whether ``stamp`` is an ISO-8601 instant that is actually UTC.
+
+    ``Z`` is spelled out as ``+00:00`` before parsing because `fromisoformat` learned to read the
+    military suffix at 3.11, and every stamp this module *writes* carries it. Below that the
+    parser refused its own output, so a project on the floor this tool declares could not file a
+    support record at all — the one shape of floor defect a version matrix never catches, because
+    it lives in the agreement between a writer and a reader that are the same module.
+    """
     try:
-        parsed = datetime.fromisoformat(stamp)
-    except (TypeError, ValueError):
+        parsed = datetime.fromisoformat(stamp[:-1] + "+00:00" if stamp.endswith("Z") else stamp)
+    except (TypeError, ValueError, AttributeError):
         return False
     return parsed.tzinfo is not None and parsed.utcoffset() == timezone.utc.utcoffset(None)
 

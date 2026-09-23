@@ -24,7 +24,10 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>17</maven.compiler.release>
+    <!-- The floor Plumb advertises for a Java project, so the one worked example an adopter can
+         copy builds on the JDK they were told they needed. It read 17 while the README offered
+         Java 8, which makes the example unbuildable for exactly the reader it is aimed at. -->
+    <maven.compiler.release>8</maven.compiler.release>
     <maven.deploy.skip>true</maven.deploy.skip>
     <maven.install.skip>true</maven.install.skip>
     <!-- The suite is run by `plumb board`, through the adapter, not by surefire. -->

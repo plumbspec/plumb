@@ -224,6 +224,7 @@ def init(root: Path | str = ".") -> Outcome:
     config = root / CONFIG_NAME
     if config.exists():
         kept.append(CONFIG_NAME)
+        found = _as_declared(found, config)
     else:
         config.write_text(render(found))
         written.append(CONFIG_NAME)
@@ -287,14 +288,87 @@ _CLASSPATH_STEP = {
 }
 
 
+
+#: A note whose truth the adopter can already have settled, and how to ask whether they have.
+#: Each is a fact about *this moment* — the whole reason notes are printed rather than written into
+#: the file — and a moment that has passed is a note that must not be printed either.
+_SETTLED = (
+    ("entry_points is empty", lambda found, root: bool(found.entry_points)),
+    ("add junit-platform-launcher", lambda found, root: _declares_launcher(root)),
+    ("classpath_file must exist", lambda found, root: _classpath_written(found, root)),
+)
+
+
+def _as_declared(found: Detected, config: Path) -> Detected:
+    """`found`, corrected by what the project's own `plumb.toml` already says.
+
+    **`detect` reads the filesystem and never the config**, because its job is to propose one. So
+    every note it carries describes a project that has declared nothing — which is true the first
+    time and false every time after, and `plumb init` is a command adopters run again.
+
+    Observed: `still to do: entry_points is empty` printed directly above a file naming two, on the
+    same run that said `kept plumb.toml (left exactly as it is)`. The one command an adopter runs
+    to find out whether they are set up told them they were not, about the file it had just read
+    and declined to change. `render`'s docstring records the same defect being fixed for the file
+    itself; this is the half that was still being printed.
+    """
+    from plumb.config import Config, InvalidConfig
+
+    try:
+        declared = Config.parse(config.read_text(encoding="utf-8"), root=config.parent)
+    except (OSError, UnicodeDecodeError, InvalidConfig):
+        # A config this cannot read is one `plumb board` will refuse by name and at length. Saying
+        # so a second time here, in a command whose job is the declaration rather than the run,
+        # would be a worse copy of a better message.
+        return found
+    corrected = replace(found, entry_points=tuple(declared.entry_points))
+    root = config.parent
+    return replace(corrected, notes=tuple(
+        note for note in corrected.notes
+        if not any(note.startswith(head) and settled(corrected, root)
+                   for head, settled in _SETTLED)))
+
+
+def _declares_launcher(root: Path) -> bool:
+    """Whether the build already puts `junit-platform-launcher` on the test classpath.
+
+    A substring of the build file, because that is the granularity the advice is at: the note says
+    *add this dependency*, and a project whose build names it has added it.
+    """
+    for build in ("pom.xml", "build.gradle", "build.gradle.kts"):
+        path = root / build
+        if path.is_file() and "junit-platform-launcher" in path.read_text(
+                encoding="utf-8", errors="replace"):
+            return True
+    return False
+
+
+def _classpath_written(found: Detected, root: Path) -> bool:
+    where = (found.options or {}).get("classpath_file")
+    return bool(where) and (root / where).is_file()
+
+
 def next_steps(found: Detected) -> str:
-    lines = ["", "Next:", "",
-             "  1. Name where your wired system begins, in plumb.toml:", "",
-             '       entry_points = ["com.myapp.Api#handleRequest"]' if found.adapter == JAVA
-             else '       entry_points = ["myapp.cli:main"]', "",
-             "  2. Cite a story from a test. The id is yours — Plumb keeps no catalog of them:", "",
-             _CITE[found.adapter], "",
-             "  3. Run it:", "", "       plumb board", ""]
+    """What is left to do, numbered over what is left rather than over the full list.
+
+    A step the project has already taken is dropped rather than shown as done: this prints on
+    every `plumb init`, including the ones an adopter runs after following it, and *name where
+    your wired system begins* above a file naming two is the same false report the notes carried.
+    Numbering the remainder is what makes the list a thing to work through.
+    """
+    steps = []
+    if not found.entry_points:
+        steps.append([
+            "Name where your wired system begins, in plumb.toml:", "",
+            '       entry_points = ["com.myapp.Api#handleRequest"]' if found.adapter == JAVA
+            else '       entry_points = ["myapp.cli:main"]'])
+    steps.append(["Cite a story from a test. The id is yours — Plumb keeps no catalog of them:", "",
+                  _CITE[found.adapter]])
+    steps.append(["Run it:", "", "       plumb board"])
+
+    lines = ["", "Next:", ""]
+    for number, step in enumerate(steps, start=1):
+        lines += [f"  {number}. {step[0]}", *step[1:], ""]
     if found.adapter == JAVA:
         lines += ["`@Proves` is on Maven Central — the citation vocabulary alone, no dependencies.",
                   "", "    <dependency>",

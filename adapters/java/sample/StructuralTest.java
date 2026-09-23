@@ -8,7 +8,7 @@ class StructuralTest {
     @Test
     @Proves(value = "APP-4", depth = "unit")
     void theEntryPointClassIsWhereWeSayItIs() throws Exception {
-        byte[] bytecode = Files.readAllBytes(Path.of("sample/target/classes/App.class"));
+        byte[] bytecode = Files.readAllBytes(Paths.get("sample/target/classes/App.class"));
         assert bytecode.length > 0;
         assert (bytecode[0] & 0xFF) == 0xCA;   // the class-file magic, read as bytes
     }

@@ -42,7 +42,10 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"   # the floor pyproject declares, so the floor is what is tested
+          # Not the floor — `pyproject` declares 3.9. This comment claimed it was the floor for as
+          # long as it was true and stayed put when the floor dropped. Running the suite under the
+          # floor is a thing somebody does, and `tests/test_adapter_floor.py` says so.
+          python-version: "3.11"
 
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:

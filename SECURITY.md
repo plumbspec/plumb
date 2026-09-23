@@ -135,7 +135,9 @@ The core has **no runtime dependencies**. That is a security property as much as
 there is no transitive tree to audit, nothing to resolve at install time, and the single-file
 artifact is possible because of it.
 
-- **Python 3.11+** at runtime, and nothing else.
+- **Python 3.9+** at runtime, and nothing else — the same floor the adapter declares, so a
+  project needs one interpreter rather than one for its tests and a newer one for the tool
+  that watches them.
 - **`plumbspec[account]`** is the one optional extra, and it is the only way to add anything to the
   tree. It carries `cryptography` for Ed25519, which the standard library does not provide, and it
   is needed only to use a self-provisioned account — the board, friction capture and

@@ -8,7 +8,12 @@ summary: What a contributed module receives, owes, and may never do.
 
 **For programmers contributing a module.** The twin of [the adapter contract](adapter-contract.md),
 one seam over: adapters supply the manifest to the core; modules consume what the core derives
-from it. Together they are the whole extension story — a language in, a capability out, and the
+from it.
+
+**Read this as the design and not as a surface you can build against today.** Nothing in the
+shipped tool declares the `plumb.modules` entry-point group, there is no `plumb modules` command,
+and no module has been mounted — so what follows is what a module *would* receive and owe, written
+down so the first one does not invent it. Every other page here describes something you can run. Together they are the whole extension story — a language in, a capability out, and the
 core untouched by either.
 
 ## The lifecycle: absent, inert, active

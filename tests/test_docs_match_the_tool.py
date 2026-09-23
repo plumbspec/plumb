@@ -296,3 +296,107 @@ def test_both_adapters_declare_the_manifest_shape_the_contract_documents():
     assert documented.group(1) == f"{SCHEMA_MAJOR}.{SCHEMA_MINOR}", (
         f"the contract documents schema_version {documented.group(1)} and the adapters write "
         f"{SCHEMA_MAJOR}.{SCHEMA_MINOR}")
+
+
+def test_the_documented_maven_recipe_is_the_order_the_guard_demands():
+    """The tutorial's classpath line, held against the remedy the tool prints for the same fault.
+
+    `getting-started.md` taught `printf ':target/classes:target/test-classes' >> …` for a year —
+    main ahead of test, which is the exact order `launch._shadowed` refuses and which
+    `BUILD_TOOLS` records as the correction the tool's own hint had to make. A reader following
+    the page produced a classpath the tool was written to reject, and the failure it produces on
+    a project without the guard is a suite that loads production configuration under test.
+
+    Asserted against the generated remedy rather than a string typed here, so the page cannot
+    drift from the tool by either of them moving.
+    """
+    from plumb.launch import _maven_fix
+
+    page = (DOCS / "getting-started.md").read_text(encoding="utf-8")
+    remedy = _maven_fix([])
+
+    for line in ("target/test-classes:target/classes", "dependency:build-classpath"):
+        assert line in remedy, f"the tool's own remedy stopped saying {line!r}"
+        assert line in page, (
+            f"the tutorial's Maven recipe no longer matches the remedy the tool prints — it is "
+            f"missing {line!r}, and a reader following it builds the classpath the guard refuses")
+
+    assert "target/classes:target/test-classes" not in page, (
+        "the tutorial is back to main-before-test: Maven copies the resources of each into the "
+        "directory beside the code, so whichever comes first wins and the observed run uses "
+        "production configuration")
+
+
+def test_the_board_reference_spells_every_status_the_way_the_gate_does():
+    """A consumer keys off these strings, so a page spelling one in prose is a page that misleads.
+
+    `consuming-the-board.md` offered `passed — wiring not verified`, with spaces and an em dash,
+    for a value the gate emits as `passed-wiring-not-verified` — and left `not-passed` out
+    entirely. Tooling written from that page matches nothing and reports every partly-proven
+    subject as a status it does not recognise.
+    """
+    from plumb.core.gate import NOT_PASSED, PASSED_WIRING_NOT_VERIFIED, PROVEN, UNPROVEN
+
+    page = (DOCS / "consuming-the-board.md").read_text(encoding="utf-8")
+    for status in (PROVEN, UNPROVEN, PASSED_WIRING_NOT_VERIFIED, NOT_PASSED):
+        assert f"`{status}`" in page, (
+            f"the board reference does not spell {status!r} — a consumer keys off this string, "
+            f"and a value they cannot find is a value they will write by hand from the prose")
+
+
+def test_no_subcommand_in_the_reference_has_been_removed_from_the_tool():
+    """The other direction, which nothing held.
+
+    `test_every_subcommand_is_in_the_reference` asks that everything the tool accepts is written
+    down. It says nothing about the reverse, so `plumb account add-key` and `remove-key` sat in the
+    reference through the release that replaced them with `export`, and a reader following the page
+    got `invalid choice`. A reference naming a command that does not exist is worse than one that
+    is merely short: the reader believes the tool is broken rather than the page.
+
+    Scoped to the second word of a documented `{a|b|c}` group, because that is the shape the
+    reference lists subcommands in and the shape that went stale.
+    """
+    import re
+
+    reference = REFERENCE.read_text()
+    real = set(subcommands())
+    stale = []
+    for line in reference.splitlines():
+        found = re.match(r"\s+plumb(?:-series-holder)?\s+(\w[\w-]*)\s", line)
+        group = re.search(r"\{([a-z|_-]+)\}", line)
+        if not (found and group):
+            continue
+        for word in group.group(1).split("|"):
+            if f"{found.group(1)} {word}" not in real and word not in real:
+                stale.append(f"{found.group(1)} {word}")
+
+    assert not stale, (
+        f"the reference documents subcommands the tool does not accept: {sorted(set(stale))}. "
+        f"A reader following it gets `invalid choice` and concludes the tool is broken")
+
+
+def test_the_schema_versions_in_the_docs_are_the_ones_this_release_reads():
+    """Four majors have each been "current" in a transcript on one of these pages.
+
+    A transcript is the most quotable thing in a reference and the least likely to be revisited,
+    so `schema 5 -> 7.0` sat through the releases that took the chain to 9 — and a reader matching
+    their own output against it concludes their file is older than it is.
+
+    Asserted as *the old numbers are gone*, not as the new ones being present: a page may legitimately
+    discuss a version it no longer reads, but not while showing it as what this Plumb answers with.
+    """
+    from plumb.core.manifest import PARSEABLE_VERSIONS, SCHEMA_MAJOR, SCHEMA_VERSION
+
+    pages = "\n".join(p.read_text() for p in (DOCS / "command-line.md",
+                                              DOCS / "adapter-contract.md"))
+    assert f"schema {SCHEMA_VERSION}" in pages or f"-> {SCHEMA_VERSION}" in pages, (
+        f"neither reference transcript shows the version this release writes ({SCHEMA_VERSION})")
+
+    reads = ", ".join(f"{v}.x" for v in sorted(PARSEABLE_VERSIONS))
+    assert f"(reads: {reads})" in pages, (
+        f"the contract's refusal transcript does not name the versions this Plumb reads: {reads}")
+
+    for gone in range(1, SCHEMA_MAJOR - 2):
+        assert f"already at schema {gone}." not in pages, (
+            f"a transcript still shows schema {gone} as current; this release writes "
+            f"{SCHEMA_VERSION} and reads {reads}")
