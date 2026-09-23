@@ -44,6 +44,14 @@ plumb-series-holder = "plumb.series_holder:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# The vendored parser's licence travels with the code it licenses. `packages.find` collects
+# modules and nothing else, so an MIT notice beside them is left out of the wheel while the
+# code it covers ships — the one file whose absence is a licence fault rather than a missing
+# convenience. The zipapp carries the whole directory and was never short of it, which is how
+# this stayed invisible.
+[tool.setuptools.package-data]
+"plumb._vendor.tomli" = ["LICENSE", "README.md"]
+
 # The production surface Plumb declares about itself lives in `plumb.toml`, beside this file —
 # one home, read by the core for every language, because a Java project has no pyproject.toml.
 
