@@ -377,8 +377,11 @@ def test_an_unreadable_store_is_an_outcome_and_never_a_traceback(tmp_path, monke
     from plumb import transmit
     from plumb.transmit import push_series
 
-    monkeypatch.setattr(transmit, "load", lambda *a, **k: transmit.Enrolment(
-        "self", "tok", "https://example.invalid"))
+    # Named through the environment, which is how a runner names one and the route a push now
+    # resolves. Patching `transmit.load` reached inside the resolver, which no longer loads an
+    # enrolment itself.
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", "https://example.invalid")
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "tok")
 
     (tmp_path / "plumb.toml").write_text('adapter = "python"\nsubject = "acme-api"\n')
     log = tmp_path / "series.jsonl"
@@ -429,8 +432,11 @@ def test_the_command_pushes_under_the_subject_of_the_project_it_was_given(tmp_pa
 
     asked = []
     monkeypatch.setattr(transmit, "_signing", lambda project=None: None)
-    monkeypatch.setattr(transmit, "load", lambda *a, **k: transmit.Enrolment(
-        "self", "tok", "https://example.invalid"))
+    # Named through the environment, which is how a runner names one and the route a push now
+    # resolves. Patching `transmit.load` reached inside the resolver, which no longer loads an
+    # enrolment itself.
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", "https://example.invalid")
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "tok")
     monkeypatch.setattr(transmit, "_deliver_batch",
                         lambda url, batch, enrolment: (asked.append(url), transmit.RETRY, "")[1:])
 

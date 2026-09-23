@@ -43,6 +43,27 @@ reason.
 The core publishes two versioned surfaces for a module to build against: the board, and the series
 interface — which now carries a version at all, where it published none.
 
+### A destination belongs to a capability, not to the machine
+
+`PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL` named one address for everything Plumb sends, so a team
+running its own series holder had to accept whoever answered that address for support as well.
+Each capability can name its own now:
+
+    PLUMB_SERIES_ENDPOINT     where run histories go
+    PLUMB_SERIES_CREDENTIAL
+    PLUMB_SUPPORT_ENDPOINT    somewhere else entirely, if you want
+
+Three places are read, most specific first: the capability's own pair, the machine-wide pair, then
+an enrolment file. **Nothing you have set stops working** — one address for everything is still
+one line, it is just no longer the only thing you can say.
+
+With no destination named for a capability, what it produced stays on this machine and the run
+says so. There is no default address, which is what makes that a guarantee rather than a promise
+about your configuration.
+
+`transport` joins the board and the series interface as a surface a module declares the version it
+speaks of, so a contributed module can send without carrying its own credential handling.
+
 ### `friction` is retired, with no replacement
 
 `plumb support file --kind friction` and `plumb support why` are gone. Filing what rubbed against a
