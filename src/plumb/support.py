@@ -33,16 +33,22 @@ ABSENT = (INAPPLICABLE, UNCAPTURED, WITHHELD)
 
 SOURCES = ("self", "trusted-tester")
 
-#: What shape a record is (``ch6-31``). The required set follows it: `implication` is the bar
-#: *friction* earns its place against, and a question has nothing to claim — so forcing one through
-#: that pair produces an implication invented to satisfy a validator, which is exactly what `ch6-4`
-#: refuses. A record written before this field existed reads as `friction`, because that is all
-#: there was to file.
-KINDS = ("friction", "question", "idea", "report")
-DEFAULT_KIND = "friction"
+#: What shape a record is (``ch6-31``).
+#:
+#: **`friction` is retired, with no replacement.** It was an alpha-testing practice — capture what
+#: rubbed, locally, against a bar — and an open-source tool does not carry a local support desk.
+#: Nothing took its place: what is left are the three shapes that address somebody else.
+#:
+#: A record written before the `kind` field existed reads as `report`, which is what all of them
+#: turned out to be. The wire still carries whatever a service chooses to accept; this is what this
+#: client will produce.
+KINDS = ("question", "idea", "report")
+DEFAULT_KIND = "report"
 
-#: The kinds that must say what the rub cost the method. Only friction claims one.
-CLAIMS_AN_IMPLICATION = ("friction",)
+#: The kinds that must say what the rub cost the method. None does, now — `implication` was the bar
+#: *friction* earned its place against, and a question has nothing to claim. It stays on the record
+#: because records already carry it, and it is never required.
+CLAIMS_AN_IMPLICATION = ()
 
 #: The shape of a stored record (``ch6-15``). Stamped at write so a reader years later can tell
 #: which schema produced the file it is holding, instead of inferring it from which fields happen
@@ -53,8 +59,8 @@ CLAIMS_AN_IMPLICATION = ("friction",)
 #: "probably current", which is the guess a version exists to remove.
 SCHEMA_VERSION = 5
 
-#: `implication` left this set at v2 and is required per *kind* instead (``ch6-31``) — it is still
-#: required of friction, which is every record written before the kind existed.
+#: `implication` left this set at v2 and became required per *kind* instead (``ch6-31``). With
+#: `friction` retired no kind requires it, so it is optional on every record this client writes.
 REQUIRED = ("id", "observed_at", "source", "kind", "observation")
 CONDITIONAL = (
     "project", "commit", "location", "excerpt",
@@ -219,8 +225,9 @@ class SupportRecord:
         problems = []
         if self.kind not in KINDS:
             problems.append(f"kind must be one of {KINDS}, got {self.kind!r}")
-        # Required of friction and of nothing else (`ch6-31`). Checked here rather than in
-        # `REQUIRED` because whether it is required is a property of the record, not of the schema.
+        # Required per kind (`ch6-31`), and with `friction` retired no kind claims one — so this
+        # never fires today. It is kept rather than deleted because the rule is the schema's, not
+        # friction's: a kind that needs a bar again says so by joining the set.
         if self.kind in CLAIMS_AN_IMPLICATION and (
                 not str(self.implication).strip() or self.implication in ABSENT):
             problems.append("implication is required and empty — friction says what the rub cost "
@@ -277,7 +284,12 @@ class SupportRecord:
                 # other field's deliberate values are never marker words, so the word is safe to
                 # treat as the absence it is.
                 del raw[name]
-        if self.kind not in CLAIMS_AN_IMPLICATION:
+        # Carried when it has real text, whatever the kind. This dropped it off every kind that
+        # did not CLAIM one, which was right while only friction did: an implication on a question
+        # was a validator's leftover rather than something anybody wrote. With no kind claiming
+        # one, the same rule silently discards what a writer typed on purpose — and a record that
+        # loses a sentence between the disk and the wire is the worst shape this can take.
+        if not str(self.implication).strip() or self.implication in ABSENT:
             raw.pop("implication", None)
         return json.dumps(raw, ensure_ascii=False)
 

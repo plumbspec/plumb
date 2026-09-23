@@ -43,6 +43,17 @@ account = ["cryptography>=42"]
 plumb = "plumb.cli:main"
 plumb-series-holder = "plumb.series_holder:main"
 
+# The first module, mounted through the same public mechanism a contributed one uses (`mod4-ur1`).
+# `plumb.cli` names none of its verbs: delete this entry and `plumb series` leaves the tool without
+# a line of the core changing, which is the whole of what the mount is for.
+#
+# Declared by this distribution rather than shipped as a second one, so a `pip install plumbspec`
+# still has `plumb series` and nothing is removed from anybody in this release. The consequence is
+# real and belongs here: a module is only discoverable where its DISTRIBUTION is installed, so a
+# source checkout or a zipapp sees no modules at all until one is.
+[project.entry-points."plumb.modules"]
+series = "plumb_series:DECLARATION"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

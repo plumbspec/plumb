@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from plumb.support import INAPPLICABLE, SCHEMA_VERSION, SupportRecord, InvalidRecord, excerpt, load_all
+from plumb.support import INAPPLICABLE, KINDS, SCHEMA_VERSION, SupportRecord, InvalidRecord, excerpt, load_all
 
 WELL_FORMED = dict(
     id="2026-07-26-per-test-fact-is-not-per-test",
@@ -22,19 +22,24 @@ def test_a_record_carries_its_observation_and_its_anchors():
     assert record.anchors == {"story": "dev07-1-4", "location": "spec/chapter_03.py:12"}
 
 
-def test_a_writer_that_cannot_state_the_implication_cannot_file():
-    with pytest.raises(InvalidRecord, match="implication is required"):
-        SupportRecord(**{**WELL_FORMED, "implication": "   "})
+def test_a_record_with_no_implication_is_well_formed():
+    """The bar went with `friction`, the only kind that ever claimed a cost.
+
+    This asserted the refusal while every record had to say what the rub meant for the method.
+    Demanding a cost from a question produces one invented to satisfy a validator, which is the
+    failure `ch6-4` refuses from the other side.
+    """
+    assert SupportRecord(**{**WELL_FORMED, "implication": "   "}).kind in KINDS
 
 
 def test_rejection_names_everything_missing_at_once():
     with pytest.raises(InvalidRecord) as rejected:
-        SupportRecord(**{**WELL_FORMED, "observation": " ", "implication": " ", "source": "customer"})
+        SupportRecord(**{**WELL_FORMED, "observation": " ", "source": "customer", "kind": "nope"})
 
     message = str(rejected.value)
     assert "observation is required" in message
-    assert "implication is required" in message
     assert "source must be one of" in message
+    assert "kind must be one of" in message
 
 
 def test_an_inapplicable_anchor_is_distinct_from_a_blank_one():
