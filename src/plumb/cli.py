@@ -971,16 +971,23 @@ def cmd_footprint(args) -> int:
                              footprint.user_level())):
         print(f"\n{heading}\n")
         for wrote in places:
+            # `ado4-ur3` — the list names what is irreplaceable, so somebody can point the backup
+            # they already run at it. That is what the archive this tool used to offer was for, and
+            # saying it costs a word where taking custody cost three policies core cannot own.
             marks = " ".join(filter(None, [
                 "" if wrote.keep else "disposable",
+                "IRREPLACEABLE" if wrote.irreplaceable else "",
                 "shared" if wrote.shared else "",
-                "SECRET — never into an archive" if wrote.secret else ""]))
+                "SECRET — never copy it anywhere" if wrote.secret else ""]))
             print(f"  {wrote.where}" + (f"   [{marks}]" if marks else ""))
             for line in textwrap.wrap(wrote.what, 72):
                 print(f"      {line}")
-    print("\nThe two worth worrying about are a series and an untransmitted support record: nothing else\n"
-          "holds them. A passphrase is not here because it is never written down — losing it\n"
-          "loses the account, and no backup helps.")
+    print("\nWhat is marked IRREPLACEABLE exists nowhere else — point whatever you already back up\n"
+          "at those paths. Plumb does not take an archive: what counts as a secret, what your\n"
+          "repository already carries and what a restore may overwrite are yours to decide, and\n"
+          "you are already backing this machine up somehow.\n\n"
+          "A passphrase is not here because it is never written down — losing it loses the\n"
+          "account, and no backup helps.")
     return EXIT_OK
 
 
@@ -1001,84 +1008,6 @@ def _say_left(left) -> None:
             print(f"    {first}")
             for line in rest:
                 print(f"        {line}")
-
-
-def cmd_backup(args) -> int:
-    """One archive of what this project's repository does not already carry (`ado4`)."""
-    from plumb import backup
-    from plumb.config import Config, InvalidConfig
-
-    project = Path(args.project)
-    try:
-        config = Config.find(project)
-    except InvalidConfig as bad:
-        print(f"{bad}", file=sys.stderr)
-        return EXIT_CANNOT_BOARD
-
-    if args.dry_run:
-        made = backup.plan(config, project, credentials=args.with_credentials)
-        print("  would take")
-        for held in made.taken or [backup.Held("(nothing)", "this project's repository has it all")]:
-            print(f"    {held.where}")
-            for line in textwrap.wrap(held.what, 70):
-                print(f"        {line}")
-        _say_left([{"where": entry.where, "why": entry.why, "needed": entry.needed}
-                   for entry in made.left])
-        return EXIT_OK
-
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    where = Path(args.out) if args.out else Path(
-        f"plumb-backup-{backup._identity(config, project)}-{stamp}.tgz")
-    if where.exists() and not args.force:
-        print(f"plumb: {where} exists — name another with --out, or --force to replace it",
-              file=sys.stderr)
-        return 1
-    record = backup.write(where, config, project, credentials=args.with_credentials)
-
-    print(f"  archive   {where}")
-    if record["carries_credentials"]:
-        # Said at the moment it is made, not only inside the file: the archive is now a secret, and
-        # the person who most needs to know that is the one about to move it somewhere.
-        print("            *** carries a credential — this archive is now a secret. It is\n"
-              "                mode 0600; do not attach it to a ticket or upload it. ***")
-    for held in record["taken"]:
-        print(f"    took    {held['where']}")
-    if not record["taken"]:
-        print("    took    nothing — everything this project has is in its repository already")
-    _say_left(record["left"])
-    print(f"\nWhat it left is written inside the archive, so a restore says so too:\n"
-          f"    plumb restore {where}")
-    return EXIT_OK
-
-
-def cmd_restore(args) -> int:
-    """Put back what was taken, and say what has to be supplied by hand (`ado4`)."""
-    from plumb import backup
-
-    try:
-        said, done = backup.restore(Path(args.archive), Path(args.project), force=args.force)
-    except backup.Unreadable as bad:
-        print(f"plumb: {bad}", file=sys.stderr)
-        return 1
-
-    print(f"  archive   written by plumb {said['plumb']} at {said['when']}")
-    if said.get("carries_credentials"):
-        print("            this archive carries a credential")
-    print(f"  project   {said['project']['subject']}")
-    for name in done.put_back:
-        print(f"    put back  {name}")
-    for name in done.skipped:
-        print(f"    kept      {name} — already here, and not overwritten (--force to replace)")
-    if done.records:
-        print(f"    put back  {done.records} friction record(s)")
-    if done.moved:
-        # Scratch keyed by the old path, which nothing needs: said rather than discovered, because
-        # a delta that cannot be computed is otherwise a surprise at the next close (`dev10-2`).
-        print(f"\n  This project was archived at {said['project']['root']} and is being restored\n"
-              f"  elsewhere. A session reading is keyed by path, so the next `plumb session\n"
-              f"  wrap-up` will say it has nothing to difference against. Nothing else moves.")
-    _say_left(said.get("left", []))
-    return EXIT_OK
 
 
 def cmd_registry_moved(args) -> int:
@@ -1473,26 +1402,6 @@ def build_parser() -> argparse.ArgumentParser:
     prints.add_argument("--project", metavar="DIR", default=".",
                         help="project directory (default: .)")
     prints.set_defaults(func=cmd_footprint)
-
-    saved = groups.add_parser(
-        "backup", help="one archive of what your repository does not already carry")
-    saved.add_argument("--project", metavar="DIR", default=".",
-                       help="project directory (default: .)")
-    saved.add_argument("--out", metavar="FILE", help="where to write it")
-    saved.add_argument("--dry-run", action="store_true",
-                       help="say what it would take and what it would leave, and write nothing")
-    saved.add_argument("--with-credentials", action="store_true",
-                       help="also take the account and enrolment — makes the archive a secret")
-    saved.add_argument("--force", action="store_true", help="replace an archive that is there")
-    saved.set_defaults(func=cmd_backup)
-
-    back = groups.add_parser("restore", help="put back what a backup took, saying what it left")
-    back.add_argument("archive", help="the archive to read")
-    back.add_argument("--project", metavar="DIR", default=".",
-                      help="where to restore into (default: .)")
-    back.add_argument("--force", action="store_true",
-                      help="overwrite files that are already there")
-    back.set_defaults(func=cmd_restore)
 
     # Optional, and nothing else in the tool reads any of it (`dev03`). Offered because of what it
     # does when it is run: opens at the spec and closes by measuring against it.

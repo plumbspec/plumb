@@ -64,6 +64,20 @@ about your configuration.
 `transport` joins the board and the series interface as a surface a module declares the version it
 speaks of, so a contributed module can send without carrying its own credential handling.
 
+### `plumb backup` and `plumb restore` are retired
+
+**Plumb takes no archive.** `plumb footprint` marks what is `IRREPLACEABLE` — your series, and the
+support store — and you point whatever you already back up at those paths.
+
+Taking custody meant Plumb deciding what counts as a secret, what your repository already carries
+and what a restore may overwrite. Those are three policies belonging to whoever runs the machine,
+on a machine that is already being backed up somehow. The story behind those verbs only ever asked
+the tool to *hold the list* so that answering *what do I back up* never meant reading the source —
+and holding the list is what remains.
+
+**If you have an archive**, unpack it with `tar`: the layout is a `project/` directory and a
+`plumb-backup.json` naming what was taken and what was left.
+
 ### `friction` is retired, with no replacement
 
 `plumb support file --kind friction` and `plumb support why` are gone. Filing what rubbed against a

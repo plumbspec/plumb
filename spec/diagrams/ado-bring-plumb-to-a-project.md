@@ -1,6 +1,6 @@
 # ado · bring plumb to a project
 
-**Last updated** 2026-09-23 v6
+**Last updated** 2026-09-23 v7
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -161,15 +161,15 @@ flowchart TD
 |---|---|---|---|---|
 | ado4-inf1 | In | `install.channel` | yes | observed |
 | ado4-inf2 | In | `footprint_entry` | yes | generated |
-| ado4-inf5 | In | `release_statement` | optional | authored |
-| ado4-inf6 | Out | `footprint` | yes | derived |
+| ado4-inf3 | In | `release_statement` | optional | authored |
+| ado4-inf4 | Out | `footprint` | yes | derived |
 
 #### User Requirements
   * ado4-ur1 - an upgrade stays on the stream the install was on, decided against the statement
     of what changed
   * ado4-ur2 - every footprint entry carries a disposition: rebuilds itself, the repository has
     it, this project's alone, or must never leave the machine
-  * ado4-ur6 - the list names which entries are irreplaceable, so somebody can point the backup
+  * ado4-ur3 - the list names which entries are irreplaceable, so somebody can point the backup
     they already run at them
 
 #### System Requirements

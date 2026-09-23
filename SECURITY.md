@@ -167,14 +167,6 @@ Worth knowing before pointing it at anything you care about:
   anyway; that is what version control is for.
 - **Nothing is transmitted** unless the installation is enrolled, which is a separate, explicit
   consent, and anything filed can be withdrawn.
-- **`plumb backup` excludes your credentials by default.** Your account is shared with every project
-  pushing to that receiver, and an enrolment file carries a credential; both are left out and the
-  archive records that they were. `--with-credentials` includes them on purpose — the archive then
-  records `carries_credentials`, is created mode `0600` before anything is written into it, and is
-  named as a secret in every line the tool prints about it. Treat one as you would the credential.
-- **`plumb restore` unpacks only the members the archive format defines** — regular files under four
-  known roots, no absolute paths and no `..` — so an archive from somewhere else cannot write
-  outside the directory it is unpacked into. It overwrites nothing unless you pass `--force`.
 - **`plumb session` writes a cursor into your repository** and a disposable reading outside it. The
   cursor is `key="value"` data and is parsed, never executed; nothing in the tool sources it.
 
