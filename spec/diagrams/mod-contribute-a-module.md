@@ -1,6 +1,6 @@
 # mod · contribute a module
 
-**Last updated** 2026-09-23 v4
+**Last updated** 2026-09-24 v5
 
 What whoever builds a module does, from a capability plumb lacks to a verb an adopter can
 install. Exits to [ado · bring plumb to a project](ado-bring-plumb-to-a-project.md), whose
@@ -18,6 +18,8 @@ module contract]):::terminal
     SPECQ{does the module keep a spec?}:::question
     CITE[<b>mod3</b> · cite it under its own namespace]:::process
     SHIP[<b>mod4</b> · ship it as an installable artifact]:::process
+    TAKEN{does the core ship<br/>a verb of this name?}:::question
+    HAND[<b>mod5</b> · take over a name the core is giving up]:::process
 
     OUT([<b>END</b> · a module an adopter installs, and the
 one CLI grows a verb]):::good
@@ -25,7 +27,9 @@ one CLI grows a verb]):::good
     IN --> BUILD --> DECL --> SPECQ
     SPECQ -->|yes| CITE --> SHIP
     SPECQ -->|no| SHIP
-    SHIP --> OUT
+    SHIP --> TAKEN
+    TAKEN -->|no| OUT
+    TAKEN -->|yes| HAND --> OUT
 
     classDef terminal fill:#eef0ee,stroke:#52514e,color:#0b0b0b;
     classDef process fill:#e9eef5,stroke:#2a78d6,color:#0b0b0b;
@@ -99,6 +103,48 @@ one CLI grows a verb]):::good
 
 #### Unknowns
 
+
+---
+
+### mod5 · take over a name the core is giving up
+
+> **As an adopter I want a verb I already use to keep working across the release that moves it out
+> of the core, so that where the capability is built is not a thing I have to notice.**
+
+#### Information
+
+| Information | IO | Description | Required | Provenance |
+|---|---|---|---|---|
+| mod5-inf1 | In | `module_artifact` | yes | mod4 |
+| mod5-inf2 | In | `core_release` — the one that drops the name | yes | observed |
+| mod5-inf3 | Out | `handover` | yes | derived |
+
+#### User Requirements
+  * mod5-ur1 - the core dropping the name and the module mounting it are one release, so no
+    adopter meets a version with two of that verb or none
+  * mod5-ur2 - an artifact that carries the module before the name is free withholds its entry
+    point rather than shipping a mount that will be refused; a refused module states its refusal
+    on every invocation, and that is a worse artifact than one release of waiting
+  * mod5-ur3 - what the verb does is the module's from the moment it mounts, and the core keeps no
+    copy against which the module could be said to be wrong
+
+#### System Requirements
+  * mod5-sr1 - the two sides are cut together and neither is released on the strength of the
+    other being ready
+  * mod5-sr2 - anything the core wrote under that name — a store, a state home — is named in the
+    module's declared writes from the release that moves it, or it stops appearing in the footprint
+    at the moment somebody most needs to find it
+
+#### Non-Functional Requirements
+  * mod5-nfr1 - the alternative is coexistence, and the cost of it is not two implementations but
+    one wrong claim: a core that still ships a verb is a core that still claims the capability, and
+    the surviving name goes on telling adopters something the project does not do
+  * mod5-nfr2 - the moment a capability leaves is the cheapest it will ever be to leave, because
+    the population using it only grows
+
+#### Unknowns
+  * mod5-u1 - what an adopter who upgrades the core and not the module meets is undecided; today
+    nothing checks either for an update, so the two versions drift with nobody told
 
 ---
 
