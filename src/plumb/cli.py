@@ -1512,15 +1512,21 @@ def build_parser() -> argparse.ArgumentParser:
     # whichever module happened to load first take a name the core was about to add.
     from plumb.modules import mount
 
-    mount(groups, reserved=set(groups.choices), say=lambda line: print(line, file=sys.stderr))
+    found = mount(groups, reserved=set(groups.choices),
+                  say=lambda line: print(line, file=sys.stderr))
+    # Carried to the command rather than recomputed by it (`mod2-sr3`). It asked `discover` again
+    # with an empty reserved set, so the listing could refuse nothing for naming a core verb and
+    # printed a module as mounted — verbs, surfaces and writes — while every invocation of the
+    # tool refused that same module. The trust decision is made on this list.
+    modules.set_defaults(mounted=found)
     return parser
 
 
 def cmd_modules(args) -> int:
     """``mod4`` — the mounted modules, their verbs, their surfaces and their reach."""
-    from plumb.modules import discover, render
+    from plumb.modules import render
 
-    print(render(discover(reserved=set())))
+    print(render(args.mounted))
     return 0
 
 

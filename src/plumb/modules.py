@@ -130,7 +130,19 @@ def discover(reserved) -> list:
     the tool minus one capability rather than to no tool.
     """
     found = []
+    seen = set()
     for entry in sorted(_entry_points(), key=lambda e: e.name):
+        # **One distribution found twice is not two modules.** An editable install and that same
+        # tree's `src/` on `PYTHONPATH` — the setup CONTRIBUTING asks for — puts the dist-info and
+        # the egg-info both on the path, and the same entry point is read from each. It listed the
+        # module twice and printed its writes twice, and once `_uncontested` existed it read as two
+        # modules fighting over a name and refused the only one there was.
+        #
+        # Same name and same target is the same code by the only definition available here.
+        where = (entry.name, getattr(entry, "value", None))
+        if where in seen:
+            continue
+        seen.add(where)
         try:
             declared = entry.load()
         except Exception as broke:                      # noqa: BLE001 - any import failure at all
@@ -142,7 +154,48 @@ def discover(reserved) -> list:
             found.append(Mounted(entry.name, refused="declared no module declaration"))
             continue
         found.append(_checked(declared, reserved))
-    return found
+    return _uncontested(found)
+
+
+def _uncontested(found: list) -> list:
+    """Every module held against the others, which no single declaration can see (``mod2-ur5``).
+
+    ``_checked`` compares one declaration against the core's verbs. Two modules claiming one name
+    pass it individually and collide at the parser, and what happened then depended on the
+    interpreter: at the floor argparse took the second silently, so a verb the adopter never chose
+    answered; at 3.13 it raised out of building the parser and took unrelated commands with it.
+
+    **A contested name mounts for nobody.** The core cannot know which one was meant, and the
+    alternative is picking by discovery order — the entry point's name, a string neither author
+    chose for this and no adopter reads (``mod2-nfr1``). A verb answering from somewhere the
+    adopter did not choose writes their data somewhere they did not choose.
+
+    Only the contested name is lost. Everything else mounts (``mod2-sr2``).
+    """
+    claims: dict = {}
+    for module in found:
+        if module.refused or not module.declaration:
+            continue
+        for verb in module.declaration.verbs:
+            claims.setdefault(verb.name, []).append(module.name)
+    contested = {verb: names for verb, names in claims.items() if len(names) > 1}
+    if not contested:
+        return found
+    settled = []
+    for module in found:
+        theirs = sorted(verb for verb, names in contested.items()
+                        if not module.refused and module.declaration
+                        and module.name in names)
+        if not theirs:
+            settled.append(module)
+            continue
+        said = "; ".join(
+            f"`{verb}` is also claimed by {', '.join(n for n in contested[verb] if n != module.name)}"
+            for verb in theirs)
+        settled.append(Mounted(module.name, module.declaration,
+                               f"{said} — a contested name mounts for nobody, because the core "
+                               f"cannot know which was meant (`mod2-ur5`)"))
+    return settled
 
 
 def _checked(declared: Declaration, reserved) -> Mounted:

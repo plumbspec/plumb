@@ -1,6 +1,6 @@
 # mod · contribute a module
 
-**Last updated** 2026-09-24 v5
+**Last updated** 2026-09-24 v6
 
 What whoever builds a module does, from a capability plumb lacks to a verb an adopter can
 install. Exits to [ado · bring plumb to a project](ado-bring-plumb-to-a-project.md), whose
@@ -91,17 +91,32 @@ one CLI grows a verb]):::good
     so migration, removal, and whatever backup the adopter runs stay honest about what modules
     added; a secret rests in the module's state home with the disposition *carries a credential*,
     never in a configuration table
+  * mod2-ur3 - the module names itself and its version, out of its own artifact
   * mod2-ur4 - the declaration says whether the module reaches the network, so the install's
     trust decision is over verbs, writes and reach together
-  * mod2-ur3 - the module names itself and its version, out of its own artifact
+  * mod2-ur5 - a verb name claimed by more than one module mounts for none of them, and every
+    claimant is named, so an adopter is told a name is contested rather than handed one of the
+    two; a verb that answers from somewhere they did not choose writes their data somewhere they
+    did not choose
 
 #### System Requirements
   * mod2-sr1 - a module that needs configuration reads its own named table and never another's;
     the core's keys are read-only to it
+  * mod2-sr2 - every declaration is held against the others before any of them is bound, so a
+    contested name is a refusal the adopter reads and never an error raised out of building the
+    parser; the tool answers for every verb that is not contested
+  * mod2-sr3 - what the tool lists is what the tool mounted, read off the mount itself and never
+    computed a second time against a different question; a listing that says *mounted* where the
+    tool refuses is worse than no listing, because the trust decision is made on it
 
 #### Non-Functional Requirements
+  * mod2-nfr1 - picking a winner is the failure that cannot be seen: discovery order is the entry
+    point's name, a string neither author chose for this and no adopter reads, so *which module
+    answers* would be decided by alphabetical accident and look exactly like working
 
 #### Unknowns
+  * mod2-u1 - how an adopter resolves a contested name is undecided; nothing here lets them
+    choose one, so the remedy is to uninstall the other
 
 
 ---

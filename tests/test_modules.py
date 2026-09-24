@@ -20,6 +20,19 @@ from plumb.modules import (Argument, Declaration, Mounted, Verb, _checked, mount
                            render)
 
 
+
+class _entry:
+    """One entry point, as `importlib.metadata` hands them over: a name and something to load."""
+
+    def __init__(self, name, declared, value=""):
+        self.name, self._declared = name, declared
+        #: Where the entry point points. Two registrations of one distribution share it.
+        self.value = value or f"{name}:declaration"
+
+    def load(self):
+        return self._declared
+
+
 def _declaration(**changed) -> Declaration:
     fields = dict(
         name="example", version="1.0.0", surfaces={"series": published()["series"]},
@@ -296,3 +309,92 @@ def test_the_series_module_names_what_it_writes():
     assert DECLARATION.writes, "the series module declares nothing it writes"
     assert any(w.irreplaceable for w in DECLARATION.writes), (
         "a history nothing else holds is not marked as such")
+
+
+@pytest.mark.proves("mod2", depth="unit")
+def test_a_name_two_modules_claim_mounts_for_neither(monkeypatch):
+    """`mod2-ur5`. Nothing checked this: `_checked` holds a declaration against the CORE's verbs
+    and against nothing else, so two modules claiming one name were both accepted.
+
+    What followed depended on the interpreter. At the floor argparse took the second silently and
+    a verb the adopter never chose answered; at 3.13 it raised `conflicting subparser` out of
+    building the parser, so `plumb board` — an unrelated command — died with a traceback.
+    """
+    from plumb.modules import discover
+
+    def claimant(name):
+        return Declaration(name=name, version="1.0.0", surfaces={},
+                           verbs=(Verb("chores", "do the chores", lambda a: 0),))
+
+    monkeypatch.setattr("plumb.modules._entry_points", lambda: [
+        _entry("a-chores", claimant("a-chores")), _entry("z-chores", claimant("z-chores"))])
+
+    found = {module.name: module for module in discover(reserved={"board"})}
+    assert all(module.refused for module in found.values()), (
+        f"a contested name mounted for somebody: "
+        f"{[(n, m.refused) for n, m in found.items()]}")
+    for name, module in found.items():
+        other = "z-chores" if name == "a-chores" else "a-chores"
+        assert other in module.refused, f"{name} is not told who else claims it: {module.refused}"
+
+
+@pytest.mark.proves("mod2", depth="unit")
+def test_an_uncontested_verb_is_untouched_by_somebody_elses_collision(monkeypatch):
+    """The tool answers for every verb that is not contested (`mod2-sr2`). One bad pair of modules
+    taking an unrelated third one down is the failure the refusal exists to avoid."""
+    from plumb.modules import discover
+
+    def claiming(module_name, verb):
+        return Declaration(name=module_name, version="1.0.0", surfaces={},
+                           verbs=(Verb(verb, "a verb", lambda a: 0),))
+
+    monkeypatch.setattr("plumb.modules._entry_points", lambda: [
+        _entry("a-chores", claiming("a-chores", "chores")),
+        _entry("z-chores", claiming("z-chores", "chores")),
+        _entry("ledger", claiming("ledger", "ledger"))])
+
+    found = {module.name: module for module in discover(reserved={"board"})}
+    assert not found["ledger"].refused, "an uncontested module lost its verb to somebody else"
+
+
+@pytest.mark.proves("mod2", depth="wiring")
+def test_the_listing_is_what_the_tool_mounted(monkeypatch, capsys):
+    """`mod2-sr3`, through `plumb modules`.
+
+    It called `discover(reserved=set())`, so the listing could never refuse anything for naming a
+    core verb — and printed a module as mounted, with its verbs and writes, while every invocation
+    of the tool refused it. Found by mounting a real contributed module that claims `support`:
+    `plumb modules` said it was mounted and `plumb support` answered from the core.
+    """
+    from plumb.cli import main
+
+    shadow = Declaration(name="support", version="0.1.0", surfaces={},
+                         verbs=(Verb("support", "a module claiming a core verb", lambda a: 0),))
+    monkeypatch.setattr("plumb.modules._entry_points", lambda: [_entry("support", shadow)])
+
+    assert main(["modules"]) == 0
+    shown = capsys.readouterr().out
+    assert "NOT MOUNTED" in shown, (
+        f"the listing claims a module is mounted that the tool refuses:\n{shown}")
+    assert "the core already owns" in shown
+
+
+@pytest.mark.proves("mod2", depth="unit")
+def test_one_distribution_found_twice_is_not_two_modules(monkeypatch):
+    """An editable install plus that tree's `src/` on `PYTHONPATH` — what CONTRIBUTING asks for —
+    puts dist-info and egg-info both on the path and the same entry point is read from each.
+
+    It listed the module twice and printed its writes twice. Once a contested name was refused, the
+    same duplicate read as two modules fighting and took the only real one down with it: at the
+    floor `plumb series` simply stopped existing.
+    """
+    from plumb.modules import discover
+
+    declared = Declaration(name="series", version="1.0.0", surfaces={},
+                           verbs=(Verb("series", "the real one", lambda a: 0),))
+    twice = [_entry("series", declared), _entry("series", declared)]
+    monkeypatch.setattr("plumb.modules._entry_points", lambda: twice)
+
+    found = discover(reserved={"board"})
+    assert len(found) == 1, f"one distribution was counted {len(found)} times"
+    assert not found[0].refused, f"and it was refused for colliding with itself: {found[0].refused}"
