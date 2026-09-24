@@ -10,7 +10,7 @@ object cannot be listed before it runs, cannot be refused for naming a core verb
 anything already there. Reading a declaration first is what makes refusing one possible at all.
 
 **What the core promises back** is the set of surfaces it publishes, each with its own version
-(``mod1-ur2``) — the board and the series interface today. A module declares the version it speaks
+(``mod1-ur2``) — the board, the series interface and transport today. A module declares the version it speaks
 per surface, and one it cannot be given is refused by name rather than discovered at runtime by a
 verb that half works.
 
@@ -66,9 +66,9 @@ class Declaration:
     """What a module says about itself, before any of it is mounted (``mod2``).
 
     ``surfaces`` maps a surface the core publishes to the version this module speaks. ``writes``
-    names every place it writes, so ``plumb footprint``, backup and restore stay honest about what
-    modules added (``mod2-ur2``). ``network`` is declared so the install's trust decision is over
-    verbs, writes and reach together (``mod2-ur4``).
+    names every place it writes, so ``plumb footprint`` and whatever the adopter uses to protect a
+    machine stay honest about what modules added (``mod2-ur2``). ``network`` is declared so the
+    install's trust decision is over verbs, writes and reach together (``mod2-ur4``).
     """
 
     name: str

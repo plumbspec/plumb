@@ -1,6 +1,6 @@
 # ado · bring plumb to a project
 
-**Last updated** 2026-09-23 v7
+**Last updated** 2026-09-23 v8
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -167,10 +167,11 @@ flowchart TD
 #### User Requirements
   * ado4-ur1 - an upgrade stays on the stream the install was on, decided against the statement
     of what changed
-  * ado4-ur2 - every footprint entry carries a disposition: rebuilds itself, the repository has
-    it, this project's alone, or must never leave the machine
-  * ado4-ur3 - the list names which entries are irreplaceable, so somebody can point the backup
-    they already run at them
+  * ado4-ur2 - every footprint entry carries a disposition, and each states what the entry IS
+    rather than what to do about it: rebuilds itself, the repository has it, this project's alone,
+    or carries a credential
+  * ado4-ur3 - the list names which entries nothing else holds, so somebody can decide what to
+    protect without reading the source
 
 #### System Requirements
   * ado4-sr1 - the footprint list lives beside the code that writes, and the documentation is a
@@ -184,6 +185,9 @@ flowchart TD
   * ado4-nfr2 - an archive that silently omitted a credential and one that had nothing to omit are
     the same bytes, and whoever finds out is whoever is restoring after a disk failure — a hazard
     that exists only for a tool that offers the archive
+  * ado4-nfr3 - a disposition that instructs — *never copy this anywhere* — claims an authority the
+    tool does not have over somebody else's machine, threat model and obligations; naming what a
+    thing is leaves the judgement where it belongs and is the more useful half anyway
 
 #### Unknowns
   * ado4-u1 - whether the list should be emitted in a form another tool consumes rather than read

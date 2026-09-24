@@ -38,7 +38,7 @@ repair is never on the table.
   keys are read-only to it. A configuration table is not where a secret belongs.
 - **Its own state home, outside the repository** — granted by the mount, named for the module.
   Where a bearer credential or a private key rests, its footprint entry carries the
-  disposition *must never leave the machine*.
+  disposition *carries a credential*.
 - **A signing identity derived from the product root under the module's own label** — never
   the root itself. The root's only use, anywhere, is deriving keys: one identity, a distinct
   key per purpose, rotation below the root — and a root that is never needed at signing time

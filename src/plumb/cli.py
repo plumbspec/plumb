@@ -978,16 +978,19 @@ def cmd_footprint(args) -> int:
                 "" if wrote.keep else "disposable",
                 "IRREPLACEABLE" if wrote.irreplaceable else "",
                 "shared" if wrote.shared else "",
-                "SECRET — never copy it anywhere" if wrote.secret else ""]))
+                "SECRET" if wrote.secret else ""]))
             print(f"  {wrote.where}" + (f"   [{marks}]" if marks else ""))
             for line in textwrap.wrap(wrote.what, 72):
                 print(f"      {line}")
-    print("\nWhat is marked IRREPLACEABLE exists nowhere else — point whatever you already back up\n"
-          "at those paths. Plumb does not take an archive: what counts as a secret, what your\n"
-          "repository already carries and what a restore may overwrite are yours to decide, and\n"
-          "you are already backing this machine up somehow.\n\n"
-          "A passphrase is not here because it is never written down — losing it loses the\n"
-          "account, and no backup helps.")
+    # Facts, and then nothing. What to do about a secret depends on a threat model, an
+    # infrastructure and a set of obligations this tool cannot see, and `ado4-nfr3` is the whole
+    # argument: naming what a thing is leaves the judgement where it belongs.
+    print("\nIRREPLACEABLE means nothing else holds it: a run that was not recorded cannot be\n"
+          "recovered from a later one, and a record that has not reached a holder exists only\n"
+          "here. SECRET means the file carries a credential.\n\n"
+          "Plumb takes no archive of any of it.\n\n"
+          "A passphrase appears nowhere above because it is never written down — losing it loses\n"
+          "the account.")
     return EXIT_OK
 
 

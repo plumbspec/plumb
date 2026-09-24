@@ -8,8 +8,12 @@ maintains beside the thing it describes.
 So the list is **here, beside the code that writes**, and the documentation is a view of it rather
 than a second copy (``ado4``). What each entry carries is not a path but a *disposition* — whether
 it can be rebuilt, whether the repository already has it, whether it belongs to this project alone,
-and whether it must never leave the machine — because those are the four facts a backup, a
-migration and an archive each need, and none of them is derivable from a filename.
+and whether it carries a credential — because those are the four facts anybody deciding what to
+protect needs, and none of them is derivable from a filename.
+
+Each states what the entry **is**, never what to do about it (``ado4-nfr3``). *Must never leave the
+machine* was one of them, and it instructed a reader whose threat model, infrastructure and
+obligations this tool cannot see.
 """
 
 import os
@@ -32,7 +36,9 @@ class Wrote:
     #: Not this project's alone. One account serves every repository that pushes to one holder,
     #: so restoring it *for* a project silently rebinds an identity that was never that project's.
     shared: bool = False
-    #: Must never leave the machine (``ado4-ur2``).
+    #: Carries a credential (``ado4-ur2``). What follows from that is the reader's: their threat
+    #: model, their infrastructure and their obligations are not things this tool can see, so it
+    #: names what the file is and stops (``ado4-nfr3``).
     secret: bool = False
     #: Nothing else holds this. **Stated, never derived** (``ado4-ur3``): a series lives inside the
     #: project and is commonly git-ignored, so deciding by location marks everything in the tree as
