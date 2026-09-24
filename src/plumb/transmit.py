@@ -555,6 +555,32 @@ def _accepts(refused: urllib.error.HTTPError) -> str:
         return f"version mismatch; this client speaks {PROTOCOL_VERSION}"
 
 
+def _sending_as(enrolment_path: Path | None = None, root: Path | str = ".") -> Enrolment:
+    """Where support sends, resolved the way every capability resolves (`snd1-ur1`).
+
+    Support used `load()` directly, which reads the machine-wide pair and the enrolment file and
+    knows nothing of a capability's own variables. So `PLUMB_SUPPORT_ENDPOINT` — documented as
+    where records go — moved `poll`, `turn` and `case`, which go through `transport`, and did not
+    move `file` or `send`, which came through here. An adopter who set it was told their records
+    were staying local while the tool reported the endpoint configured.
+
+    `transport.for_capability` already falls back to the machine-wide pair and then to the
+    enrolment file, so nothing that resolved before stops resolving: this widens what is read and
+    narrows nothing.
+
+    The relationship is `self` because a locally assembled one is a claim by the filer that the
+    service overwrites from the credential it authenticated (`ch12-19`).
+    """
+    from plumb.transport import for_capability
+
+    found = for_capability("support", enrolment_path=enrolment_path, root=root)
+    if found is None:
+        # Deferred to `load`, which is the one place that explains an absence, and absence is the
+        # ordinary state rather than a failure (`snd2-sr1`).
+        return load(enrolment_path, root)
+    return Enrolment("self", found.credential, found.url, found.subject)
+
+
 def pull_friction(destination: Path, enrolment_path: Path | None = None) -> Outcome:
     """Fetch what the support service holds into a directory (`ch6-17`).
 
@@ -568,7 +594,7 @@ def pull_friction(destination: Path, enrolment_path: Path | None = None) -> Outc
     look at rather than something to quietly overwrite while pulling.
     """
     try:
-        enrolment = load(enrolment_path)
+        enrolment = _sending_as(enrolment_path)
     except NotEnrolled as why:
         return Outcome(reason=str(why))
     destination = Path(destination)
@@ -630,7 +656,7 @@ def _get_json(url: str, enrolment: Enrolment) -> dict:
 def send_one(record: SupportRecord, store: SupportStore, enrolment_path: Path | None = None) -> Outcome:
     """File-and-forget: deliver if enrolled and reachable, otherwise leave it queued."""
     try:
-        enrolment = load(enrolment_path)
+        enrolment = _sending_as(enrolment_path)
     except (NotEnrolled, ValueError, json.JSONDecodeError) as not_enrolled:
         return Outcome(reason=str(not_enrolled))  # local by default (ch6-6) — not a failure
 
@@ -651,7 +677,7 @@ def drain(store: SupportStore, enrolment_path: Path | None = None) -> Outcome:
     """Retry everything in the outbox. Stops at the first unreachable attempt rather than
     hammering a down endpoint once per queued record."""
     try:
-        enrolment = load(enrolment_path)
+        enrolment = _sending_as(enrolment_path)
     except (NotEnrolled, ValueError, json.JSONDecodeError) as not_enrolled:
         return Outcome(reason=str(not_enrolled))
 
