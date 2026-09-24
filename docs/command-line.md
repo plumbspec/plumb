@@ -20,7 +20,7 @@ most confusion comes from not knowing which ones cancel each other out.
     plumb manifest   migrate FILE
     plumb support    [--store DIR] [--enrolment FILE]  {file|list|send|show|withdraw|migrate|pull|poll|turn}
     plumb account    [--account FILE]                  {create|open|redeem|export|show}
-                     create [--endpoint URL] · export [--passphrase P]
+                     create [--endpoint URL] · export [--root HEX]
 
 ---
 

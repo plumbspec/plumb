@@ -131,24 +131,48 @@ def test_every_flag_the_tool_accepts_is_in_the_reference():
     )
 
 
+#: Flags a page names on purpose without the tool offering them. Each is a claim about something
+#: ELSE, and a scan that reads a flag out of a code block cannot tell whose command it belongs to.
+#:
+#: Kept as a list with reasons rather than a set of strings, because the next addition will be
+#: somebody silencing a real finding and the reason is what makes that visible.
+NOT_OURS = {
+    # Named as a flag that does NOT exist — the claim is about its absence, and it stays true.
+    "--no-mutation": "command-line.md says explicitly that there is no such flag",
+    # pytest's own, in a sentence about running pytest directly rather than through plumb.
+    "--strict-markers": "writing-a-citation.md, about invoking pytest and not this tool",
+}
+
+
 @pytest.mark.proves("ado1", depth="unit")
-def test_no_flag_in_the_reference_has_been_removed_from_the_tool():
+def test_no_flag_any_page_documents_has_been_removed_from_the_tool():
     """The other direction, and the one that rots silently: a flag deleted from the CLI leaves its
-    paragraph behind, and the paragraph is what a reader tries."""
+    paragraph behind, and the paragraph is what a reader tries.
+
+    **Every page, not only the reference.** A flag named in a how-to misleads exactly as much as one
+    named in the reference, and it is likelier to be read — `--passphrase` sat against a subcommand
+    that never took it, in the usage block at the top of the page.
+
+    Handed over by the team who run the releases: they had a release-time gate scraping the built
+    artifact for this, and it belongs on every commit in front of whoever broke it rather than in
+    front of whoever is cutting.
+    """
     known = {opt for _, opt in flags()} | GENERATED
-    # A markdown horizontal rule is `---`, and a naive "starts with --" reads it as an option. The
-    # shape of a real flag is what distinguishes them, so match that rather than stripping the one
-    # counter-example that happened to appear.
-    documented = {
-        token for token in (t.rstrip(".,)`|:") for t in REFERENCE.read_text().split())
-        if re.fullmatch(r"--[a-z][\w-]*", token)
-    }
-    # `--` alone is the pass-through separator and names no option; `--no-mutation` is named
-    # explicitly as a flag that does NOT exist, which is a claim about absence and stays true.
-    stale = sorted(documented - known - {"--no-mutation"})
+    # SCANNED, not tokenised. Splitting on whitespace and stripping TRAILING punctuation missed
+    # every flag written `[--flag …]`, which is the shape a usage block is written in — so the
+    # check read 24 of the 43 flags on these pages and passed on the strength of it. A leading `[`
+    # or a backtick was enough to make a flag invisible, and `--passphrase` sat documented against
+    # a subcommand that never took it.
+    #
+    # `--` alone and a markdown rule `---` do not match, because a flag's shape is a letter first.
+    stale = {}
+    for page in sorted(DOCS.glob("*.md")):
+        for flag in sorted(set(re.findall(r"--[a-z][\w-]*", page.read_text())) - known - set(NOT_OURS)):
+            stale.setdefault(flag, []).append(page.name)
     assert not stale, (
-        f"the reference documents flags the tool does not accept: {stale}"
-    )
+        "these pages document flags the tool does not accept: "
+        + "; ".join(f"{flag} in {', '.join(where)}" for flag, where in sorted(stale.items()))
+        + ". A reader tries the paragraph, not the parser")
 
 
 @pytest.mark.proves("ado1", depth="unit")
