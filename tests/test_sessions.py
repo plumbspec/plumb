@@ -7,6 +7,7 @@ at this repository would recurse without bound.
 """
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -110,9 +111,13 @@ def test_the_footprint_is_printed_with_the_paths_this_machine_actually_uses(monk
     # marker on the entry now, and it reaches the series, which lives in the project and is
     # commonly git-ignored.
     assert "history.jsonl" in shown and "IRREPLACEABLE" in shown, "and what it would cost to lose"
-    # "never into an archive" named a verb this tool no longer has. The rule did not change with it:
-    # what may not leave the machine may not leave it by any route.
-    assert "SECRET — never copy it anywhere" in shown, "with the one that may not be copied marked"
+    # `ado4-nfr3` — the marker names what the file IS. It said "never into an archive" and then
+    # "never copy it anywhere", and both instructed a reader whose threat model, infrastructure and
+    # obligations this tool cannot see. What follows from carrying a credential is theirs.
+    marks = re.findall(r"\[([^\]]+)\]", shown)
+    assert any("SECRET" in mark for mark in marks), "the one carrying a credential is named as such"
+    assert all("\u2014" not in mark for mark in marks), (
+        f"a marker names what a thing is and stops; these instruct: {marks}")
 
 
 @pytest.mark.proves("ado4", depth="component")

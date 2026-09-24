@@ -710,7 +710,7 @@ irreplaceable; everything else is either in your repository already or rebuilt o
 | Path | What it is | Keep it? |
 |---|---|---|
 | `~/.config/plumb/account.json` | endpoint, the public half of your account, and this key's counter. **No secret** — the identity is derived from your passphrase and is never written down | yes, but it is **shared** across every project pushing to that holder |
-| `~/.config/plumb/enrolment.json` | an operator-issued enrolment, file form — **this one carries a credential** | yes, and never into an archive |
+| `~/.config/plumb/enrolment.json` | an operator-issued enrolment, file form — **this one carries a credential** | yes; marked `SECRET` |
 | `~/.local/share/plumb/support/` | support records, and an outbox of what has not reached a support service | **irreplaceable** — nothing else holds an untransmitted record |
 | `~/.local/state/plumb/` | a session's opening reading, keyed by project path | no — scratch; a session that loses it is simply told its delta cannot be computed |
 | `~/.cache/plumb/` | a per-version cache | no — rebuilt when missing |

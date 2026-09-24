@@ -1,6 +1,6 @@
 # mod · contribute a module
 
-**Last updated** 2026-09-23 v3
+**Last updated** 2026-09-23 v4
 
 What whoever builds a module does, from a capability plumb lacks to a verb an adopter can
 install. Exits to [ado · bring plumb to a project](ado-bring-plumb-to-a-project.md), whose
@@ -85,9 +85,8 @@ one CLI grows a verb]):::good
   * mod2-ur1 - the verbs it mounts are named in the declaration, and none is a core verb
   * mod2-ur2 - every place the module writes is a declared footprint entry with a disposition,
     so migration, removal, and whatever backup the adopter runs stay honest about what modules
-    added; a secret rests in
-    the module's state home with the disposition *must never leave the machine*, never in a
-    configuration table
+    added; a secret rests in the module's state home with the disposition *carries a credential*,
+    never in a configuration table
   * mod2-ur4 - the declaration says whether the module reaches the network, so the install's
     trust decision is over verbs, writes and reach together
   * mod2-ur3 - the module names itself and its version, out of its own artifact
