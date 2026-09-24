@@ -16,9 +16,9 @@
 # The corpus is a set of process flows, each named by its sigil: `dev` (a developer's day and its
 # drill-downs), `ado` (bringing plumb to a project), `rel` (cutting a release), `mod`
 # (contributing a module), `hol` (holding a series), `snd` (sending what a run produced to a
-# destination). The namespace is their alternation, because
+# destination), `lex` (saying a verdict in the reader's own words). The namespace is their alternation, because
 # a citation is held against the spec that owns its sigil and no other.
-namespace = "(?:dev|ado|rel|mod|hol|snd)"
+namespace = "(?:dev|ado|rel|mod|hol|snd|lex)"
 flow_dir  = "diagrams"
 # Every flow chapter's name carries its sigil and a hyphen; `legend.md` — the shared mermaid
 # legend, not a flow — is the one file the pattern deliberately misses.
