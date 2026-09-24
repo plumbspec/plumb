@@ -1,6 +1,6 @@
 # ado · bring plumb to a project
 
-**Last updated** 2026-09-23 v8
+**Last updated** 2026-09-24 v9
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -217,18 +217,36 @@ flowchart TD
   * ado5-ur4 - a module speaking a surface version the core does not is refused by name, with
     what the core speaks
   * ado5-ur5 - the module's declared footprint joins the tool's
+  * ado5-ur6 - a module reaches an adopter carried inside the artifact they installed or installed
+    separately beside it, and both mount by the same declaration; what enables one is its entry
+    point and never where its code came from
 
 #### System Requirements
   * ado5-sr1 - discovery reads the installed package's entry-point declaration; installing is
     the whole of enabling
+  * ado5-sr2 - an artifact that carries a module carries what discovery reads, so a channel that
+    delivers the tool delivers the whole of it rather than the half that needs no metadata
 
 #### Non-Functional Requirements
   * ado5-nfr1 - installing a module is the trust decision, made on its declared verbs, writes
     and reach
   * ado5-nfr2 - the core's own gates run with no modules mounted
+  * ado5-nfr3 - a channel that carries the tool and not its modules ships less than the product
+    while appearing to ship all of it, and the person who installed the recommended way is the one
+    who finds out
 
 #### Unknowns
-
+  * ado5-u1 - whether an adopter should be able to tell a module carried in the artifact from one
+    installed beside it is undecided; both are listed identically today, and *where did this come
+    from* is the first question anybody asks when one needs replacing
+  * ado5-u2 - whether the tool should ever look for a newer core or module is undecided, and it is
+    a decision about the guarantee rather than about convenience: nothing checks today, and a check
+    is a network call in a tool whose promise is that it transmits nothing unless a destination is
+    named. The candidates are refusing precisely and leaving the fetching to whoever packages, or
+    an opt-in check as explicit as enrolment
+  * ado5-u3 - where an adopter obtains a newer module is answered nowhere; the mount refuses a
+    version it cannot speak and says what it speaks, which tells somebody they are stuck without
+    telling them where to go
 
 ---
 
