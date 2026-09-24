@@ -102,6 +102,31 @@ def test_a_mounted_group_reaches_its_callable_through_the_parser(capsys):
     assert reached == {"loudly": True}
 
 
+@pytest.mark.proves("mod4", depth="wiring")
+@pytest.mark.proves("mod1", depth="wiring")
+def test_the_one_cli_grows_the_verb(tmp_path, capsys):
+    """`mod4` — through `plumb` itself, and this is the only test that proves the thing claimed.
+
+    Every other mount test builds its own `ArgumentParser`, which proves `_bind` and says nothing
+    about the CLI an adopter runs: the discovery, the check against the published surfaces and the
+    binding all sit between that parser and this one. *A module's verb is indistinguishable from a
+    core verb* is a claim about `plumb`, so it is asserted against `plumb`.
+    """
+    from plumb.cli import main
+    from plumb.core.manifest import Citation, Manifest, Story
+    from plumb.core.series import append
+
+    store = tmp_path / "series.jsonl"
+    append(store, Manifest(stories={"S-1": Story(citations=(
+        Citation(test="t::a", depth="unit", result="passed", grounding="inert",
+                 when="2026-08-01T09:00:00Z"),))}))
+
+    # `series` is declared by a distribution and named nowhere in `plumb.cli`; reaching it here
+    # means discovery, the surface check and the bind all ran inside the tool's own entry point.
+    assert main(["series", "show", str(store)]) == 0
+    assert "S-1" in capsys.readouterr().out
+
+
 def test_a_bare_group_is_not_a_command():
     """argparse's default accepts a group name alone and hands back no `func` at all."""
     parser = argparse.ArgumentParser(prog="plumb")
