@@ -66,9 +66,11 @@ class Declaration:
     """What a module says about itself, before any of it is mounted (``mod2``).
 
     ``surfaces`` maps a surface the core publishes to the version this module speaks. ``writes``
-    names every place it writes, so ``plumb footprint`` and whatever the adopter uses to protect a
-    machine stay honest about what modules added (``mod2-ur2``). ``network`` is declared so the
-    install's trust decision is over verbs, writes and reach together (``mod2-ur4``).
+    holds `footprint.Wrote` entries, so `plumb footprint` names what a module added and with what
+    disposition (``mod2-ur2``, ``ado5-ur5``) — a module's state is invisible to the person deciding
+    what to protect otherwise, and the core stops being able to answer for it the moment a
+    capability moves out. ``network`` is declared so the install's trust decision is over verbs,
+    writes and reach together (``mod2-ur4``).
     """
 
     name: str
@@ -155,6 +157,17 @@ def _checked(declared: Declaration, reserved) -> Mounted:
             return Mounted(declared.name, declared,
                            f"speaks `{surface}` {speaks} and the core publishes "
                            f"{surfaces[surface]}")
+    from plumb.footprint import Wrote
+
+    # Checked here so it is refused by name rather than found later by whatever reads the field.
+    # `mod2` is that trusting a module is a decision over a list; a list with something unreadable
+    # in it is the failure that argument exists to prevent.
+    unreadable = [w for w in declared.writes if not isinstance(w, Wrote)]
+    if unreadable:
+        return Mounted(declared.name, declared,
+                       f"declares {len(unreadable)} write(s) that are not footprint entries — "
+                       f"`writes` holds `footprint.Wrote`, so `plumb footprint` can say what "
+                       f"losing each place would cost")
     taken = sorted(verb.name for verb in declared.verbs if verb.name in reserved)
     # Only the names a module OWNS collide — a command under its own group is its own business,
     # so `series push` never competes with `support push` and neither has to know the other exists.
@@ -216,6 +229,8 @@ def render(found: list) -> str:
                      f"  verbs: {verbs}"
                      f"  speaks: {speaks or 'nothing'}"
                      f"  network: {'yes' if declared.network else 'no'}")
-        for where in declared.writes:
-            lines.append(f"      writes {where}")
+        for wrote in declared.writes:
+            # The place only. What losing it would cost is `plumb footprint`'s answer, and saying
+            # it twice is how the two copies come to disagree.
+            lines.append(f"      writes {wrote.where}")
     return "\n".join(lines)

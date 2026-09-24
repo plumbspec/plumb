@@ -15,6 +15,7 @@ import argparse
 
 import pytest
 
+from plumb.footprint import Wrote
 from plumb.modules import (Argument, Declaration, Mounted, Verb, _checked, mount, published,
                            render)
 
@@ -26,7 +27,8 @@ def _declaration(**changed) -> Declaration:
             Verb("run", "do the thing", lambda args: 0,
                  (Argument(("--loudly",), {"action": "store_true"}),)),
         )),),
-        writes=("~/.local/share/example",), network=False)
+        writes=(Wrote("~/.local/share/example", "records the example kept", keep=True),),
+        network=False)
     fields.update(changed)
     return Declaration(**fields)
 
@@ -118,7 +120,29 @@ def test_render_says_what_a_module_adds_and_what_it_reaches():
     assert "example (run)" in shown
     assert "series 1" in shown
     assert "network: yes" in shown
-    assert "~/.local/share/example" in shown
+    # The whole line, because the path is a substring of the entry's `repr` too — asserting it
+    # loosely is how this passed while the listing printed `Wrote(where='...', what='...', ...)`.
+    assert "writes ~/.local/share/example" in shown, shown
+
+
+@pytest.mark.proves("mod2", depth="unit")
+def test_a_write_that_is_not_a_footprint_entry_refuses_the_module():
+    """`mod2-ur1`, `mod2-ur2`. The field is what `plumb footprint` reads, so a module that fills it
+    with something else is refused here rather than printing a dataclass repr at an adopter."""
+    refused = _checked(_declaration(writes=("~/.local/share/example",)), reserved={"board"}).refused
+    assert "not footprint entries" in refused, refused
+
+
+@pytest.mark.proves("mod2", depth="unit")
+def test_a_refused_module_contributes_nothing_to_the_footprint(monkeypatch):
+    """What it said about itself was not accepted; the one list somebody protects a machine from is
+    not where unchecked text belongs."""
+    from plumb import footprint
+
+    declared = _declaration()
+    monkeypatch.setattr("plumb.modules.discover",
+                        lambda reserved: [Mounted("example", declared, refused="speaks `telemetry`")])
+    assert footprint.from_modules() == ()
 
 
 def test_a_refused_module_is_named_in_the_listing_rather_than_missing():
@@ -184,3 +208,66 @@ def test_a_module_that_will_not_import_is_named_and_the_rest_still_mount(tmp_pat
     assert "half installed" in found["broken"].refused
     # The one this distribution ships is still there beside it.
     assert "series" in found and found["series"].refused == ""
+
+
+@pytest.mark.proves("mod2", depth="unit")
+def test_a_modules_declared_writes_reach_the_footprint(tmp_path, monkeypatch):
+    """`mod2-ur2`, `ado5-ur5`. A module's state is invisible to whoever is deciding what to protect.
+
+    It matters most at a handover: the release that moves a capability out of the core is the one
+    where the core stops naming what that capability wrote, and the store does not stop existing.
+    """
+    from plumb import footprint
+    from plumb.footprint import Wrote
+    from plumb.modules import Declaration, Mounted, Verb
+
+    declared = Declaration(
+        name="example", version="1.0.0", surfaces={},
+        verbs=(Verb("example", "a verb", lambda a: 0),),
+        writes=(Wrote("~/.local/share/example", "records nothing else holds",
+                      keep=True, irreplaceable=True),))
+    monkeypatch.setattr("plumb.modules.discover", lambda reserved: [Mounted("example", declared)])
+
+    found = footprint.from_modules()
+    assert [w.where for w in found] == ["~/.local/share/example"]
+    assert found[0].irreplaceable, "a module's disposition travels with its entry"
+
+
+def test_a_module_that_writes_nothing_adds_no_section(tmp_path, monkeypatch):
+    """A module with no state is the ordinary case, not a finding worth a heading."""
+    from plumb import footprint
+    from plumb.modules import Declaration, Mounted, Verb
+
+    bare = Declaration(name="example", version="1.0.0", surfaces={},
+                       verbs=(Verb("example", "a verb", lambda a: 0),))
+    monkeypatch.setattr("plumb.modules.discover", lambda reserved: [Mounted("example", bare)])
+    assert footprint.from_modules() == ()
+
+
+@pytest.mark.proves("ado5", depth="wiring")
+@pytest.mark.proves("mod2", depth="wiring")
+def test_the_command_prints_what_modules_declared(tmp_path, capsys):
+    """Through `plumb footprint`, because calling `from_modules()` proves only that it computes.
+
+    The first version of this asserted the function's return value and passed with the function
+    wired into nothing — every citation green, and `plumb footprint` printing no module at all.
+    That is the shape of failure this tool was built to find, and it found it here.
+    """
+    from plumb import cli
+
+    (tmp_path / "plumb.toml").write_text('adapter = "python"\nproduction = ["src"]\n')
+    assert cli.main(["footprint", "--project", str(tmp_path)]) == 0
+    shown = capsys.readouterr().out
+
+    assert "added by modules" in shown, "the command does not print what modules declared"
+    assert "the series file named on the command line" in shown, (
+        "the series module's own declared write is not in the footprint the command prints")
+
+
+def test_the_series_module_names_what_it_writes():
+    """The one module this distribution ships declares its own history, and marks it."""
+    from plumb_series import DECLARATION
+
+    assert DECLARATION.writes, "the series module declares nothing it writes"
+    assert any(w.irreplaceable for w in DECLARATION.writes), (
+        "a history nothing else holds is not marked as such")

@@ -116,5 +116,31 @@ def in_project(config, project: Path = Path(".")) -> tuple[Wrote, ...]:
     return tuple(found)
 
 
+def from_modules() -> tuple[Wrote, ...]:
+    """What mounted modules declare they write (``mod2-ur2``, ``ado5-ur5``).
+
+    Imported lazily because `modules` reads this module for the entry type, and a footprint that
+    could not be built without discovering modules would make the core's own answer depend on what
+    happened to be installed.
+
+    A module that declares nothing contributes nothing; there is no entry saying so, because a
+    module with no state is the ordinary case rather than a finding. A module the core **refused**
+    contributes nothing either — what it said about itself was not accepted, and printing it here
+    would put unchecked text in the one list somebody protects a machine from.
+
+    ``reserved`` is empty because a verb collision is the CLI's question and not this one: a module
+    refused a name still wrote what it wrote, and an inventory that dropped it would be wrong about
+    the disk.
+    """
+    from plumb.modules import discover
+
+    return tuple(wrote for module in discover(reserved=set())
+                 if module.declaration and not module.refused
+                 for wrote in module.declaration.writes)
+
+
 def everything(config, project: Path = Path(".")) -> tuple[Wrote, ...]:
+    """Everything the **core** writes. Modules are not in it: `from_modules()` is composed beside
+    this one, where it can be named as theirs, so a core answer never varies with what is installed.
+    """
     return in_project(config, project) + user_level()
