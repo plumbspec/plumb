@@ -43,6 +43,22 @@ reason.
 The core publishes two versioned surfaces for a module to build against: the board, and the series
 interface — which now carries a version at all, where it published none.
 
+### `plumb footprint` names what a module writes
+
+A module declares the places it writes, each with a disposition — whether it rebuilds itself,
+whether your repository already carries it, whether it holds a credential, whether **nothing else
+holds it**. `plumb footprint` prints them under a heading of their own, last, named as the
+modules' and not the core's. A module that writes nothing adds no section.
+
+This is what keeps the list honest as capabilities move out of the core. The release that hands a
+capability to a module is the release the core stops naming what that capability wrote — and the
+files do not stop existing. Whoever is deciding what to protect would simply stop being told, with
+no error and nothing to notice.
+
+A module whose declared writes are not footprint entries is **refused by name**, the same as one
+that mounts a core verb or speaks a surface the core publishes no version of. `plumb modules`
+names the same places without the dispositions.
+
 ### A destination belongs to a capability, not to the machine
 
 `PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL` named one address for everything Plumb sends, so a team
