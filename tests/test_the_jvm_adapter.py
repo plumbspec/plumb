@@ -795,17 +795,29 @@ def test_a_mutation_that_changes_nothing_is_never_generated():
         "    String present() { return \"x\"; }\n"      # swap-return -> null: a real mutant
         "}\n")
     (harness / "Count.java").write_text(
+        # `Paths.get` and `Arrays.asList`, not `Path.of` and `List.of`: this release declares a
+        # Java 8 floor and those two arrived at 11 and 9. The harness compiled anyway because the
+        # suite runs on whatever JDK is default — 25 here — so a fixture the floor cannot build
+        # passed every run. What a floor claims and what the tests are built against are two facts,
+        # and only one of them was being checked.
         "import java.nio.file.*;\nimport java.util.*;\n"
         "public class Count {\n"
         "  public static void main(String[] a) throws Exception {\n"
         "    for (String m : new String[]{\"Nullable#absent\", \"Nullable#present\"})\n"
         "      System.out.println(m + \" \" + org.plumbspec.Mutants.count(\n"
-        "          Path.of(a[0]), new HashSet<>(List.of(m))));\n"
+        "          Paths.get(a[0]), new HashSet<>(Arrays.asList(m))));\n"
         "  }\n}\n")
     adapter = JAVA / "adapter" / "target" / "classes"
-    assert subprocess.run(["javac", "-cp", str(adapter), "-d", str(harness),
+    # The compiler tree API this reads is an exported package from Java 9 and sits in `tools.jar`
+    # below it, on nobody's classpath. `launch._compiling_classpath` arranges that for the product
+    # — `dev07-3-1-sr3` says holding at the floor is ours to arrange — and a harness that skips it
+    # tests the adapter on a classpath the tool never gives it.
+    from plumb.launch import _compiling_classpath
+
+    cp = _compiling_classpath(shutil.which("java"), f"{adapter}{os.pathsep}{harness}")
+    assert subprocess.run(["javac", "-cp", cp, "-d", str(harness),
                            str(harness / "Count.java")], capture_output=True).returncode == 0
-    done = subprocess.run(["java", "-cp", f"{adapter}:{harness}", "Count",
+    done = subprocess.run(["java", "-cp", cp, "Count",
                            str(harness / "Nullable.java")], capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
     got = dict((w.split()[0], int(w.split()[1]))
