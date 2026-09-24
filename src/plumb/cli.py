@@ -965,10 +965,17 @@ def cmd_footprint(args) -> int:
         print(f"{bad}", file=sys.stderr)
         return EXIT_CANNOT_BOARD
 
-    for heading, places in (("in this project — your repository already carries these",
-                             footprint.in_project(config, Path(args.project))),
-                            ("outside it — the half a repository does not carry",
-                             footprint.user_level())):
+    sections = (("in this project — your repository already carries these",
+                 footprint.in_project(config, Path(args.project))),
+                ("outside it — the half a repository does not carry",
+                 footprint.user_level()),
+                # Last, and named as theirs. A module's state is invisible to whoever is deciding
+                # what to protect otherwise, and the core stops being able to answer for it the
+                # moment a capability moves out (`mod2-ur2`). Omitted entirely where no module
+                # declares anything, because a module with no state is ordinary, not a finding.
+                ("added by modules — the core does not own these",
+                 footprint.from_modules()))
+    for heading, places in (s for s in sections if s[1]):
         print(f"\n{heading}\n")
         for wrote in places:
             # `ado4-ur3` — the list names what is irreplaceable, so somebody can point the backup

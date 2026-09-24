@@ -17,6 +17,7 @@ reason this module exists before the support one does.
 """
 
 from plumb.core.series import SERIES_VERSION
+from plumb.footprint import Wrote
 from plumb.modules import Argument, Declaration, Verb
 
 __version__ = "1.0.0"
@@ -76,6 +77,16 @@ DECLARATION = Declaration(
             )),
         )),
     ),
-    writes=("the series file named on the command line, and its `.sent` mark beside it",),
+    # Named where `plumb footprint` will print it, so somebody deciding what to protect sees a
+    # history this module wrote even though the core no longer knows it exists. The path is not
+    # knowable here — it is whatever the command was given — so `where` says which file it is.
+    writes=(
+        Wrote("the series file named on the command line",
+              "every transition, losslessly — a run that is not recorded cannot be recovered "
+              "from a later one", keep=True, irreplaceable=True),
+        Wrote("its `.sent` mark, beside it",
+              "how far that history has been handed over; a lost mark re-sends what already "
+              "arrived, which the receiver recognises", keep=True),
+    ),
     network=True,
 )

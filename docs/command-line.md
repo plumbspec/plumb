@@ -715,7 +715,7 @@ irreplaceable; everything else is either in your repository already or rebuilt o
 | `~/.local/state/plumb/` | a session's opening reading, keyed by project path | no — scratch; a session that loses it is simply told its delta cannot be computed |
 | `~/.cache/plumb/` | a per-version cache | no — rebuilt when missing |
 
-Each honours its `XDG_*` variable; `PLUMB_ACCOUNT` and `PLUMB_FRICTION_DIR` override the first and
+Each honours its `XDG_*` variable; `PLUMB_ACCOUNT` and `PLUMB_SUPPORT_DIR` override the first and
 third outright.
 
 **The two to actually worry about** are your `series` and any untransmitted support record. The account
@@ -732,6 +732,12 @@ its `XDG_*` variable, so where your support store actually is is a property of y
 |---|---|
 | `--project DIR` | the project to read `plumb.toml` from |
 
+**A mounted module adds a section of its own**, headed *added by modules*, listing what that
+module says it writes. It is printed last and named as theirs, because the core stops being able to
+answer for a capability the moment that capability moves out of it — and the files it wrote do not
+stop existing. A module that writes nothing adds no section. `plumb modules` names the same places
+without the dispositions.
+
 This table is a view of `plumb.footprint`, which lives beside the code that does the writing. A
 hand-kept list of paths stays right until somebody adds a writer, and nothing goes red when they do.
 
@@ -740,7 +746,8 @@ hand-kept list of paths stays right until somebody adds a writer, and nothing go
 ## Backing up — what Plumb tells you, and does not do for you
 
 **Plumb takes no archive.** `plumb footprint` names everything it wrote and marks what is
-`IRREPLACEABLE`; point whatever you already back up at those paths.
+`IRREPLACEABLE`; point whatever you already back up at those paths. That includes what mounted
+modules declare, so installing one does not quietly put state outside the list.
 
 That is a deliberate retirement. `plumb backup` and `plumb restore` existed, and taking custody of
 your files meant Plumb deciding what counts as a secret, what your repository already carries and
