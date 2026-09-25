@@ -43,6 +43,27 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <!-- Below 9 the compiler's own parse-tree API lives in `tools.jar` and is on nobody's
+           classpath; from 9 it is an exported package of `jdk.compiler` and already reachable.
+           `launch` arranges exactly this at runtime, and the build has to arrange it too or the
+           floor is a claim nobody can compile at. Activated by the JDK in use, so it is a fact
+           about the toolchain rather than a guess at one. -->
+      <id>the-compilers-own-api-below-9</id>
+      <activation><jdk>(,9)</jdk></activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.sun</groupId>
+          <artifactId>tools</artifactId>
+          <version>1.8</version>
+          <scope>system</scope>
+          <systemPath>${java.home}/../lib/tools.jar</systemPath>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
   <build>
     <!-- Classes land in this module's own `target/`, which is where the adapter's classpath
          guard expects a Maven module to put them. The JARS go to `../build/`, because that is

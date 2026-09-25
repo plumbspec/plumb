@@ -260,22 +260,32 @@ def test_every_vendored_licence_is_declared_as_package_data():
 
 
 @pytest.mark.proves("dev07-3-1", depth="unit")
-def test_the_published_module_passes_javadoc_no_options_of_its_own():
-    """A javadoc option is a bet on the publisher's JDK, and this module declares no build floor.
+def test_the_published_module_can_be_built_at_the_declared_floor():
+    """`dev07-3-1-ur12`. The floor is Java 8, and that governs building as well as running.
 
-    `--no-fonts` was set here to drop ~4 MB of bundled web fonts, and it stopped a release: the
-    JDK that cuts answered `invalid flag` and nothing was signed or shipped. Nothing in the suite
-    could have caught it, because the javadoc jar is only built at cut time.
+    A cut died here. `--no-fonts` was configured on javadoc to drop the ~4 MB of web fonts a
+    modern JDK bundles, and the release javadoc answered `invalid flag` — nothing signed, nothing
+    shipped. The option was never needed: javadoc on 8 bundles no fonts, so the jar is 35 KB at
+    the floor and 4.1 MB above it.
 
-    **Two floors, and only one of them is declared.** `maven.compiler.release` is 8 and the test
-    above holds every shipped class to it — but javadoc cannot run this module on 8 at all, since
-    the plugin passes `--release`, which arrived in 9. So the build JDK is always newer than the
-    runtime floor and nothing says how much newer, which leaves no version an option could be
-    checked against. Read rather than run: building the jar needs a populated local repository,
-    and this has to fail on a laptop with no network.
+    Two things have to hold for the floor to be real rather than declared:
+
+    * **no javadoc option newer than 8**, because the publisher builds at the floor.
+    * **the floor is not a `maven.compiler.release` property here.** The javadoc plugin reads that
+      property and passes a release flag that 8 does not have, so declaring the floor that way is
+      what made the floor unbuildable at the floor. It sits on the compiler plugin instead.
+
+    Read rather than built: producing the javadoc jar needs a populated local repository, and this
+    has to fail on a machine with no network.
     """
     pom = (JAVA / "annotations" / "pom.xml").read_text(encoding="utf-8")
+
     options = re.findall(r"<additionalOption>([^<]*)</additionalOption>", pom)
     assert not options, (
-        f"the published module passes javadoc {options} — every JDK anyone publishes from has to "
-        f"accept that, and no build floor here says which JDKs those are")
+        f"javadoc is passed {options}, and the publisher builds at Java 8 — an option 8 does not "
+        f"have stops the cut rather than the test")
+
+    assert "<maven.compiler.release>" not in pom, (
+        "the floor is declared as a property the javadoc plugin also reads, so javadoc is handed "
+        "a release flag Java 8 has no such option for; put it on the compiler plugin")
+    assert re.search(r"<release>\s*8\s*</release>", pom), "and the compiler still holds it at 8"

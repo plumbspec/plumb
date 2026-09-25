@@ -13,11 +13,11 @@ import java.lang.annotation.*;
  * <p>Separate from {@code @Proves} rather than a member of it, because a reader scanning a test
  * file learns the thing they act on from the tag alone: <em>that is not my code's test</em>.
  *
- * <pre>{@code
- * @Test
- * @Informs(value = "D27", about = "falsifier")
+ * <pre>
+ * &#64;Test
+ * &#64;Informs(value = "D27", about = "falsifier")
  * void noFreeInputLevelCostsMoneyToServe() { ... }
- * }</pre>
+ * </pre>
  *
  * <p><strong>There is no depth.</strong> A depth is a rung the run refutes — a test claiming
  * {@code wiring} whose execution never reached wired code is caught lying. The analogue for a

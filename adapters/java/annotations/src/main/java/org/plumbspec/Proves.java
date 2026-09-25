@@ -13,11 +13,11 @@ import java.lang.annotation.*;
  * <p>Put it on the test, never on the production code. The thing being judged does not get to
  * claim it passed.
  *
- * <pre>{@code
- * @Test
- * @Proves(value = "APP-142", depth = "wiring")
+ * <pre>
+ * &#64;Test
+ * &#64;Proves(value = "APP-142", depth = "wiring")
  * void ordersAreRouted() { ... }
- * }</pre>
+ * </pre>
  *
  * <p>Repeatable, because a citation is per (test, story) pair: one test may prove several stories,
  * each at its own depth and carrying its own external key.
