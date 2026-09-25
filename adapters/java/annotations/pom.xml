@@ -86,14 +86,25 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>3.8.0</version>
-        <configuration>
-          <!-- JDK javadoc bundles ~4 MB of web fonts. For two annotation classes that is 92.5%
-               of the jar wrapping 117 KB of actual documentation, shipped to every mirror and
-               every consumer who fetches sources. The pages fall back to system fonts. -->
-          <additionalOptions>
-            <additionalOption>--no-fonts</additionalOption>
-          </additionalOptions>
-        </configuration>
+        <!-- **No javadoc options here, deliberately.** JDK javadoc bundles ~4 MB of web fonts,
+             which for two annotation classes is most of the jar, and there is an option that
+             drops them. It was set unconditionally and it stopped a cut: javadoc on the release
+             JDK answered `invalid flag` and nothing was signed or shipped.
+
+             The trap is that this module has two floors and they are not the same one. The
+             RUNTIME floor is 8, set by `maven.compiler.release` above and held by a gate over
+             every shipped class. The BUILD floor is higher and undeclared: javadoc cannot run
+             this module on 8 at all, because the plugin passes a release option that arrived in
+             9. So the JDK a publisher builds on is always newer than the floor the artifact runs
+             on, and nothing here says how much newer.
+
+             That is what makes an option a bet rather than a setting. It has to be one every JDK
+             anybody publishes from accepts, and with no declared build floor there is no version
+             to check it against: the one that broke the cut sits fifteen majors above the runtime
+             floor and was still too new. Gating it behind a profile would be worse, because the
+             published jar would then differ by who built it, for a Central artifact whose whole
+             value is that it does not. Four megabytes of fonts makes a worse artifact; one that
+             only some people can build makes none at all. -->
         <executions><execution><id>attach-javadocs</id><goals><goal>jar</goal></goals>
         </execution></executions>
       </plugin>

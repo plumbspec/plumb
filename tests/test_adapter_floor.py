@@ -257,3 +257,25 @@ def test_every_vendored_licence_is_declared_as_package_data():
     assert missing == [], (
         f"vendored under a licence the wheel would not carry: {missing} — name the package "
         f"under [tool.setuptools.package-data] with LICENSE among its files")
+
+
+@pytest.mark.proves("dev07-3-1", depth="unit")
+def test_the_published_module_passes_javadoc_no_options_of_its_own():
+    """A javadoc option is a bet on the publisher's JDK, and this module declares no build floor.
+
+    `--no-fonts` was set here to drop ~4 MB of bundled web fonts, and it stopped a release: the
+    JDK that cuts answered `invalid flag` and nothing was signed or shipped. Nothing in the suite
+    could have caught it, because the javadoc jar is only built at cut time.
+
+    **Two floors, and only one of them is declared.** `maven.compiler.release` is 8 and the test
+    above holds every shipped class to it — but javadoc cannot run this module on 8 at all, since
+    the plugin passes `--release`, which arrived in 9. So the build JDK is always newer than the
+    runtime floor and nothing says how much newer, which leaves no version an option could be
+    checked against. Read rather than run: building the jar needs a populated local repository,
+    and this has to fail on a laptop with no network.
+    """
+    pom = (JAVA / "annotations" / "pom.xml").read_text(encoding="utf-8")
+    options = re.findall(r"<additionalOption>([^<]*)</additionalOption>", pom)
+    assert not options, (
+        f"the published module passes javadoc {options} — every JDK anyone publishes from has to "
+        f"accept that, and no build floor here says which JDKs those are")
