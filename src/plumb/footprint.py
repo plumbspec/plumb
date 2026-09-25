@@ -52,17 +52,6 @@ def _home(variable: str, fallback: str) -> Path:
     return Path(os.environ.get(variable) or Path.home() / fallback)
 
 
-def _support_store() -> Path:
-    """Where records actually live, asked of the module that resolves it.
-
-    Imported here rather than at module scope because `cli` imports this one; the cycle is real
-    and the lazy import is what keeps one answer to the question rather than two.
-    """
-    from plumb.cli import default_store
-
-    return default_store()
-
-
 def user_level() -> tuple[Wrote, ...]:
     """What the tool writes outside any project — the half a repository does not carry."""
     config = _home("XDG_CONFIG_HOME", ".config") / "plumb"
@@ -74,15 +63,11 @@ def user_level() -> tuple[Wrote, ...]:
         Wrote(str(config / "enrolment.json"),
               "an operator-issued enrolment — the file form, which carries a credential",
               keep=True, shared=True, secret=True),
-        # Read off the one place that decides it, never recomputed here. This carried its own copy
-        # of the rule and the copy went stale: it honoured only the superseded `PLUMB_FRICTION_DIR`
-        # and pointed at `plumb/friction`, a directory the tool stopped writing to — so `plumb
-        # footprint` named somewhere that does not exist and missed the store that does. What is
-        # irreplaceable is exactly what a footprint must not get wrong.
-        Wrote(str(_support_store()),
-              "support records, and an outbox of what has not reached a holder yet — nothing "
-              "else holds an untransmitted record",
-              keep=True, irreplaceable=True),
+        # **The support store is not here.** The capability left the core in the release that gave
+        # the name up (`mod5`), and this list is what THIS tool writes. What a retired capability
+        # left behind stays exactly where it is (`mod5-ur4`) and is the adopter's to keep or
+        # delete; the module that took the name writes nothing at all, because a client that
+        # reaches a service has nothing to hold.
         Wrote(str(_home("XDG_STATE_HOME", ".local/state") / "plumb"),
               "the opening reading of a session, keyed by project path. Scratch: a session that "
               "loses it is told its delta cannot be computed, and nothing else changes",

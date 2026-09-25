@@ -43,6 +43,30 @@ reason.
 The core publishes two versioned surfaces for a module to build against: the board, and the series
 interface — which now carries a version at all, where it published none.
 
+### `plumb support` has left the core
+
+**It is a module now, not a core verb.** Filing, reading and answering a support case are gone
+from this tool. What answers that name is a package you install like any other, mounted through
+the `plumb.modules` entry point — the same mechanism `plumb series` arrived by.
+
+An open-source tool does not carry a support desk. A core that kept shipping the verb would keep
+claiming the capability, and the surviving name would go on telling adopters this project supports
+them. So nothing was kept behind and there is no alias: with no support module installed, `plumb
+support` is not a command this tool has, and `plumb modules` says what is mounted.
+
+**Your records are exactly where they were.** This release moves nothing and deletes nothing — a
+conversion run by the half that is leaving is one nobody could run a second time. The core no
+longer writes to that directory and no longer lists it in `plumb footprint`, because that list is
+what *this* tool writes. It is yours to keep or remove.
+
+**What stayed is what a module builds on**: the transport surface, the enrolment it resolves
+through, and the account that signs. A holder you run yourself must never come to depend on the
+software of whoever answers a different capability.
+
+Gone with it: `plumb support file|list|send|show|withdraw|migrate|pull|poll|turn`, the
+`PLUMB_SUPPORT_*` destination variables as far as this tool is concerned, and the record contract
+reference — the record is the module's now, and so is documenting it.
+
 ### `plumb footprint` names what a module writes
 
 A module declares the places it writes, each with a disposition — whether it rebuilds itself,

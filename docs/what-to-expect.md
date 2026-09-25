@@ -397,29 +397,13 @@ other story the way its own claim demands, by actually running the thing.
 Annoying once, and right: it forces the two kinds of evidence apart instead of letting one test
 claim both.
 
-## "I filed a friction record and it said *queued*, not *sent*"
+## "I filed a record and it said *queued*, not *sent*"
 
-That is usually correct, and occasionally it is the tool telling you something.
+**Filing left the core.** Capturing, reading and answering a support case is a module now, not a
+core verb, so what those words mean is that module's to explain and not this page's.
 
-**Local by default.** An installation nobody enrolled keeps every record it makes on your own
-disk and never transmits. Nothing is gathered from the general public, so if you have not enrolled
-you will see `local only` — the record is filed, and that is the end of it.
-
-If you *are* enrolled, three outcomes are possible and they mean different things:
-
-| | what happened | what to do |
-|---|---|---|
-| `sent` | it arrived | nothing |
-| `queued` | it has not arrived **yet** — unreachable, or the support service does not speak your record version | nothing; `plumb support send` drains it later |
-| `REFUSED` | the holder read it and would not take the content | look at it; it stays in your outbox |
-
-The distinction between the middle and last rows is the one worth knowing. A holder running
-older code than your client is a **temporary** condition — your record is kept and delivers itself
-once that holder is upgraded. Only a refusal the holder positively identifies as *bad content*
-is treated as final, and even then the record stays in your outbox, because removing one is
-something you do deliberately and never something a failed send does on your behalf.
-
-Filing never blocks your work and never fails your run, whichever of these happens.
+What has not changed is the rule underneath it: nothing leaves your machine unless you named
+somewhere for it to go. That holds for every capability, including any a module adds.
 
 ## "Does Plumb want me to work test-first?"
 

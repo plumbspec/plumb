@@ -15,17 +15,16 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from plumb.enrolment import Enrolment, NotEnrolled, load
-from plumb.support import SupportRecord
-from plumb.store import SupportStore
 
 TIMEOUT_SECONDS = 10
 
-#: The conversation this client speaks, announced on every request (``ch6-13``,
-#: ``record-contract``). Deliberately NOT the record's schema version: the ratification of
-#: 2026-09-12 deferred a record-version header out of the contract until a change moves the
-#: record and not the wire — and sending the record's number in a version header is the exact
-#: confusion that forced the contract to be written. The record still says its own version where
-#: a version of a durable artifact belongs: stamped in the body, by the schema that wrote it.
+#: The conversation this client speaks, announced on every request (``ch6-13``). Deliberately NOT
+#: any artifact's schema version: sending a record's number in a version header is the exact
+#: confusion that forced a contract to be written to settle it. A durable artifact says its own
+#: version where that belongs — stamped in the body, by the schema that wrote it.
+#:
+#: The header keeps its name. It is what a holder already matches on, and renaming a wire field to
+#: tidy up a word is a break for every deployed service in exchange for nothing.
 PROTOCOL_VERSION = 2
 VERSION_HEADER = "Plumb-Support-Version"
 
@@ -72,60 +71,6 @@ class Outcome:
         return not self.queued and not self.refused and not self.reason
 
 
-def deliver(record: SupportRecord, enrolment: Enrolment) -> tuple[bool, str]:
-    """One attempt. Returns ``(verdict, detail)`` — never raises for a network condition.
-
-    The verdict is one of :data:`ACCEPTED`, :data:`RETRY` or :data:`REFUSED`. It was a boolean
-    once, where ``True`` meant "stop trying" and was read as "arrived", so a refused record was
-    dequeued and reported as sent (``ch6-13``).
-    """
-    request = urllib.request.Request(
-        url=enrolment.endpoint.rstrip("/") + "/support",
-        data=record.to_wire().encode("utf-8"),
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {enrolment.credential}",
-            VERSION_HEADER: str(PROTOCOL_VERSION),
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-            if response.status in (200, 201, 409):  # 409 = already held; it did arrive
-                return ACCEPTED, f"HTTP {response.status}"
-            return RETRY, f"HTTP {response.status}"
-    except urllib.error.HTTPError as refused:
-        # Read the body **first**, and carry what it says. A bare "the service said 507" is a number a
-        # user can neither infer nor fix, and the older bearer transport has always explained itself
-        # better than this one — which is what happens when the explaining is retrofitted onto the
-        # first path and not carried into the second. It is worse than annoying here: the support service
-        # distinguishes *I do not know this key* from *that signature does not verify*, and swallowing
-        # the body left even the maintainer unable to tell which one a filer had hit.
-        detail = ""
-        raw = b""
-        try:
-            raw = refused.read()
-            # `HTTPError.read()` answers once; anything downstream that wants the body — and
-            # `_accepts` does — gets this copy or gets nothing.
-            refused._plumb_body = raw
-            said = json.loads(raw.decode())
-            detail = said.get("error") or ""
-            for extra in ("receiver", "hint", "grants", "use"):
-                if said.get(extra) is not None:
-                    detail += f" [{extra}: {said[extra]}]"
-        except (ValueError, OSError):
-            detail = raw.decode("utf-8", "replace")[:200]
-        if refused.code == 409:
-            return ACCEPTED, "HTTP 409 — already held"
-        if refused.code == 426:
-            # The support service named a version mismatch. Temporary by nature: it becomes deliverable
-            # the moment that support service is upgraded (`ch6-13`).
-            return RETRY, f"HTTP 426 — {_accepts(refused)}, will retry"
-        if refused.code in TERMINAL:
-            return REFUSED, f"HTTP {refused.code} — refused, not retried"
-        return RETRY, f"HTTP {refused.code} — will retry"
-    except (urllib.error.URLError, OSError, TimeoutError) as unreachable:
-        return RETRY, f"unreachable: {unreachable}"
 
 
 #: How much of a series goes in one request (`dev07-6-2`). Deliberately **below** any holder's
@@ -534,173 +479,13 @@ def _deliver_batch(url: str, batch: list, sending_as) -> tuple[str, str]:
         return RETRY, f"support service unreachable: {unreachable}"
 
 
-def _accepts(refused: urllib.error.HTTPError) -> str:
-    """What the other end said it speaks. A refusal that names nothing is a dead end.
-
-    Reads the body it is handed rather than reaching for the stream: `HTTPError.read()` answers
-    once, and this function's caller is not always first — which is how a refusal that named
-    everything (`accepts`, `sent`) got reported as naming nothing, on 2026-09-12, while the
-    service's 426 was exemplary the whole time.
-    """
-    try:
-        body = getattr(refused, "_plumb_body", None)
-        if body is None:
-            body = refused.read()
-        said = json.loads(body.decode("utf-8"))
-        accepts = said.get("accepts")
-        sent = said.get("sent")
-        return (f"support service accepts {accepts}, this request sent {sent}, "
-                f"this client speaks {PROTOCOL_VERSION}")
-    except Exception:
-        return f"version mismatch; this client speaks {PROTOCOL_VERSION}"
 
 
-def _sending_as(enrolment_path: Path | None = None, root: Path | str = ".") -> Enrolment:
-    """Where support sends, resolved the way every capability resolves (`snd1-ur1`).
-
-    Support used `load()` directly, which reads the machine-wide pair and the enrolment file and
-    knows nothing of a capability's own variables. So `PLUMB_SUPPORT_ENDPOINT` — documented as
-    where records go — moved `poll`, `turn` and `case`, which go through `transport`, and did not
-    move `file` or `send`, which came through here. An adopter who set it was told their records
-    were staying local while the tool reported the endpoint configured.
-
-    `transport.for_capability` already falls back to the machine-wide pair and then to the
-    enrolment file, so nothing that resolved before stops resolving: this widens what is read and
-    narrows nothing.
-
-    The relationship is `self` because a locally assembled one is a claim by the filer that the
-    service overwrites from the credential it authenticated (`ch12-19`).
-    """
-    from plumb.transport import for_capability
-
-    found = for_capability("support", enrolment_path=enrolment_path, root=root)
-    if found is None:
-        # Deferred to `load`, which is the one place that explains an absence, and absence is the
-        # ordinary state rather than a failure (`snd2-sr1`).
-        return load(enrolment_path, root)
-    return Enrolment("self", found.credential, found.url, found.subject)
 
 
-def pull_friction(destination: Path, enrolment_path: Path | None = None) -> Outcome:
-    """Fetch what the support service holds into a directory (`ch6-17`).
-
-    The evidence for this story was a corpus review that took `ssh`, `sudo` and `tar` against a
-    path read out of a deploy script — and found that no store held the whole thing. A read that
-    needs shell access to the host is a read only its host's owner has, which makes the store
-    write-only for every other purpose it was built for.
-
-    Additive on purpose. A record already present is left exactly as it is rather than refetched:
-    `ch6-20` makes the received copy the authority, so a local file that differs is a divergence to
-    look at rather than something to quietly overwrite while pulling.
-    """
-    try:
-        enrolment = _sending_as(enrolment_path)
-    except NotEnrolled as why:
-        return Outcome(reason=str(why))
-    destination = Path(destination)
-    destination.mkdir(parents=True, exist_ok=True)
-    try:
-        index = _get_json(f"{enrolment.endpoint.rstrip('/')}/support", enrolment)
-    except urllib.error.HTTPError as refused:
-        if refused.code == 403:
-            return Outcome(reason="the support service holds this store for its operator, and this "
-                                  "credential is not theirs")
-        return Outcome(reason=f"the support service answered {refused.code}")
-    except (urllib.error.URLError, TimeoutError) as unreachable:
-        return Outcome(reason=f"support service unreachable: {unreachable}")
-
-    fetched, kept, unreadable = 0, 0, []
-    for entry in index.get("records", []):
-        record_id = entry.get("id")
-        if entry.get("unreadable"):
-            # The support service could not read it either. Named rather than skipped silently
-            # (`ch6-16`), because a pull that is quietly short reads exactly like a small corpus.
-            unreadable.append(record_id)
-            continue
-        landing = destination / f"{record_id}.json"
-        if landing.exists():
-            kept += 1
-            continue
-        try:
-            whole = _get_json(f"{enrolment.endpoint.rstrip('/')}/support/{record_id}", enrolment)
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as failed:
-            # One record the support service will not hand over must not take the other hundred with it —
-            # `ch6-16`'s posture, which the *index* already held and the pull did not. Measured: a
-            # state file dropped into the record directory was indexed with a null id, the fetch
-            # answered 422, and the whole pull died in a traceback after writing 146 records it
-            # then did not report. Named here rather than swallowed, so a short pull says it is
-            # short.
-            unreadable.append(f"{record_id}: {failed}")
-            continue
-        landing.write_text(json.dumps(whole, indent=2) + "\n")
-        fetched += 1
-
-    landed = {e.get("id") for e in index.get("records", [])} - {u.split(":")[0] for u in unreadable}
-    pulled = tuple(sorted(str(destination / f"{e}.json") for e in landed if e))
-    if unreadable:
-        # Named, never dropped silently: a pull that is quietly short reads exactly like a small
-        # corpus (`ch6-16`).
-        return Outcome(sent=pulled, refused=tuple(sorted(unreadable)),
-                       reason="unreadable on the support service")
-    return Outcome(sent=pulled)
 
 
-def _get_json(url: str, enrolment: Enrolment) -> dict:
-    request = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {enrolment.credential}",
-        VERSION_HEADER: str(PROTOCOL_VERSION)})
-    with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as answer:
-        return json.loads(answer.read().decode("utf-8"))
 
 
-def send_one(record: SupportRecord, store: SupportStore, enrolment_path: Path | None = None) -> Outcome:
-    """File-and-forget: deliver if enrolled and reachable, otherwise leave it queued."""
-    try:
-        enrolment = _sending_as(enrolment_path)
-    except (NotEnrolled, ValueError, json.JSONDecodeError) as not_enrolled:
-        return Outcome(reason=str(not_enrolled))  # local by default (ch6-6) — not a failure
-
-    verdict, detail = deliver(record, enrolment)
-    if verdict == ACCEPTED:
-        store.dequeue(record.id)
-        return Outcome(sent=(record.id,), reason=detail)
-    # Refused or retryable, the record stays in the outbox either way. A refusal is the record a
-    # human should look at, and quietly clearing it from the outbox is how it gets forgotten —
-    # removal is an operation somebody performs (`ch6-9`), never a side effect of a rejection.
-    store.enqueue(record.id)
-    if verdict == REFUSED:
-        return Outcome(refused=(record.id,), reason=detail)
-    return Outcome(queued=(record.id,), reason=detail)
 
 
-def drain(store: SupportStore, enrolment_path: Path | None = None) -> Outcome:
-    """Retry everything in the outbox. Stops at the first unreachable attempt rather than
-    hammering a down endpoint once per queued record."""
-    try:
-        enrolment = _sending_as(enrolment_path)
-    except (NotEnrolled, ValueError, json.JSONDecodeError) as not_enrolled:
-        return Outcome(reason=str(not_enrolled))
-
-    sent, still_queued, refused, reason = [], [], [], ""
-    for record_id in store.queued():
-        if reason:
-            still_queued.append(record_id)
-            continue
-        try:
-            record = store.get(record_id)
-        except KeyError:
-            store.dequeue(record_id)  # withdrawn while queued (ch6-9); nothing to send
-            continue
-        verdict, detail = deliver(record, enrolment)
-        if verdict == ACCEPTED:
-            store.dequeue(record_id)
-            sent.append(record_id)
-        elif verdict == REFUSED:
-            # Refused on content: keep it, name it, and carry on draining the rest. One bad
-            # record must not stall the queue behind it, and must not vanish from it either.
-            refused.append(record_id)
-        else:
-            still_queued.append(record_id)
-            reason = detail  # a retryable condition stops the drain; the rest stay queued
-    return Outcome(sent=tuple(sent), queued=tuple(still_queued),
-                   refused=tuple(refused), reason=reason)

@@ -368,9 +368,9 @@ def test_the_listing_is_what_the_tool_mounted(monkeypatch, capsys):
     """
     from plumb.cli import main
 
-    shadow = Declaration(name="support", version="0.1.0", surfaces={},
-                         verbs=(Verb("support", "a module claiming a core verb", lambda a: 0),))
-    monkeypatch.setattr("plumb.modules._entry_points", lambda: [_entry("support", shadow)])
+    shadow = Declaration(name="shadow", version="0.1.0", surfaces={},
+                         verbs=(Verb("board", "a module claiming a core verb", lambda a: 0),))
+    monkeypatch.setattr("plumb.modules._entry_points", lambda: [_entry("shadow", shadow)])
 
     assert main(["modules"]) == 0
     shown = capsys.readouterr().out
@@ -398,3 +398,48 @@ def test_one_distribution_found_twice_is_not_two_modules(monkeypatch):
     found = discover(reserved={"board"})
     assert len(found) == 1, f"one distribution was counted {len(found)} times"
     assert not found[0].refused, f"and it was refused for colliding with itself: {found[0].refused}"
+
+
+# -- the handover (`mod5`) ------------------------------------------------------------------------
+
+@pytest.mark.proves("mod5", depth="wiring")
+def test_the_core_has_given_the_name_up():
+    """`mod5-ur3`. The core keeps no copy against which the module could be said to be wrong.
+
+    Asserted against the parser an adopter meets, because *the core no longer offers this* is a
+    claim about the CLI and not about which files are in the tree.
+    """
+    from plumb.cli import build_parser
+
+    groups = build_parser()._subparsers._group_actions[0].choices
+    assert "support" not in groups, (
+        "the core still owns `support`, so the module that took it is refused on every invocation")
+
+
+@pytest.mark.proves("mod5", depth="wiring")
+def test_a_module_may_now_take_the_name(monkeypatch, capsys):
+    """`mod5-ur1`. The whole point: an adopter's verb keeps working across the release that moves
+    it, so where the capability is built is not a thing they have to notice."""
+    from plumb.cli import main
+
+    reached = {}
+    theirs = Declaration(
+        name="support", version="0.1.0", surfaces={"transport": 1},
+        verbs=(Verb("support", "ask, report or suggest", verbs=(
+            Verb("file", "open a case", lambda a: (reached.update(ran=True), 0)[1]),)),),
+        network=True)
+    monkeypatch.setattr("plumb.modules._entry_points", lambda: [_entry("support", theirs)])
+
+    assert main(["support", "file"]) == 0, capsys.readouterr().err
+    assert reached.get("ran"), "the module's verb did not answer `plumb support file`"
+
+
+@pytest.mark.proves("mod5", depth="unit")
+def test_what_the_module_builds_on_did_not_leave_with_the_capability():
+    """`mod5-sr2`. A module cannot speak a version of something the core stopped having, and a
+    holder somebody runs themselves must not come to depend on whoever answers support."""
+    from plumb.modules import published
+    from plumb.transport import TRANSPORT_VERSION, for_capability  # noqa: F401 - it must import
+
+    assert published().get("transport") == TRANSPORT_VERSION, (
+        "the surface the support module declares it speaks went out with the capability")

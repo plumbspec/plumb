@@ -1,20 +1,16 @@
-"""``plumb`` — the command line: the board, and friction capture.
+"""``plumb`` — the command line: the board, the session, the series and the account.
 
 ``plumb board`` runs the adapter over a test run and emits the derived result (``dev07-5-1``).
-``plumb support`` addresses a support service (``ch6-1``).
+
+**The support verb is not here.** It was, and it left with the capability in the release that gave
+the name up (``mod5``). What answers that name now is a module, mounted through the
+`plumb.modules` entry point like any other — and the core keeps no copy of it, because a core that
+still ships the verb is a core that still claims the capability (``mod5-ur3``, ``mod5-nfr1``). What
+stayed is what a module builds on: the transport surface, the enrolment it resolves through, and
+the account that signs (``mod5-sr2``).
 """
 
 from __future__ import annotations
-
-# Everything a user reads — help text, the board, a refusal — is written for someone who has
-# never seen this source. Story ids, chapter numbers and the arguments behind a design belong in
-# the code and the spec, where the reader can follow them; in a terminal they are noise the reader
-# cannot act on. What earns its place here is what the command does and what it will touch.
-FRICTION_DESCRIPTION = """Capture what rubbed while applying the method.
-
-Records are written to your own store and nowhere else. Nothing is transmitted unless this
-installation is enrolled, and anything you file can be withdrawn.
-"""
 
 import argparse
 import os
@@ -25,35 +21,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from plumb import __version__, statefile
-from plumb.support import (ABSENT, DEFAULT_KIND, INAPPLICABLE, KINDS, SupportRecord, UNCAPTURED,
-                           InvalidRecord, excerpt)
-from plumb.store import SupportStore, mint_id, utc_now
-from plumb.transmit import drain, send_one
-
-#: A record is no longer only friction — `ch6-31` gave it a kind, and `friction` is one of four.
-#: The container took the chapter's own name and `friction` kept the shape it always described.
-def _data_home() -> Path:
-    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "plumb"
-
-
-def default_store() -> Path:
-    """Where records live, resolved **when asked**.
-
-    A function and not only a constant, because every location here honours an `XDG_*` variable and
-    a constant answers with whatever the environment said at import. `plumb footprint` exists to
-    show an adopter *their* paths, so it has to ask at the moment it prints rather than read a
-    snapshot taken before the process had finished starting.
-    """
-    return Path(os.environ.get("PLUMB_SUPPORT_DIR")
-                or os.environ.get("PLUMB_FRICTION_DIR")     # the old name, still honoured
-                or _data_home() / "support")
-
-
-_DATA = _data_home()
-DEFAULT_STORE = default_store()
-#: Where records used to live. Carried rather than abandoned, once, and said aloud — a relocation
-#: is not a reason to lose the thing being relocated (the same rule `_accounts_file` follows).
-FORMER_STORE = _DATA / "friction"
 
 #: What ``plumb board`` returns, and the whole of it (``dev07-5-3``). The code describes the
 #: **observation**, never the verdict: a board derived from a run that observed tests exits 0 even
@@ -69,276 +36,8 @@ EXIT_CANNOT_BOARD = 2
 EXIT_NOTHING_OBSERVED = 3
 
 
-def _store(args) -> SupportStore:
-    where = Path(args.store) if args.store else DEFAULT_STORE
-    if where == DEFAULT_STORE and not where.exists() and FORMER_STORE.is_dir():
-        where.parent.mkdir(parents=True, exist_ok=True)
-        FORMER_STORE.rename(where)
-        print(f"plumb: carried your records from {FORMER_STORE} to {where} — a record is no "
-              f"longer only friction, so the store took the name the chapter already had",
-              file=sys.stderr)
-    return SupportStore(where)
 
 
-def cmd_file(args) -> int:
-    location, body = INAPPLICABLE, INAPPLICABLE
-    if args.code:
-        path, _, span = args.code.rpartition(":")
-        start, _, end = span.partition("-")
-        try:
-            location, body = excerpt(path, int(start), int(end or start), root=args.root)
-        except (ValueError, OSError) as bad:
-            print(f"--code: {bad}", file=sys.stderr)
-            return 2
-
-    # What the tool was and did, read rather than asked (`ch6-32`). A filer who has just watched
-    # something go wrong is not interviewed about their own toolchain, and capture is often an agent
-    # with nobody to interview. Never fails a filing: the answer when nothing can be read is an
-    # absence marker, and `ch6-4` already has words for both kinds of not-knowing.
-    from plumb.config import Config, InvalidConfig
-    from plumb.provenance import observed
-
-    # The project the filer is standing in — **not** `--root`, which is the excerpt's path root and
-    # answers a different question. Reusing it read the provenance of whatever directory an excerpt
-    # happened to come from, which is a plausible-looking wrong answer rather than a missing one.
-    #
-    # **Caught narrowly, and that is the point.** This was `except Exception`, which swallowed a
-    # `NameError` from an import this function did not have and filed every record with three
-    # `unknown`s — indistinguishable from a filing where the tool genuinely had nothing to say.
-    # `observed` already promises not to raise; what can still fail here is finding a config at all.
-    try:
-        facts = observed(Config.find("."))
-    except (InvalidConfig, OSError):
-        facts = {}
-
-    try:
-        record = SupportRecord(
-            id=args.id or mint_id(args.observation),
-            observed_at=utc_now(),
-            source="self",  # the service restamps from the credential (ch12-19)
-            observation=args.observation,
-            kind=args.kind,
-            implication=args.implication or INAPPLICABLE,
-            project=args.project or INAPPLICABLE,
-            location=location,
-            excerpt=body,
-            story=args.story or INAPPLICABLE,
-            depth=args.depth or INAPPLICABLE,
-            condition_code=args.code_id or INAPPLICABLE,
-            observer=facts.get("observer", UNCAPTURED),
-            # Read out of the artifact, never typed (`record-contract` v5): the artifact names
-            # its own version so a report is against something.
-            tool_version=__import__("plumb").__version__,
-            invocation=facts.get("invocation", UNCAPTURED),
-            diagnostic=facts.get("diagnostic", UNCAPTURED),
-            tags=tuple(args.tag or ()),
-        )
-    except InvalidRecord as rejected:
-        # ch6-4: reject at write, naming everything missing, while the writer still has context.
-        print(f"rejected — {rejected}", file=sys.stderr)
-        return 1
-
-    store = _store(args)
-    path = store.file(record, queue=True)
-    outcome = send_one(record, store, args.enrolment)
-    print(f"filed {record.id}\n  {path}")
-    if outcome.sent:
-        print(f"  sent — {outcome.reason}")
-    elif outcome.refused:
-        # Never "sent". The record stays in the outbox; removing it is an operation (ch6-9).
-        print(f"  REFUSED — {outcome.reason}", file=sys.stderr)
-    elif outcome.queued:
-        print(f"  queued — {outcome.reason}")
-    else:
-        store.dequeue(record.id)  # not enrolled: local by default, nothing pending (ch6-6)
-        print("  local only — this installation is not enrolled")
-    return 0
-
-
-def cmd_list(args) -> int:
-    store = _store(args)
-    queued = set(store.queued())
-    records, unreadable = store.all()
-    if not records and not unreadable:
-        print(f"no records in {store.root}")
-        return 0
-    for record in records:
-        mark = "*" if record.id in queued else " "
-        print(f"{mark} {record.id}")
-        print(f"    {record.observation[:100]}")
-    # `ch6-16`: the ones that did not parse are named here rather than dropped. A count that
-    # quietly excluded them would look like a complete answer, which is the failure the
-    # per-record read exists to avoid — not the crash, the plausible short list.
-    if unreadable:
-        print(f"\n{len(unreadable)} unreadable — still on disk, not lost:")
-        for bad in unreadable:
-            print(f"  ! {bad.id}")
-            print(f"      {bad.reason}")
-    print(f"\n{len(records)} record(s); {len(queued)} awaiting transmission (*)"
-          + (f"; {len(unreadable)} unreadable (!)" if unreadable else ""))
-    # **How long, not just how many.** A queue that stopped draining is correct behaviour under
-    # `ch6-7` and is indistinguishable from an empty one by count alone, so the age of the oldest
-    # thing waiting is the only signal a person has that nothing has left this machine. Measured
-    # against a holder that was retired without anybody noticing for a day.
-    since = store.queued_since()
-    if since is not None:
-        import time
-
-        days = (time.time() - since) / 86400
-        if days >= 1:
-            print(f"  oldest has waited {int(days)} day(s) — `plumb support send` retries, and a "
-                  f"holder that has stopped answering looks exactly like nothing to send")
-    return 0
-
-
-def cmd_show(args) -> int:
-    try:
-        print(_store(args).get(args.id).to_json(), end="")
-    except KeyError:
-        print(f"no record {args.id!r}", file=sys.stderr)
-        return 1
-    return 0
-
-
-def cmd_withdraw(args) -> int:
-    """``ch6-9`` — consent that cannot be taken back was never consent."""
-    if _store(args).withdraw(args.id):
-        print(f"withdrawn {args.id}")
-    else:
-        print(f"no record {args.id!r} here (already withdrawn?)")
-    return 0
-
-
-def cmd_send(args) -> int:
-    outcome = drain(_store(args), args.enrolment)
-    if not outcome.sent and not outcome.queued:
-        print(outcome.reason or "nothing queued")
-        return 0
-    print(f"sent {len(outcome.sent)}, still queued {len(outcome.queued)}"
-          + (f", REFUSED {len(outcome.refused)}" if outcome.refused else ""))
-    if outcome.reason:
-        print(f"  {outcome.reason}")
-    return 0
-
-
-def cmd_pull(args) -> int:
-    """`ch6-17` — read the knowledge base back, through the tool.
-
-    The alternative it replaces is the one that was actually being done: `ssh`, `sudo` and `tar`
-    against a path read out of a deploy script.
-    """
-    from plumb.transmit import pull_friction
-
-    outcome = pull_friction(args.into, args.enrolment)
-    if outcome.reason and not outcome.sent:
-        print(f"plumb: {outcome.reason}")
-        return 1
-    print(f"pulled {len(outcome.sent)} records into {args.into}")
-    if outcome.refused:
-        # `ch6-16`: what the service itself could not read is named, never quietly missing.
-        print(f"  unreadable on the service, not pulled: {', '.join(outcome.refused)}")
-    return 0
-
-
-def _support_channel(args):
-    """The channel this machine is enrolled on, or `None` after saying why not."""
-    from plumb.channel import for_capability
-
-    # Named for what it is, so a project self-hosting a holder and answered by a support service
-    # can point them at two hosts (`snd-D1`). An enrolment still answers for both where nothing
-    # more specific is named.
-    channel, why = for_capability("support", enrolment_path=args.enrolment)
-    if channel is None:
-        print(f"plumb: {why}")
-    return channel
-
-
-def cmd_poll(args) -> int:
-    """What the other side is waiting on from you (`ch6-30`).
-
-    Polled at invocation rather than on a timer, and that is the design rather than the cheap
-    option: a diagnostic question is only answerable when somebody is at the project with the code
-    in front of them, so delivering it when they next run the tool arrives exactly when the answer
-    is cheap to produce. There is also no process here between runs to hold anything open.
-    """
-    channel = _support_channel(args)
-    if channel is None:
-        return 0
-    answer = channel.mine("filer")
-    if not answer.ok:
-        print(f"plumb: {answer.reason or answer.status}")
-        return 0 if answer.retryable else 1
-    cases = answer.body.get("cases", [])
-    if not cases:
-        print("nothing waiting on you")
-        return 0
-    for case in cases:
-        turns = case.get("turns", [])
-        asked = [a for t in turns for a in t.get("asks", ())] if turns else []
-        print(f"{case['id']}  [{case.get('state', '?')}]  {len(turns)} turns")
-        for ask in asked[-3:]:
-            print(f"    {ask.get('id', '?')}: {ask.get('question', '')}")
-    return 0
-
-
-def cmd_turn(args) -> int:
-    """Answer, ask, close, or any of them together.
-
-    `--after` is required and is not a convenience: it records how much of the case its author had
-    read, so a reader knows what a reply could be answering rather than inferring it from where it
-    landed. Two turns composed at once land adjacent to each other having seen different things.
-
-    **`--close` is a flag here rather than a verb of its own**, because closing IS a turn — a party
-    declaring a fact about itself, which is the only kind of state declaration this wire accepts. A
-    separate command would have suggested it was a different act, and the commonest close is a last
-    word and a goodbye in one breath.
-    """
-    channel = _support_channel(args)
-    if channel is None:
-        return 0
-    if args.close:
-        answer = channel.close(args.id, after=args.after)
-        if not answer.ok:
-            print(f"plumb: {answer.reason or answer.status}"
-                  + (f" [{answer.refused}]" if answer.refused else ""))
-            return 0 if answer.retryable else 1
-        print(f"closed {args.id} — nothing was removed; "
-              "`support withdraw` takes the words back")
-        return 0
-    answers = []
-    for pair in args.answer or ():
-        ask_id, _, value = pair.partition("=")
-        if not value:
-            print(f"plumb: --answer takes ASK_ID=VALUE, got {pair!r}")
-            return 2
-        # `withheld` is a value a filer may legitimately give: *I know and may not say*, which is a
-        # different answer from not knowing and routes to a person rather than to more diagnosis.
-        answers.append({"ask_id": ask_id, "absence": value} if value in ABSENT
-                       else {"ask_id": ask_id, "value": value})
-    asks = [{"question": q, "expects": "text"} for q in (args.ask or ())]
-    answer = channel.say(args.id, says=args.says or "", asks=asks, answers=answers,
-                         after=args.after)
-    if not answer.ok:
-        print(f"plumb: {answer.reason or answer.status}"
-              + (f" [{answer.refused}]" if answer.refused else ""))
-        return 0 if answer.retryable else 1
-    print(f"added turn {len(answer.body.get('turns', []))} to {args.id}")
-    return 0
-
-
-def cmd_migrate(args) -> int:
-    """``ch6-23`` — climb old records to the current schema and write them back."""
-    upgraded, failed = _store(args).migrate()
-    if not upgraded and not failed:
-        print("every record is already at the current schema")
-        return 0
-    for record_id in upgraded:
-        print(f"  migrated {record_id}")
-    for bad in failed:
-        print(f"  ! {bad.id}: {bad.reason}", file=sys.stderr)
-    print(f"\nmigrated {len(upgraded)}"
-          + (f"; {len(failed)} could not be read" if failed else ""))
-    return 0
 
 
 #: Said once, because three commands offer the same flag and three wordings would drift.
@@ -354,9 +53,9 @@ PROJECT_HELP = ("the project whose subject this series belongs to (default: the 
 def _push_series(store: Path, enrolment: str | None, project: str | None = None) -> str:
     """Send what the service has not been given, and say what happened in one line.
 
-    Shared by `board --push` and `plumb series push` so there is one implementation and two
-    triggers — the shape `plumb support file` and `plumb support send` already use. Which one you
-    reach for is a question about *when*, never about *what*, and two answers to *what* would drift.
+    Shared by `board --push` and `series push` so there is one implementation and two triggers.
+    Which one you reach for is a question about *when*, never about *what*, and two answers to
+    *what* would drift.
     """
     from plumb.transmit import push_series
 
@@ -1047,15 +746,6 @@ def cmd_board(args) -> int:
     except SystemExit as leaving:
         outcome = f"exit {leaving.code}"
         raise
-    finally:
-        try:
-            from plumb.config import Config, InvalidConfig
-            from plumb.provenance import record_run
-
-            record_run(Config.find(getattr(args, "project", None) or "."),
-                       _sys.argv[1:], outcome)
-        except (InvalidConfig, OSError):
-            pass
 
 
 def _board(args) -> int:
@@ -1443,66 +1133,6 @@ def build_parser() -> argparse.ArgumentParser:
         "migrate", help="bring a manifest written by an older schema forward, in place")
     man_migrate.add_argument("file", help="the manifest to rewrite")
     man_migrate.set_defaults(func=cmd_manifest_migrate)
-
-    # **No `friction` alias.** One was written and removed: an alias is a second command surface
-    # that the reference has to document and somebody has to keep in step, and this rename happened
-    # in alpha precisely so the old spelling could go rather than be carried. The store is carried
-    # (`_store`); the command is not, because a moved file loses data and a moved verb loses habit.
-    support = groups.add_parser("support",
-                                help="tell us what rubbed, or ask, or suggest",
-                                description=FRICTION_DESCRIPTION)
-    support.add_argument("--store", help=f"record directory (default: {DEFAULT_STORE})")
-    support.add_argument("--enrolment", help=ENROLMENT_HELP)
-    sub = support.add_subparsers(dest="command", required=True)
-
-    f = sub.add_parser("file", help="file a support record")
-    f.add_argument("--kind", choices=KINDS, default=DEFAULT_KIND,
-                   help=f"what shape this is (default: {DEFAULT_KIND})")
-    f.add_argument("--observation", required=True, help="what you are reporting, in your words")
-    f.add_argument("--implication",
-                   help="what it means beyond what happened. Never required")
-    f.add_argument("--story", help="the story it bears on, in your own ids — e.g. APP-142")
-    f.add_argument("--depth", help="unit | component | wiring | standards-integration | smoke")
-    f.add_argument("--project", help="project name (default: none recorded)")
-    f.add_argument("--code", metavar="PATH:START-END", help="carry the code that rubbed")
-    f.add_argument("--root", help="path root, so the location reads relative")
-    f.add_argument("--code-id", metavar="CODE", help="the condition code, if one was surfaced")
-    f.add_argument("--tag", action="append", help="repeatable")
-    f.add_argument("--id", help="override the minted id")
-    f.set_defaults(func=cmd_file)
-
-    for name, fn, help_text in (
-        ("list", cmd_list, "list records; * marks awaiting transmission"),
-        ("send", cmd_send, "retry anything queued"),
-        ("migrate", cmd_migrate, "rewrite records written by an older schema"),
-    ):
-        p = sub.add_parser(name, help=help_text)
-        p.set_defaults(func=fn)
-
-    sub.add_parser("poll", help="what the other side is waiting on from you"
-                   ).set_defaults(func=cmd_poll)
-
-    turn = sub.add_parser("turn", help="answer, ask, or close a case")
-    turn.add_argument("id")
-    turn.add_argument("--after", type=int, required=True,
-                      help="turns you had read when composing — from the case's cursor")
-    turn.add_argument("--says", help="what you want to say")
-    turn.add_argument("--answer", action="append", metavar="ASK_ID=VALUE",
-                      help=f"repeatable; VALUE may be one of {ABSENT} to mark an absence")
-    turn.add_argument("--ask", action="append", metavar="QUESTION", help="repeatable")
-    turn.add_argument("--close", action="store_true",
-                      help="say you are done; removes nothing (`withdraw` takes the words back)")
-    turn.set_defaults(func=cmd_turn)
-
-    pull = sub.add_parser("pull", help="fetch what the support service holds, into a directory")
-    pull.add_argument("into", help="directory to write records into")
-    pull.set_defaults(func=cmd_pull)
-
-    for name, fn, help_text in (("show", cmd_show, "print one record"),
-                                ("withdraw", cmd_withdraw, "remove a record")):
-        p = sub.add_parser(name, help=help_text)
-        p.add_argument("id")
-        p.set_defaults(func=fn)
 
     modules = groups.add_parser("modules", help="what is mounted, what it adds, and what it reaches")
     modules.set_defaults(func=cmd_modules)

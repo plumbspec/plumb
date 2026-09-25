@@ -85,7 +85,6 @@ def test_every_place_the_tool_writes_is_in_the_documented_inventory(monkeypatch,
     from plumb import footprint
 
     monkeypatch.delenv("PLUMB_ACCOUNT", raising=False)
-    monkeypatch.delenv("PLUMB_FRICTION_DIR", raising=False)
     documented = (Path(__file__).resolve().parent.parent / "docs" / "command-line.md").read_text()
 
     for wrote in footprint.user_level():
@@ -97,10 +96,15 @@ def test_every_place_the_tool_writes_is_in_the_documented_inventory(monkeypatch,
 def test_the_footprint_is_printed_with_the_paths_this_machine_actually_uses(monkeypatch, capsys,
                                                                             tmp_path):
     """The reference cannot show an adopter *their* paths — every location honours an `XDG_*`
-    variable, so where the friction store is is a property of the machine, not of the manual."""
+    variable, so where the account sits is a property of the machine, not of the manual.
+
+    It read `XDG_DATA_HOME`, which the core honoured only for the support store. That store left
+    with the capability (`mod5`), so the variable proves nothing here now and the claim is made
+    against one the core still reads.
+    """
     from plumb import cli
 
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "elsewhere"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "elsewhere"))
     root = _wired(tmp_path, monkeypatch, extra='series = "history.jsonl"\n')
 
     assert cli.main(["footprint", "--project", str(root)]) == 0
