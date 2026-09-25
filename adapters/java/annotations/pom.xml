@@ -52,7 +52,6 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>8</maven.compiler.release>
   </properties>
 
   <build>
@@ -63,6 +62,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
+        <configuration><release>8</release></configuration>
       </plugin>
       <plugin>
         <!-- The jar also lands in `build/` under the name the suite asserts on. Central takes the
@@ -86,25 +86,20 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>3.8.0</version>
-        <!-- **No javadoc options here, deliberately.** JDK javadoc bundles ~4 MB of web fonts,
-             which for two annotation classes is most of the jar, and there is an option that
-             drops them. It was set unconditionally and it stopped a cut: javadoc on the release
-             JDK answered `invalid flag` and nothing was signed or shipped.
+        <!-- **Javadoc builds at the floor, which is 8, like everything else here.** It did not.
+             A font-stripping option was set to drop the ~4 MB of web fonts JDK javadoc bundles,
+             and it stopped a cut: the release javadoc answered `invalid flag`, nothing was
+             signed and nothing shipped.
 
-             The trap is that this module has two floors and they are not the same one. The
-             RUNTIME floor is 8, set by `maven.compiler.release` above and held by a gate over
-             every shipped class. The BUILD floor is higher and undeclared: javadoc cannot run
-             this module on 8 at all, because the plugin passes a release option that arrived in
-             9. So the JDK a publisher builds on is always newer than the floor the artifact runs
-             on, and nothing here says how much newer.
+             The option was never needed. Javadoc on 8 bundles no web fonts at all, so building
+             at the floor gives a 35 KB jar where a newer JDK gives 4.1 MB. The problem it
+             existed to solve is one only a JDK above the floor has.
 
-             That is what makes an option a bet rather than a setting. It has to be one every JDK
-             anybody publishes from accepts, and with no declared build floor there is no version
-             to check it against: the one that broke the cut sits fifteen majors above the runtime
-             floor and was still too new. Gating it behind a profile would be worse, because the
-             published jar would then differ by who built it, for a Central artifact whose whole
-             value is that it does not. Four megabytes of fonts makes a worse artifact; one that
-             only some people can build makes none at all. -->
+             `source` here, and the floor set on the compiler plugin rather than as a property:
+             the javadoc plugin reads `maven.compiler.release` and passes a release flag that 8
+             does not have, so declaring the floor as a property was what made the floor
+             unbuildable at the floor. -->
+        <configuration><source>8</source></configuration>
         <executions><execution><id>attach-javadocs</id><goals><goal>jar</goal></goals>
         </execution></executions>
       </plugin>
