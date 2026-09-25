@@ -75,7 +75,7 @@ def test_a_capabilitys_own_pair_is_preferred_over_the_machines(monkeypatch, tmp_
     assert for_capability("support").url == "https://one.example.com", "the rest keep the machine's"
 
 
-@pytest.mark.proves("snd1", depth="wiring")
+@pytest.mark.proves("snd1", depth="unit")
 def test_an_enrolment_file_still_names_a_destination_for_everything(monkeypatch, tmp_path):
     """`ch6-6` was expressed as a file, and a file that already exists keeps working.
 
@@ -123,3 +123,63 @@ def test_a_capability_name_becomes_the_variable_a_runner_sets(monkeypatch, tmp_p
     assert variables("series") == ("PLUMB_SERIES_ENDPOINT", "PLUMB_SERIES_CREDENTIAL",
                                   "PLUMB_SERIES_SUBJECT")
     assert variables("run-history")[0] == "PLUMB_RUN_HISTORY_ENDPOINT", "a dash is not a variable"
+
+
+@pytest.mark.proves("snd1", depth="wiring")
+def test_a_series_is_pushed_to_the_address_its_own_capability_names(monkeypatch, tmp_path, capsys):
+    """`snd1-ur1`, `snd1-ur3`, through `plumb series push`.
+
+    Every citation here used to call `for_capability` directly. That proves the resolver and says
+    nothing about the command an adopter runs — and the story is that *hosting my own history costs
+    me nothing about who answers my questions*, which is a claim about where a push lands.
+
+    The machine-wide pair is set to somewhere else on purpose: the specific winning over the
+    general is the whole of `snd1`, and a test with only one address named cannot tell the two
+    apart.
+    """
+    from plumb import cli, transmit
+    from plumb.core.manifest import Citation, Manifest, Story
+    from plumb.core.series import append
+
+    for name in [k for k in os.environ if k.startswith("PLUMB_") or k.startswith("XDG_")]:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "nothing-configured"))
+    monkeypatch.setenv("PLUMB_ENDPOINT", "https://whoever-answers-support.example")
+    monkeypatch.setenv("PLUMB_CREDENTIAL", "the-machine-wide-one")
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", "https://holder.ourteam.internal")
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "held-by-us")
+    monkeypatch.setenv("PLUMB_SERIES_SUBJECT", "ours")
+
+    store = tmp_path / "history.jsonl"
+    append(store, Manifest(stories={"S-1": Story(citations=(
+        Citation(test="t::a", depth="unit", result="passed", grounding="inert",
+                 when="2026-08-01T09:00:00Z"),))}))
+
+    reached = {}
+
+    class Accepted:
+        status = 200
+
+        def read(self):
+            return b'{"accepted": 1}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    def urlopen(request, *a, **k):
+        reached.setdefault("urls", []).append(request.full_url)
+        reached["auth"] = request.headers.get("Authorization")
+        return Accepted()
+
+    monkeypatch.setattr(transmit.urllib.request, "urlopen", urlopen)
+
+    assert cli.main(["series", "push", str(store)]) == 0, capsys.readouterr().err
+
+    assert reached.get("urls"), f"nothing was sent: {capsys.readouterr().out}"
+    assert all(url.startswith("https://holder.ourteam.internal") for url in reached["urls"]), (
+        f"the history went somewhere the series capability did not name: {reached['urls']}")
+    assert reached["auth"] == "Bearer held-by-us", (
+        "it went with the machine-wide credential rather than this capability's")
