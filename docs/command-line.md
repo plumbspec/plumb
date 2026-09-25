@@ -18,7 +18,6 @@ most confusion comes from not knowing which ones cancel each other out.
     plumb modules                                      what is mounted, and what it reaches
     plumb init       [--project DIR]
     plumb manifest   migrate FILE
-    plumb support    [--store DIR] [--enrolment FILE]  {file|list|send|show|withdraw|migrate|pull|poll|turn}
     plumb account    [--account FILE]                  {create|open|redeem|export|show}
                      create [--endpoint URL] · export [--root HEX]
 
@@ -29,12 +28,14 @@ most confusion comes from not knowing which ones cancel each other out.
 ```
                         plumb
                           |
-      +---------+---------+---------+---------+---------+
-      |         |         |         |         |
-    init      board    manifest  support   account
-   set up   derive and  bring a   capture   an identity
-     a         show     document    what    nobody has
-   project    status    forward    rubbed    to issue
+      +---------+---------+---------+---------+
+      |         |         |         |
+    init      board    manifest  account
+   set up   derive and  bring a   an identity
+     a         show     document   nobody has
+   project    status    forward    to issue
+
+              and whatever a module mounts
 
     board, in detail:
 
@@ -76,7 +77,7 @@ Runs your tests, watches your production code, and prints what each story's stat
 |---|---|
 | `--json` | machine-readable output instead of the text board |
 | `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not (`ch11`). Opt-in and never a side effect: a board that quietly grew a store would make `--json` a mutating operation. Nothing is written when nothing changed, which is the ordinary case |
-| `--push` | with `--series`, also send what the support service has not been given. Reports and **never fails the board** if the support service is unreachable — a board is derived from a run and complete without the network, so an outage must not turn a build red for a reason unrelated to the project. Same work as `plumb series push`, triggered here instead of separately |
+| `--push` | with `--series`, also send what the holder has not been given. Reports and **never fails the board** if the holder is unreachable — a board is derived from a run and complete without the network, so an outage must not turn a build red for a reason unrelated to the project. Same work as `plumb series push`, triggered here instead of separately |
 | `--enrolment FILE` | with `--push`, the enrolment to send under (default `~/.config/plumb/enrolment.json`). The credential names the store it may write to, so this is also what decides *whose* series this run joins |
 | `--manifest FILE` | **skip the test run** and derive from a saved manifest |
 | `--emit-manifest FILE` | save the manifest this run produced |
@@ -533,113 +534,20 @@ path forward.
 
 ---
 
-## `plumb support`
+## `plumb support` — moved out of the core
 
-Captures what rubbed while using the method. Records stay on your machine unless this installation
-is enrolled.
+**It is not here any more.** Filing, reading and answering a support case left the core in this
+release, and what answers `plumb support` now is a module, installed like any other package and
+mounted through the `plumb.modules` entry point.
 
-    plumb support file --observation "…" --implication "…"
-    plumb support list
-    plumb support send                   # retry anything queued
-    plumb support show <id>
-    plumb support withdraw <id>
-    plumb support migrate                # rewrite records written by an older schema
-    plumb support poll                   # what the other side is waiting on from you
-    plumb support turn <id> --after N    # answer, ask, or close
-    plumb support pull <dir>             # operator-side: fetch what the support service holds
+That is not a rename and nothing was kept behind. An open-source tool does not carry a support
+desk, and a core that still shipped the verb would still be claiming the capability. `plumb
+modules` lists what is mounted; with no support module installed, `plumb support` is simply not a
+command this tool has.
 
-### A record is the start of a correspondence, not the end of one
-
-`poll` and `turn` are the other half of filing. A record opens a **case**; after that both sides add
-**turns** to it until it is done. Where the party on each end is an agent rather than a person, the
-traffic is mostly questions and answers — *what depth is that story cited at* — answered from the
-code by something standing next to it, so that no source ever crosses the wire.
-
-Both are inert unless this installation is enrolled at an endpoint. With none configured they say so
-and stop; nothing about the local tool depends on them.
-
-    plumb support poll                                       # anything waiting on you
-    plumb support turn <id> --after 4 --says "…"             # reply
-    plumb support turn <id> --after 4 --answer q3=unit       # answer a question you were asked
-    plumb support turn <id> --after 4 --answer q3=withheld   # …or decline to, which is not the same
-    plumb support turn <id> --after 4 --ask "which board?"   # ask one back
-    plumb support turn <id> --after 4 --close                # done; removes nothing
-
-**`--after` is required and it is not paperwork.** It records how many turns you had read when you
-composed, so a reader knows what your reply could be answering. Once both sides compose at the same
-time — which is the ordinary case, not the exceptional one — two turns land next to each other
-having seen different things, and position stops meaning anything. Take it from the case's `cursor`.
-
-`--answer` takes `ASK_ID=VALUE`, and the value may be one of the absence markers. `withheld` is the
-one worth knowing: it says *I have this and may not give it to you*, which routes to somebody who can
-grant permission, where `unknown` routes to a different question. A blank is neither.
-
-`--close` says you are finished and stops the other side coming back to you. **It removes nothing** —
-`plumb support withdraw` is what takes the words back, and a later turn reopens a closed case.
-
-`plumb support pull` is **operator-side**, like the support service's own `registry`. It fetches what the support service
-holds into a directory, and the holder refuses it to anyone but the operator: reading the
-authoritative store back is not something a contributor's credential may do. It is additive — a
-record already present is left exactly as it is, because the received copy is the authority and a
-local file that differs is a divergence to look at rather than something to overwrite.
-
-> **Sharp edge — the options come *before* the subcommand.** `--store` and `--enrolment` belong to
-> `support`, not to `file`:
->
->     plumb support --store /tmp/f file --observation "…"    # correct
->     plumb support file --store /tmp/f --observation "…"    # error
->
-
-`file` requires `--observation` and nothing else. Say what shape it is with `--kind`:
-
-    plumb support file --kind question   --observation "how do I declare an entry point in a reactor?"
-    plumb support file --kind idea       --observation "the board could name the door a test came in by"
-    plumb support file --kind report     --observation "the Maven classpath instructions worked first time"
-
-**`friction` is retired, and nothing replaced it.** It was a local capture practice from alpha
-testing — a list of moments to file at, and an implication to file against — and an open-source
-tool does not carry a support desk. `plumb support why`, which printed that guidance, is gone with
-it. No kind requires an implication now; state one where it helps a reader and leave it out where
-it does not.
-
-### The options on `plumb support file`
-
-Everything below is optional. A record with only the two required fields is a complete record; each
-of these answers a question a reader of that record would otherwise have to ask you.
-
-| Option | What it does |
-|---|---|
-| `--observation` | **required** — what happened, in your words |
-| `--kind` | `report` (default), `question` or `idea` — what shape this is |
-| `--implication` | optional, and never required — what it means beyond what happened |
-| `--story` | the story it bears on, in **your** ids (`APP-142`) — Plumb never parses it |
-| `--depth` | `unit` \| `component` \| `wiring` \| `standards-integration` \| `smoke` |
-| `--code` | carry the code that rubbed, as `PATH:START-END` |
-| `--root` | a path root, so the location in `--code` reads relative rather than absolute |
-| `--code-id` | the condition code the board surfaced, if one was |
-| `--tag` | repeatable, for your own grouping |
-| `--id` | override the minted id — for re-filing a record you withdrew |
-
-`--code` is the one worth reaching for. A record carrying the lines that rubbed is resolvable a year
-later; one describing them from memory usually is not.
-
----
-
-### Seeing what would be sent
-
-    plumb series push FILE --dry-run
-
-Prints exactly what a push would put on the wire, and sends nothing. It is built by the push's own
-code path, so it cannot disagree with the real thing.
-
-Worth running once before you enable a push. On an account, the `test` and `about` fields — the two
-that carry **your** names rather than facts about a run — are replaced by a keyed token before they
-leave. The same test gives the same token every run, so *which subject changes most often* still
-works, and the holder never holds the name. The key comes from your passphrase and never leaves
-your machine; rotating a signing key does not move it, so your history stays continuous.
-
-On a credential rather than an account there is no secret of yours to key with, so names travel as
-written — and `--dry-run` says which of the two you are on.
+Records you filed with the old client are **exactly where they were** and nothing moved them. This
+release writes nothing to that directory and no longer lists it under *What Plumb writes* — it is
+yours to keep or remove.
 
 ---
 
@@ -662,8 +570,9 @@ well, because both hung off it. So each capability may name its own, and the spe
     PLUMB_SERIES_CREDENTIAL   and what they go with
     PLUMB_SERIES_SUBJECT      which series there this credential owns
 
-    PLUMB_SUPPORT_ENDPOINT    where records go — a different host, if you want one
-    PLUMB_SUPPORT_CREDENTIAL
+A capability the core no longer has reads nothing here: with support gone from the core, no
+`PLUMB_SUPPORT_*` variable is read by this tool. A module that takes a capability reads its own
+through the same three places.
 
 The name is the capability's, upper-cased, with anything that is not a letter or a digit becoming
 an underscore. Three places are read, most specific first: **the capability's own pair**, then
@@ -711,14 +620,12 @@ irreplaceable; everything else is either in your repository already or rebuilt o
 |---|---|---|
 | `~/.config/plumb/account.json` | endpoint, the public half of your account, and this key's counter. **No secret** — the identity is derived from your passphrase and is never written down | yes, but it is **shared** across every project pushing to that holder |
 | `~/.config/plumb/enrolment.json` | an operator-issued enrolment, file form — **this one carries a credential** | yes; marked `SECRET` |
-| `~/.local/share/plumb/support/` | support records, and an outbox of what has not reached a support service | **irreplaceable** — nothing else holds an untransmitted record |
 | `~/.local/state/plumb/` | a session's opening reading, keyed by project path | no — scratch; a session that loses it is simply told its delta cannot be computed |
 | `~/.cache/plumb/` | a per-version cache | no — rebuilt when missing |
 
-Each honours its `XDG_*` variable; `PLUMB_ACCOUNT` and `PLUMB_SUPPORT_DIR` override the first and
-third outright.
+Each honours its `XDG_*` variable, and `PLUMB_ACCOUNT` overrides the first outright.
 
-**The two to actually worry about** are your `series` and any untransmitted support record. The account
+**The one to actually worry about** is your `series`. The account
 file matters less than it looks: everything in it except the counter rebuilds from your passphrase,
 and the passphrase is the thing to keep safe — losing it loses the account, and no backup helps,
 because it was never stored anywhere to be backed up.
@@ -726,7 +633,7 @@ because it was never stored anywhere to be backed up.
     $ plumb footprint
 
 prints the same list with **your** paths filled in, which this page cannot: every location honours
-its `XDG_*` variable, so where your support store actually is is a property of your machine.
+its `XDG_*` variable, so where your account actually sits is a property of your machine.
 
 | Option | What it does |
 |---|---|
@@ -755,12 +662,11 @@ what a restore may overwrite — three policies belonging to whoever runs the ma
 that is already being backed up somehow. Holding the list removes the reason anybody read the
 source, which is all the story ever asked for.
 
-Two things nothing else holds, so they are the two to point your backup at:
+One thing nothing else holds, so it is the one to point your backup at:
 
 | | |
 |---|---|
 | your **series** | every transition, losslessly. A run that is not recorded cannot be recovered from a later one — and it commonly sits inside the project *and* is git-ignored, so a rule about tracked files will miss it |
-| the **support store** | records and an outbox of what has not reached a holder yet |
 
 A passphrase is in neither, because it is never written down: losing it loses the account, and no
 backup helps.
@@ -910,6 +816,20 @@ refusal means.
 
 ---
 
+## `plumb registry`
+
+A signpost, not a command. Managing a registry belongs to whoever runs a holder, where it can
+actually be performed — this is the client. It says so and exits non-zero rather than failing
+somewhere less obvious:
+
+    $ plumb registry add-key
+    plumb: managing a registry is the service operator's, and this is the client.
+
+If you are enrolling, you do not mint your own credential; the operator sends you one. If you want
+an identity nobody has to issue, `plumb account create`.
+
+---
+
 ## `plumb --version`
 
     $ plumb --version
@@ -919,7 +839,7 @@ A build published to `edge` between releases names the commit it was cut from �
 — so a report against one is unambiguous. A release names its version plainly.
 
 Worth knowing because the installer resolves a channel, so you never typed a version. Include it in
-any bug report or friction record — a report against an unidentifiable build costs the maintainer
+any bug report — a report against an unidentifiable build costs the maintainer
 the ambiguity you saved.
 
 ---

@@ -1,41 +1,30 @@
-"""The capture path end to end — CLI, store, outbox, and the receiver (`ch6-1`…`ch6-12`).
+"""A series crossing the wire end to end — the push, the holder, and what it hands back.
 
-The receiver tests run a real HTTP server on a real socket. The claim is that an enrolled
-contributor's record crosses a network boundary and gets its source stamped by the credential;
-a mocked transport would assert only that I wired my own mock correctly.
+The holder tests run a real HTTP server on a real socket. The claim is that a history crosses a
+network boundary and comes back the same; a mocked transport would assert only that I wired my own
+mock correctly.
+
+**The support half of this file left with the capability** (`mod5`). Filing, the outbox and the
+record schema were the core's, and are a module's now — what stayed is the transport underneath,
+which both always shared.
 """
 
 import io
 import json
-import urllib.error
-import urllib.request
-
-from plumb import transmit
-from plumb.support import SCHEMA_VERSION
-from plumb.store import SupportStore
-
-import json
 import threading
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
 
-from plumb import cli
+from plumb import cli, transmit
 from plumb.enrolment import Enrolment, NotEnrolled, load
-from plumb.support import INAPPLICABLE, SupportRecord
 from plumb.series_holder import build
-from plumb.store import SupportStore, mint_id
-from plumb.transmit import drain, send_one
 
 RUB = "The gate accepted a test that touched nothing. Second time this week."
 MEANS = "A check earns its place by what it rejects, not by what it was designed to catch."
-
-
-@pytest.fixture
-def store(tmp_path):
-    return SupportStore(tmp_path / "records")
-
 
 @pytest.fixture
 def server(tmp_path, request):
@@ -64,96 +53,20 @@ def enrolled(tmp_path, endpoint, credential="tester-secret-token") -> Path:
 
 # ── the entry point (ch6-1, ch6-10) ───────────────────────────────────────────
 
-def test_filing_a_record_is_one_command(tmp_path, capsys):
-    code = cli.main(["support", "--store", str(tmp_path), "file",
-                     "--observation", RUB, "--implication", MEANS, "--story", "dev07-4-2"])
-
-    assert code == 0
-    filed, _ = SupportStore(tmp_path).all()
-    assert len(filed) == 1
-    assert filed[0].observation == RUB
-    assert filed[0].story == "dev07-4-2"
-    assert filed[0].id in capsys.readouterr().out
 
 
-def test_a_record_with_no_implication_is_filed(tmp_path, capsys):
-    """The bar went with `friction`, which is the only kind that ever claimed one.
-
-    This asserted the opposite while a record had to say what the rub cost the method. Nothing
-    refuses an absent implication now, because no kind requires one — and a validator demanding a
-    cost from a question produces an implication invented to satisfy it, which is what `ch6-4`
-    refuses in the other direction.
-    """
-    code = cli.main(["support", "--store", str(tmp_path), "file", "--observation", RUB])
-
-    assert code == 0, capsys.readouterr().err
-    filed, unreadable = SupportStore(tmp_path).all()
-    assert len(filed) == 1 and not unreadable
-    assert filed[0].kind == "report"
 
 
-def test_the_cli_carries_the_code_that_rubbed(tmp_path):
-    source = tmp_path / "rubbed.py"
-    source.write_text("a = 1\ndef the_thing():\n    return 2\n")
-
-    cli.main(["support", "--store", str(tmp_path / "rec"), "file", "--observation", RUB,
-              "--implication", MEANS, "--code", f"{source}:2-3", "--root", str(tmp_path)])
-
-    record = SupportStore(tmp_path / "rec").all()[0][0]
-    assert record.location == "rubbed.py:2-3"
-    assert "the_thing" in record.excerpt
 
 
-def test_friction_is_retired_and_nothing_replaced_it():
-    """An alpha-testing practice, not a thing an open-source tool carries.
-
-    `plumb support why` shipped a list of moments to file at and a bar to file against — a local
-    support desk, in a project that does not offer support. It is gone, and no kind now claims an
-    implication, so nothing is refused for failing a bar that no longer exists.
-    """
-    from plumb.support import CLAIMS_AN_IMPLICATION, DEFAULT_KIND, KINDS
-
-    assert "friction" not in KINDS, KINDS
-    assert DEFAULT_KIND in KINDS and DEFAULT_KIND != "friction"
-    assert CLAIMS_AN_IMPLICATION == (), CLAIMS_AN_IMPLICATION
-
-    with pytest.raises(ImportError):
-        import plumb.triggers  # noqa: F401
-
-    from plumb import cli
-    assert "why" not in _support_verbs(cli.build_parser())
 
 
-def _support_verbs(parser) -> set:
-    import argparse
-
-    for action in parser._actions:
-        if isinstance(action, argparse._SubParsersAction):
-            support = action.choices.get("support")
-            if support is None:
-                continue
-            for under in support._actions:
-                if isinstance(under, argparse._SubParsersAction):
-                    return set(under.choices)
-    return set()
 
 
-def test_an_id_is_minted_from_the_observation_and_is_stable():
-    first = mint_id(RUB)
-    assert first == mint_id(RUB)
-    assert first.endswith("the-gate-accepted-a-test-that-touched-nothing")
-    with pytest.raises(ValueError):
-        mint_id("   ")
 
 
 # ── local by default (ch6-6) ──────────────────────────────────────────────────
 
-def test_an_unenrolled_installation_never_transmits(tmp_path, capsys):
-    cli.main(["support", "--store", str(tmp_path / "rec"), "--enrolment", str(tmp_path / "absent.json"),
-              "file", "--observation", RUB, "--implication", MEANS])
-
-    assert "local only" in capsys.readouterr().out
-    assert SupportStore(tmp_path / "rec").queued() == [], "nothing may be pending with nowhere to send"
 
 
 def test_an_enrolment_without_a_credential_cannot_carry_consent():
@@ -170,30 +83,12 @@ def test_a_missing_enrolment_is_the_ordinary_case_not_a_crash(tmp_path):
 
 # ── crossing the boundary (ch12-19) ─────────────────────────────────────────────
 
-def test_the_outbox_outlives_the_process(tmp_path):
-    SupportStore(tmp_path).enqueue("some-record")
-
-    assert SupportStore(tmp_path).queued() == ["some-record"], "a fresh store must see the queue"
 
 
 # ── withdrawal (ch6-9) ────────────────────────────────────────────────────────
 
-def test_filing_writes_nothing_into_the_project_being_worked_on(tmp_path):
-    project = tmp_path / "someones-project"
-    project.mkdir()
-    (project / "code.py").write_text("x = 1\n")
-    before = {p.name: p.stat().st_mtime_ns for p in project.rglob("*")}
-
-    cli.main(["support", "--store", str(tmp_path / "rec"), "file", "--observation", RUB,
-              "--implication", MEANS, "--code", f"{project / 'code.py'}:1-1"])
-
-    assert {p.name: p.stat().st_mtime_ns for p in project.rglob("*")} == before
-    assert sorted(p.name for p in project.iterdir()) == ["code.py"]
 
 
-def a_record() -> SupportRecord:
-    return SupportRecord(id="wire-check", observed_at="2026-07-30T00:00:00+00:00",
-                          source="self", observation=RUB, implication=MEANS)
 
 
 AN_ENROLMENT = Enrolment("trusted-tester", "tok", "https://example.invalid")
@@ -204,55 +99,11 @@ class Refusal(urllib.error.HTTPError):
         super().__init__("http://x/support", code, "refused", {}, io.BytesIO(payload))
 
 
-def test_migrate_climbs_an_older_record_through_the_command(tmp_path, capsys):
-    store = tmp_path / "rec"
-    store.mkdir(parents=True)
-    cli.main(["support", "--store", str(store), "file",
-              "--observation", RUB, "--implication", "the method loses the rub"])
-    capsys.readouterr()
-    written = next(store.glob("*.json"))
-    old = json.loads(written.read_text())
-    old.pop("version", None)
-    old["layer"] = old.pop("depth")
-    written.write_text(json.dumps(old))
-
-    code = cli.main(["support", "--store", str(store), "migrate"])
-
-    out = capsys.readouterr().out
-    assert code == 0 and "migrated 1" in out
-    on_disk = json.loads(written.read_text())
-    assert "layer" not in on_disk and on_disk["version"] == SCHEMA_VERSION
 
 
 
-def test_a_filed_record_records_the_schema_that_wrote_it(tmp_path, capsys):
-    store = tmp_path / "rec"
-
-    cli.main(["support", "--store", str(store), "file",
-              "--observation", RUB, "--implication", "the method loses the rub"])
-
-    capsys.readouterr()
-    on_disk = json.loads(next(store.glob("*.json")).read_text())
-    assert on_disk["version"] == SCHEMA_VERSION, "stamped at write, not inferred at read"
 
 
-def test_a_record_from_an_older_schema_is_listed_not_lost(tmp_path, capsys):
-    """Seven of these sat unreadable on a contributor's machine after `layer` became `depth`."""
-    store = tmp_path / "rec"
-    cli.main(["support", "--store", str(store), "file",
-              "--observation", RUB, "--implication", "the method loses the rub"])
-    capsys.readouterr()
-    written = next(store.glob("*.json"))
-    old = json.loads(written.read_text())
-    old.pop("version", None)
-    old["layer"] = old.pop("depth")
-    written.write_text(json.dumps(old))
-
-    code = cli.main(["support", "--store", str(store), "list"])
-
-    out = capsys.readouterr().out
-    assert code == 0
-    assert "1 record(s)" in out and "unreadable" not in out, "an old shape is read, not refused"
 
 
 # ── the series, a second record type on the same receiver (ch11, D30) ─────────

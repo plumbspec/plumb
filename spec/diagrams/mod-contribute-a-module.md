@@ -1,6 +1,6 @@
 # mod · contribute a module
 
-**Last updated** 2026-09-24 v6
+**Last updated** 2026-09-24 v7
 
 What whoever builds a module does, from a capability plumb lacks to a verb an adopter can
 install. Exits to [ado · bring plumb to a project](ado-bring-plumb-to-a-project.md), whose
@@ -142,13 +142,17 @@ one CLI grows a verb]):::good
     on every invocation, and that is a worse artifact than one release of waiting
   * mod5-ur3 - what the verb does is the module's from the moment it mounts, and the core keeps no
     copy against which the module could be said to be wrong
+  * mod5-ur4 - what the core wrote under that name stays exactly where it is and the module reads
+    it there; the release that gives the name up moves nothing, because a conversion run by the
+    half that is leaving is one nobody can run a second time
 
 #### System Requirements
   * mod5-sr1 - the two sides are cut together and neither is released on the strength of the
     other being ready
-  * mod5-sr2 - anything the core wrote under that name — a store, a state home — is named in the
-    module's declared writes from the release that moves it, or it stops appearing in the footprint
-    at the moment somebody most needs to find it
+  * mod5-sr2 - what leaves is what implemented the capability, never what the module builds on: a
+    published surface stays published, because a module cannot speak a version of something the
+    core stopped having, and a holder somebody runs themselves must not come to depend on the
+    software of whoever answers a different capability
 
 #### Non-Functional Requirements
   * mod5-nfr1 - the alternative is coexistence, and the cost of it is not two implementations but

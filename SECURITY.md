@@ -140,7 +140,7 @@ artifact is possible because of it.
   that watches them.
 - **`plumbspec[account]`** is the one optional extra, and it is the only way to add anything to the
   tree. It carries `cryptography` for Ed25519, which the standard library does not provide, and it
-  is needed only to use a self-provisioned account — the board, friction capture and
+  is needed only to use a self-provisioned account — the board, the series and
   credential-based enrolment are untouched without it. It is an extra rather than a dependency
   precisely so the claim above stays exactly true for everyone who does not opt in. Assembling the
   primitive ourselves was the alternative and was refused: a hand-rolled signature scheme is where
