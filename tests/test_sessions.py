@@ -84,7 +84,6 @@ def test_every_place_the_tool_writes_is_in_the_documented_inventory(monkeypatch,
     when they do. So the docs are a view of the code, and this is what holds them to it."""
     from plumb import footprint
 
-    monkeypatch.delenv("PLUMB_ACCOUNT", raising=False)
     documented = (Path(__file__).resolve().parent.parent / "docs" / "command-line.md").read_text()
 
     for wrote in footprint.user_level():

@@ -6,8 +6,8 @@
 the name up (``mod5``). What answers that name now is a module, mounted through the
 `plumb.modules` entry point like any other — and the core keeps no copy of it, because a core that
 still ships the verb is a core that still claims the capability (``mod5-ur3``, ``mod5-nfr1``). What
-stayed is what a module builds on: the transport surface, the enrolment it resolves through, and
-the account that signs (``mod5-sr2``).
+stayed is what a module builds on: the transport surface and the enrolment it resolves through
+(``mod5-sr2``).
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def cmd_series_push(args) -> int:
     **Never fails on an unreachable holder.** A board is derived from a run and complete without
     the network, so the exit code says whether the *store* was readable rather than whether the
     network was up — otherwise a holder outage becomes a red build for a reason that has nothing
-    to do with the project (`dev07-6-2-ur6`, `dev07-5-3`'s shape).
+    to do with the project (`dev07-6-2-ur5`, `dev07-5-3`'s shape).
     """
     store = Path(args.file)
     if not store.is_file():
@@ -172,20 +172,14 @@ def cmd_series_pull(args) -> int:
     also the signal eviction ranks on, so reading your history is what keeps it.
     """
     from plumb.enrolment import NotEnrolled, load
-    from plumb.transmit import _configured_subject, _signing
+    from plumb.transmit import _configured_subject
 
-    # An account first, and only then an enrolment (`ch12-5`): a signed request needs no bearer
-    # credential at all, so demanding one here would refuse the very route that exists to work
-    # without an operator.
-    account = _signing() if not args.enrolment else None
-    enrolment = None
-    if account is None:
-        try:
-            enrolment = load(Path(args.enrolment) if args.enrolment else None)
-        except NotEnrolled as why:
-            print(f"series: not pulled — {why}", file=sys.stderr)
-            return 1
-    subject = args.subject or (enrolment.subject if enrolment else "") or \
+    try:
+        enrolment = load(Path(args.enrolment) if args.enrolment else None)
+    except NotEnrolled as why:
+        print(f"series: not pulled — {why}", file=sys.stderr)
+        return 1
+    subject = args.subject or enrolment.subject or \
         _configured_subject(Path(args.file), getattr(args, "project", None))
     if not subject:
         print("series: no subject to ask for. Name one with `subject = \"…\"` in plumb.toml — it "
@@ -199,21 +193,8 @@ def cmd_series_pull(args) -> int:
 
     from plumb.transmit import TIMEOUT_SECONDS
 
-    # Signed where an account is configured, bearer where one is not — two doors, one model
-    # (`ch12-5`). A read returns somebody's history, so it authenticates exactly as the write that
-    # put it there does, and under `ch12-21` what it returns is scoped to whoever wrote it.
-    from plumb.transmit import _signing
-
-    account = _signing()
-    if account is not None:
-        from plumb import account_client
-
-        headers, advanced = account_client.signed(account, "GET", f"/series/{subject}", b"")
-        account_client.save(advanced)
-        endpoint = account.endpoint
-    else:
-        headers = {"Authorization": f"Bearer {enrolment.credential}"}
-        endpoint = enrolment.endpoint
+    headers = {"Authorization": f"Bearer {enrolment.credential}"}
+    endpoint = enrolment.endpoint
     request = urllib.request.Request(f"{endpoint.rstrip('/')}/series/{subject}", headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as answer:
@@ -313,149 +294,58 @@ def cmd_account(args) -> int:
 
     `plumb registry` used to sit here and could not: it manages the registry of a holder, which
     only its operator has, and a command a tool ships is a claim that the operation is the reader's
-    to perform. It has moved to the service's own command, where it can be performed. What stands
-    in its place is the route that was missing — the honest end of that defect was never a better
-    refusal, it was this.
+    to perform. It has moved to the service's own command, where it can be performed.
+
+    The address is the credential (D50): opening hands it over, the service mails a link, and
+    redeeming the link answers once with the credential the channel already reads.
     """
-    from plumb import account_client, identity
+    import urllib.error
+    import urllib.request
 
-    path = Path(args.account) if args.account else None
-    try:
-        if args.command == "create":
-            secret = identity.new_root()
-            who = identity.Identity(secret)
-            kept = account_client.save_root(secret)
-            saved = account_client.save(account_client.AccountConfig(
-                (args.endpoint or "").rstrip("/"), who.public,
-                digest_key=identity.digest_key(secret).hex()), path)
-            print("identity generated, and its public half is the account it names\n")
-            print(f"    key   {who.public}\n")
-            # Said about the files rather than about the secret, and positively. An earlier version
-            # printed the secret and said only where it was *not* written; a reader who had just
-            # been shown one took that to mean nothing had been saved, went looking for the command
-            # that writes the account file, found none because `create` is it, and wrote an empty
-            # one by hand (`ado6-ur2`).
-            print(f"written to {saved} — the endpoint, the public half, this key's counter and the")
-            print("key your history is pseudonymised under. There is nothing further to write.\n")
-            print(f"The root itself is in {kept}, readable only by you. **Nothing was shown to")
-            print("you and nothing needs copying**: no secret crosses a terminal here, which is")
-            print("what lets this be one command.\n")
-            print("For CI, or to hold a copy somewhere of your own:\n")
-            print("    plumb account export\n")
-            print(f"prints it as one string for {account_client.ROOT_ENV}. Lost, with no copy kept,")
-            print("means the account is lost.")
-            return 0
+    from plumb.enrolment import DEFAULT_ENROLMENT, ENDPOINT_ENV
 
-        if args.command == "open":
-            # `dev07`-era recovery, live-tested 2026-09-12: open is signed by a fresh key and never
-            # credentialled — a caller holding nothing has nothing to hold. The operator binds the
-            # account to an existing customer out of band; opening without that binding makes a
-            # new customer and recovers nothing.
-            import datetime
-            import hashlib
-            import urllib.error
-            import urllib.request
-            config = account_client.load(path)
-            endpoint = (args.endpoint or config.endpoint).rstrip("/")
-            secret = account_client.root()
-            who = identity.Identity(secret)
-            body = json.dumps({"public": who.public, "email": args.email}).encode()
-            headers = account_client.signed_wire2(who, "POST", "/account", body)
-            headers.update({"Content-Type": "application/json",
-                            "Plumb-Support-Version": "2"})
-            request = urllib.request.Request(f"{endpoint}/account", data=body, method="POST",
-                                             headers=headers)
-            try:
-                with urllib.request.urlopen(request, timeout=10) as answered:
-                    said = json.loads(answered.read() or b"{}")
-            except urllib.error.HTTPError as refused:
-                print(refused.read().decode(), file=sys.stderr)
-                return 2
-            print(f"account opened: {said.get('state', '?')}, expires {said.get('expires_at', '?')}")
-            print("confirm the address from its mail, and redeem the credential link with:")
-            print("\n    plumb account redeem <token>\n")
-            return 0
-
-        if args.command == "redeem":
-            # The link's token is the whole credential of the redemption, and the answer comes
-            # once — so this command's only other job is writing what it was answered where the
-            # channel already reads.
-            import urllib.error
-            import urllib.request
-            config = account_client.load(path)
-            endpoint = (args.endpoint or config.endpoint).rstrip("/")
-            request = urllib.request.Request(
-                f"{endpoint}/account/credential/{args.token}", method="POST",
-                headers={"Plumb-Support-Version": "2"})
-            try:
-                with urllib.request.urlopen(request, timeout=10) as answered:
-                    said = json.loads(answered.read() or b"{}")
-            except urllib.error.HTTPError as refused:
-                print(refused.read().decode(), file=sys.stderr)
-                return 2
-            from plumb.enrolment import DEFAULT_ENROLMENT
-            where = Path(DEFAULT_ENROLMENT).expanduser()
-            if where.is_file():
-                kept = where.with_suffix(".json.replaced")
-                kept.write_text(where.read_text())
-            where.parent.mkdir(parents=True, exist_ok=True)
-            where.write_text(json.dumps({"relationship": "self",
-                                         "credential": said["credential"],
-                                         "endpoint": endpoint}))
-            where.chmod(0o600)
-            print(f"credential stored in {where} — filed_by stays {said.get('label', '?')},")
-            print("and your cases are unchanged. The link is now spent.")
-            return 0
-
-        if args.command == "export":
-            # The old posture, offered rather than imposed (`ado6-ur5`): somebody who wants the disk
-            # to hold nothing exports this, deletes the file, and supplies it from the environment.
-            secret = account_client.root(getattr(args, "passphrase", None))
-            print(identity.encode_root(secret))
-            return 0
-
-        config = account_client.load(path)
-        if args.command == "show":
-            # The three stored fields are public or derivable, so they read healthy for an account
-            # nobody can rebuild. Whether it can sign is the one thing here that is not written down,
-            # so it is derived on every ask and never recorded (`ado6-ur3`).
-            answer = account_client.can_sign(config, getattr(args, "passphrase", None))
-            print(f"  endpoint  {config.endpoint}")
-            print(f"  key       {config.public}")
-            print(f"  counter   {config.counter}")
-            print(f"  signs     {'yes' if answer.can_sign else 'no'}")
-            # Two different questions, and the second is the one the file cannot answer for
-            # itself. `signs` is about this invocation — is the passphrase here, now. `proved` is
-            # about the account's whole life: has anyone, ever, on this install, shown the secret
-            # exists. An account reading `signs no` in CI is usually an environment variable that
-            # did not arrive; one that has ALSO never been proved is a passphrase printed and never
-            # read, and the two do not have the same repair.
-            #
-            # `can_sign` derives, so a success here has just recorded itself — read the answer
-            # rather than the copy loaded before it.
-            proved = answer.can_sign or config.confirmed
-            if config.confirmed is not None:
-                print(f"  proved    {'yes' if proved else 'NEVER'}")
-            if not proved and config.confirmed is not None:
-                sys.stdout.flush()
-                print("\nplumb: nothing has ever signed with this account, so its passphrase may "
-                      "never have been captured\n  — `create` prints it once and writes it "
-                      "nowhere. An account nobody can sign for cannot\n  be recovered: end it and "
-                      "create another rather than building anything on it.",
-                      file=sys.stderr)
-            if not answer.can_sign:
-                # Piped — which is every CI log — stdout is block-buffered and stderr is not, so
-                # without this the reason arrives above the fields it is explaining.
-                sys.stdout.flush()
-                print(f"\nplumb: this account cannot sign — {answer.said}", file=sys.stderr)
-                return 1
-            return 0
-
-    except (account_client.NoAccount, account_client.KeyMismatch, identity.WeakPassphrase,
-            identity.Unavailable) as refused:
-        print(f"{refused}", file=sys.stderr)
+    endpoint = (args.endpoint or os.environ.get(ENDPOINT_ENV, "")).rstrip("/")
+    if not endpoint:
+        print(f"account: nowhere to send this — pass --endpoint or set {ENDPOINT_ENV}",
+              file=sys.stderr)
         return 1
-    return 1
+
+    if args.command == "open":
+        body = json.dumps({"email": args.email}).encode()
+        request = urllib.request.Request(
+            f"{endpoint}/account", data=body, method="POST",
+            headers={"Content-Type": "application/json", "Plumb-Support-Version": "2"})
+    else:
+        # The link's token is the whole credential of the redemption, and the answer comes once —
+        # so this command's only other job is writing what it was answered where the channel
+        # already reads.
+        request = urllib.request.Request(
+            f"{endpoint}/account/credential/{args.token}", method="POST",
+            headers={"Plumb-Support-Version": "2"})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as answered:
+            said = json.loads(answered.read() or b"{}")
+    except urllib.error.HTTPError as refused:
+        print(refused.read().decode(), file=sys.stderr)
+        return 2
+
+    if args.command == "open":
+        print(f"account opened: {said.get('state', '?')}, expires {said.get('expires_at', '?')}")
+        print("confirm the address from its mail, and redeem the credential link with:")
+        print("\n    plumb account redeem <token>\n")
+        return 0
+
+    where = Path(DEFAULT_ENROLMENT).expanduser()
+    if where.is_file():
+        kept = where.with_suffix(".json.replaced")
+        kept.write_text(where.read_text())
+    where.parent.mkdir(parents=True, exist_ok=True)
+    where.write_text(json.dumps({"relationship": "self", "credential": said["credential"],
+                                 "endpoint": endpoint}))
+    where.chmod(0o600)
+    print(f"credential stored in {where} — filed_by stays {said.get('label', '?')},")
+    print("and your cases are unchanged. The link is now spent.")
+    return 0
 
 
 def _say_cursor(cursor, config) -> None:
@@ -694,9 +584,7 @@ def cmd_footprint(args) -> int:
     print("\nIRREPLACEABLE means nothing else holds it: a run that was not recorded cannot be\n"
           "recovered from a later one, and a record that has not reached a holder exists only\n"
           "here. SECRET means the file carries a credential.\n\n"
-          "Plumb takes no archive of any of it.\n\n"
-          "A passphrase appears nowhere above because it is never written down — losing it loses\n"
-          "the account.")
+          "Plumb takes no archive of any of it.")
     return EXIT_OK
 
 
@@ -724,7 +612,7 @@ def cmd_registry_moved(args) -> int:
     print("plumb: managing a registry is the service operator's, and this is the client.\n\n"
           "  It belongs to whoever runs a holder, where it can actually be performed.\n"
           "  If you are enrolling, you do not mint your own credential — the operator sends one.\n"
-          "  If you want an identity nobody has to issue:  plumb account create",
+          "  If you want an account of your own:  plumb account open --email <address>",
           file=sys.stderr)
     return 1
 
@@ -1077,25 +965,14 @@ def build_parser() -> argparse.ArgumentParser:
     init.set_defaults(func=cmd_init)
 
     account = groups.add_parser(
-        "account", help="an identity nobody has to issue you")
-    account.add_argument("--account", help="account file (default: ~/.config/plumb/account.json)")
+        "account", help="an account named by your address")
     acc = account.add_subparsers(dest="command", required=True)
-    created = acc.add_parser("create", help="generate an identity; nothing is shown to copy")
-    created.add_argument("--endpoint", help="the service this account is at, if you have one")
-    opened = acc.add_parser("open", help="open the account at its holder; signed, never credentialled")
-    opened.add_argument("--email", required=True,
-                        help="the anchor address — what survives losing this machine")
-    opened.add_argument("--endpoint", help="override the account file's holder")
+    opened = acc.add_parser("open", help="open an account; the service mails a link to the address")
+    opened.add_argument("--email", required=True, help="the address the account is named by")
     redeem = acc.add_parser("redeem", help="redeem a credential link; the answer comes once")
     redeem.add_argument("token", help="the token from the link")
-    redeem.add_argument("--endpoint", help="override the account file's holder")
-    acc.add_parser("export", help="print the root, for CI or a copy of your own")
-    shown = acc.add_parser(
-        "show", help="what this install holds, and whether it can still sign with it")
-    for taking in (acc.choices["export"], shown):
-        taking.add_argument("--root", dest="passphrase", metavar="HEX",
-                            help="the root to use, if it is not this machine's "
-                                 "(or set PLUMB_ROOT)")
+    for taking in (opened, redeem):
+        taking.add_argument("--endpoint", help="the support service (or set PLUMB_ENDPOINT)")
     account.set_defaults(func=cmd_account)
     prints = groups.add_parser(
         "footprint", help="what Plumb has written, where, and what losing each place would cost")

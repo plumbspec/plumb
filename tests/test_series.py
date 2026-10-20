@@ -431,7 +431,6 @@ def test_the_command_pushes_under_the_subject_of_the_project_it_was_given(tmp_pa
     monkeypatch.chdir(elsewhere)
 
     asked = []
-    monkeypatch.setattr(transmit, "_signing", lambda project=None: None)
     # Named through the environment, which is how a runner names one and the route a push now
     # resolves. Patching `transmit.load` reached inside the resolver, which no longer loads an
     # enrolment itself.
@@ -444,6 +443,40 @@ def test_the_command_pushes_under_the_subject_of_the_project_it_was_given(tmp_pa
 
     assert asked and asked[0].endswith("/series/acme-api"), \
         f"pushed to {asked} — the subject followed the shell rather than the series"
+
+
+@pytest.mark.proves("snd3", depth="wiring")
+def test_a_push_goes_with_the_credential_its_destination_names(tmp_path, monkeypatch):
+    """The series destination's own credential is what the request carries, on the wire."""
+    import urllib.request
+
+    from plumb import cli
+
+    (tmp_path / "plumb.toml").write_text('adapter = "python"\nsubject = "acme-api"\n')
+    log = tmp_path / "series.jsonl"
+    log.write_text(json.dumps({"seq": 1, "subject": "acme-api", "test": "t", "about": None,
+                               "result": "passed", "grounding": "grounded", "when": None}) + "\n")
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", "https://series.example.invalid")
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "series-tok")
+    monkeypatch.setenv("PLUMB_CREDENTIAL", "some-other-tok")
+
+    sent = []
+
+    class _Taken:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda request, timeout=None: (sent.append(request), _Taken())[1])
+
+    assert cli.main(["series", "push", str(log), "--project", str(tmp_path)]) == 0
+
+    [request] = sent
+    assert request.full_url == "https://series.example.invalid/series/acme-api"
+    assert request.get_header("Authorization") == "Bearer series-tok"
 
 
 @pytest.mark.proves("dev07-6-1", depth="component")

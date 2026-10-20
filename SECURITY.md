@@ -138,15 +138,6 @@ artifact is possible because of it.
 - **Python 3.9+** at runtime, and nothing else — the same floor the adapter declares, so a
   project needs one interpreter rather than one for its tests and a newer one for the tool
   that watches them.
-- **`plumbspec[account]`** is the one optional extra, and it is the only way to add anything to the
-  tree. It carries `cryptography` for Ed25519, which the standard library does not provide, and it
-  is needed only to use a self-provisioned account — the board, the series and
-  credential-based enrolment are untouched without it. It is an extra rather than a dependency
-  precisely so the claim above stays exactly true for everyone who does not opt in. Assembling the
-  primitive ourselves was the alternative and was refused: a hand-rolled signature scheme is where
-  a protocol goes wrong quietly, and that argument does not stop applying because the assembly
-  would be ours. An install without it refuses account traffic naming its own installation as the
-  fault, rather than failing as though the adopter's project were wrong.
 - **A JDK** only for the Java adapter, and only in the project being measured. The shipped
   adapter's bytecode floor is the `maven.compiler.release` its module declares.
 - **pytest** is required only in the project being measured, which already has it — Plumb does not

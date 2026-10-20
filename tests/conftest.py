@@ -28,28 +28,21 @@ def _cache_in_the_tmp_dir(monkeypatch, tmp_path):
 
 @pytest.fixture(autouse=True)
 def _config_in_the_tmp_dir(monkeypatch, tmp_path):
-    """The developer's own credentials, kept out of reach of the suite.
+    """The developer's own credential, kept out of reach of the suite.
 
-    The same rule as the scratch above, applied to the half that is not scratch. An account and an
-    enrolment live outside any project, under ``XDG_CONFIG_HOME``, and are the two files the tool
-    writes that are **not** disposable: one carries which receiver this machine speaks to, the
-    other is a claimed identity whose passphrase was printed once and stored nowhere.
+    The same rule as the scratch above, applied to the half that is not scratch. An enrolment lives
+    outside any project, under ``XDG_CONFIG_HOME``, and is a file the tool writes that is **not**
+    disposable.
 
-    Measured: running this suite rewrote the developer's real ``~/.config/plumb/account.json`` on
-    every pass, with a different public key each time — a claimed account replaced by a test's, and
-    silently, because ``confirm`` is documented to drop write failures rather than fail a run.
-
-    The environment variable alone does not do it. Both defaults are module constants resolved at
-    **import**, so a test process that has already imported them keeps the developer's paths
-    whatever the environment says afterwards. The constants are therefore pointed at the temporary
-    directory as well, and a test that redirects them itself still wins — monkeypatch is undone in
-    reverse.
+    The environment variable alone does not do it. The default is a module constant resolved at
+    **import**, so a test process that has already imported it keeps the developer's path whatever
+    the environment says afterwards. The constant is therefore pointed at the temporary directory
+    as well, and a test that redirects it itself still wins — monkeypatch is undone in reverse.
     """
     config = tmp_path / "config"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(config))
-    from plumb import account_client, enrolment
+    from plumb import enrolment
 
-    monkeypatch.setattr(account_client, "DEFAULT_ACCOUNT", config / "plumb" / "account.json")
     monkeypatch.setattr(enrolment, "DEFAULT_ENROLMENT", config / "plumb" / "enrolment.json")
 
 

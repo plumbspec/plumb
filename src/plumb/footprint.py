@@ -33,8 +33,8 @@ class Wrote:
     #: In the project's own tree, which means the project's version control already carries it and
     #: an archive that took it again would be keeping a second copy of a thing git holds better.
     in_repo: bool = False
-    #: Not this project's alone. One account serves every repository that pushes to one holder,
-    #: so restoring it *for* a project silently rebinds an identity that was never that project's.
+    #: Not this project's alone. One enrolment serves every repository that pushes to one holder,
+    #: so restoring it *for* a project silently rebinds a credential that was never that project's.
     shared: bool = False
     #: Carries a credential (``ado4-ur2``). What follows from that is the reader's: their threat
     #: model, their infrastructure and their obligations are not things this tool can see, so it
@@ -56,10 +56,6 @@ def user_level() -> tuple[Wrote, ...]:
     """What the tool writes outside any project — the half a repository does not carry."""
     config = _home("XDG_CONFIG_HOME", ".config") / "plumb"
     return (
-        Wrote(str(Path(os.environ.get("PLUMB_ACCOUNT") or config / "account.json")),
-              "the endpoint, the public half of the account, and this key's counter. No secret: "
-              "the identity is derived from your passphrase and is never written down",
-              keep=True, shared=True),
         Wrote(str(config / "enrolment.json"),
               "an operator-issued enrolment — the file form, which carries a credential",
               keep=True, shared=True, secret=True),

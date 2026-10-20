@@ -1,34 +1,83 @@
+"""The account is an address (D50): a person opens one by mail and redeems the link for a
+credential, and the install holds no key of its own."""
+
+import importlib.util
+import json
+
+import pytest
 
 
-# -- the support receiver's account routes (wire v2) --------------------------------------------
+class _Answer:
+    def __init__(self, said):
+        self._said = json.dumps(said).encode()
 
-def test_the_support_wire_signature_is_timestamped_and_self_naming():
-    """The support wire signs METHOD·PATH·TIMESTAMP·sha256(body) and the header carries the
-    public half beside the signature, because the receiver has no account yet to look one up in —
-    which is the whole reason these routes are signed rather than credentialled."""
-    import hashlib
-    from plumb import account_client, identity
+    def read(self):
+        return self._said
 
-    secret = identity.new_root()
-    who = identity.Identity(secret)
-    body = b'{"public": "x", "email": "someone@example.org"}'
+    def __enter__(self):
+        return self
 
-    headers = account_client.signed_wire2(who, "POST", "/account", body)
-
-    public, _, signature = headers["Plumb-Signature"].partition(".")
-    assert public == who.public, "the header names the key that signed"
-    stamp = headers["Plumb-Timestamp"]
-    assert stamp.endswith("Z") and "T" in stamp, "ISO-8601 UTC, the wire's own spelling"
-    message = f"POST\n/account\n{stamp}\n{hashlib.sha256(body).hexdigest()}".encode()
-    assert identity.verify(public, signature, message)
+    def __exit__(self, *_):
+        return False
 
 
-def test_the_series_scheme_and_the_support_scheme_stay_two_functions():
-    """One function wearing two signature schemes is how a request carries the wrong one and
-    reads as an attack; the seam is two names, checked here so it cannot quietly refold."""
-    from plumb import account_client
+def test_opening_an_account_hands_over_an_address_and_nothing_else(monkeypatch, capsys):
+    """No root to make first and nothing signed: the body is the address, and the service mails
+    the link that proves it."""
+    from plumb import cli
 
-    assert account_client.signed is not account_client.signed_wire2
-    import inspect
-    assert "Plumb-Counter" not in inspect.getsource(account_client.signed_wire2)
-    assert "Plumb-Timestamp" not in inspect.getsource(account_client.signed)
+    sent = []
+
+    def answer(request, timeout=None):
+        sent.append(request)
+        return _Answer({"state": "pending", "expires_at": "soon"})
+
+    monkeypatch.setattr("urllib.request.urlopen", answer)
+
+    assert cli.main(["account", "open", "--email", "someone@example.org",
+                     "--endpoint", "https://support.example.invalid/"]) == 0
+
+    [request] = sent
+    assert request.full_url == "https://support.example.invalid/account"
+    assert json.loads(request.data) == {"email": "someone@example.org"}
+    headers = {name.lower() for name in request.headers}
+    assert not {"plumb-signature", "plumb-key", "plumb-timestamp"} & headers, (
+        "an address is the whole of what opening an account presents")
+    assert "redeem" in capsys.readouterr().out
+
+
+def test_opening_an_account_names_where_when_nothing_says(monkeypatch, capsys):
+    """With no `--endpoint` and no `PLUMB_ENDPOINT`, there is nowhere to send the address; the
+    refusal says which two things would have answered."""
+    from plumb import cli
+
+    monkeypatch.delenv("PLUMB_ENDPOINT", raising=False)
+    assert cli.main(["account", "open", "--email", "someone@example.org"]) == 1
+    said = capsys.readouterr().err
+    assert "--endpoint" in said and "PLUMB_ENDPOINT" in said
+
+
+def test_the_install_holds_no_identity():
+    """The key, its derivations and the commands that made and exported it left together."""
+    from plumb import cli
+
+    assert importlib.util.find_spec("plumb.identity") is None
+    assert importlib.util.find_spec("plumb.account_client") is None
+    for gone in ("create", "export", "show"):
+        with pytest.raises(SystemExit):
+            cli.build_parser().parse_args(["account", gone])
+
+
+@pytest.mark.proves("dev07-6-2", depth="component")
+def test_what_would_be_sent_carries_the_adopters_names_as_written(tmp_path):
+    """A preview built by the push's own path shows the records exactly; nothing replaces a name."""
+    from plumb import transmit
+
+    store = tmp_path / "history.jsonl"
+    store.write_text(json.dumps({"seq": 1, "subject": "acme-api", "test": "tests/t.py::t",
+                                 "about": "the refund", "result": "passed",
+                                 "grounding": "grounded", "when": None}) + "\n")
+
+    records, _ = transmit.wire_form(store)
+    [record] = records
+    assert record["test"] == "tests/t.py::t" and record["about"] == "the refund"
