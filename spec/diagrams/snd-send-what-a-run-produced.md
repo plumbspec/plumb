@@ -1,6 +1,6 @@
 # snd · send what a run produced
 
-**Last updated** 2026-09-23 v1
+**Last updated** 2026-10-20 v2
 
 What a developer does to get what their run produced somewhere they chose — a history to a holder
 their team runs, a record to a service that answers them. The holder this reaches is
@@ -119,32 +119,19 @@ capabilities.
 
 ### snd3 · hand it over
 
-> **As a developer I want what I send to be worth nothing to whoever intercepts it, so that using
-> somebody else's network is not a decision I have to make about each thing I send.**
+> **As a developer I want what I send to go with the credential its destination names, so that
+> where something goes and what it is sent under are decided in one place.**
 
 #### Information
 
 | Information | IO | Description | Required | Provenance |
 |---|---|---|---|---|
 | snd3-inf1 | In | `addressed` | yes | snd2 |
-| snd3-inf2 | In | `signing_identity` | optional | authored |
-| snd3-inf3 | Out | `handover` | yes | derived |
+| snd3-inf2 | Out | `handover` | yes | derived |
 
 #### User Requirements
-  * snd3-ur1 - what is handed over is signed where an identity is configured, and presented with
-    the credential where none is
-  * snd3-ur2 - an identity is one string a person can be handed, so an ephemeral host needs no file
-    to sign as itself
-
-#### System Requirements
-  * snd3-sr1 - a signature is over the content rather than presented beside it, so it binds the body
-    and survives every hop between here and whoever reads it
-  * snd3-sr2 - no identity configured is not an error; the credential route carries on unchanged
-
-#### Non-Functional Requirements
-  * snd3-nfr1 - a credential presented beside the content is worth something to whoever captures it
-    and a signature is worth nothing, which is why the second is preferred wherever it is available
-    rather than only where it is mandatory
+  * snd3-ur1 - what is handed over is presented with the credential of the destination it is
+    addressed to
 
 #### Unknowns
 
@@ -191,7 +178,7 @@ capabilities.
 | Capability | One thing the tool can send — a run history, a record for a service. Named, so a destination can belong to it rather than to the whole installation |
 | Destination | Where one capability's output goes, the credential it goes with, and which store there it owns. Not a relationship with whoever runs it |
 | Enrolment | Being admitted to somebody's programme, which is how a destination for that programme comes to exist. A thing the programme's own software does, not this flow |
-| Handover | What is actually sent: the content, signed or presented, addressed to one destination |
+| Handover | What is actually sent: the content and its credential, addressed to one destination |
 | Outstanding | What was handed over and not acknowledged. The only thing a retry carries |
 | Provenance | The fifth column of an Information table: where an input came from, or how an output was made |
 | Authored | Written by a person. An input nothing produces, or an output somebody typed |

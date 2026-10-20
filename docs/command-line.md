@@ -18,8 +18,7 @@ most confusion comes from not knowing which ones cancel each other out.
     plumb modules                                      what is mounted, and what it reaches
     plumb init       [--project DIR]
     plumb manifest   migrate FILE
-    plumb account    [--account FILE]                  {create|open|redeem|export|show}
-                     create [--endpoint URL] · export [--root HEX]
+    plumb account    {open|redeem} [--endpoint URL]
 
 ---
 
@@ -556,7 +555,6 @@ yours to keep or remove.
 Only one value Plumb reads is a secret, and it travels on its own.
 
     PLUMB_CREDENTIAL   the credential every capability sends with — the only secret here
-    PLUMB_PASSPHRASE   a self-provisioned account's passphrase — likewise
     PLUMB_ENDPOINT     the address every capability sends to
     PLUMB_ENROLMENT    path to an enrolment file — the escape hatch, see below
 
@@ -618,22 +616,18 @@ irreplaceable; everything else is either in your repository already or rebuilt o
 
 | Path | What it is | Keep it? |
 |---|---|---|
-| `~/.config/plumb/account.json` | endpoint, the public half of your account, and this key's counter. **No secret** — the identity is derived from your passphrase and is never written down | yes, but it is **shared** across every project pushing to that holder |
-| `~/.config/plumb/enrolment.json` | an operator-issued enrolment, file form — **this one carries a credential** | yes; marked `SECRET` |
+| `~/.config/plumb/enrolment.json` | an enrolment, file form — **this one carries a credential** | yes; marked `SECRET`, and **shared** across every project pushing to that holder |
 | `~/.local/state/plumb/` | a session's opening reading, keyed by project path | no — scratch; a session that loses it is simply told its delta cannot be computed |
 | `~/.cache/plumb/` | a per-version cache | no — rebuilt when missing |
 
-Each honours its `XDG_*` variable, and `PLUMB_ACCOUNT` overrides the first outright.
+Each honours its `XDG_*` variable.
 
-**The one to actually worry about** is your `series`. The account
-file matters less than it looks: everything in it except the counter rebuilds from your passphrase,
-and the passphrase is the thing to keep safe — losing it loses the account, and no backup helps,
-because it was never stored anywhere to be backed up.
+**The one to actually worry about** is your `series`.
 
     $ plumb footprint
 
 prints the same list with **your** paths filled in, which this page cannot: every location honours
-its `XDG_*` variable, so where your account actually sits is a property of your machine.
+its `XDG_*` variable, so where your enrolment actually sits is a property of your machine.
 
 | Option | What it does |
 |---|---|
@@ -668,9 +662,6 @@ One thing nothing else holds, so it is the one to point your backup at:
 |---|---|
 | your **series** | every transition, losslessly. A run that is not recorded cannot be recovered from a later one — and it commonly sits inside the project *and* is git-ignored, so a rule about tracked files will miss it |
 
-A passphrase is in neither, because it is never written down: losing it loses the account, and no
-backup helps.
-
 ## `plumb session`
 
 Optional. Nothing else in the tool reads any of it, and a project that never runs these commands
@@ -684,13 +675,12 @@ What the last session left, whether the ground is sound, and a reading to measur
 
     $ plumb session start
       cursor    .plumb/next-session.txt
-      next      give the tool a way to answer "can this account sign?"
-      ref       ado6
-                CI publishes under a credential instead, so this is no longer blocking — it
-                is the defect that made a day expensive.
+      next      a pulled copy names the holder it came from
+      ref       dev07-6-3
+                the holder's half is in; the client still writes an unlabelled file.
       ground    clean
       board     117 unproven of 190
-      target    ado6 is unproven
+      target    dev07-6-3 is unproven
 
       When you are done:  plumb session wrap-up --next '…' --ref … --context '…'
 
@@ -706,7 +696,7 @@ The delta since the open, and the gate.
     $ plumb session wrap-up --next 'settle ado2' --ref ado2 --context 'the JVM adapter needs it first'
       board     115 unproven of 199
       session   +2 proven since 2026-08-05T09:14:00+00:00
-                + ado6
+                + dev07-6-3
                 + dev03
       cursor    set → ado2
 
@@ -755,43 +745,18 @@ transmitted anywhere: appending to a local store and pushing to a holder stay se
 
 ## `plumb account`
 
-An identity nobody has to issue you. The keypair is made here and its private half never leaves.
+An account named by your address.
 
-    plumb account create                  # generate an identity; nothing is shown to copy
-    plumb account open --email ADDR       # open it at the holder; signed, never credentialled
-    plumb account redeem TOKEN            # redeem a credential link; the answer comes once
-    plumb account export                  # print the root, for CI or a copy of your own
-    plumb account show                    # endpoint, public key, counter
+    plumb account open --email ADDR       # the service mails a link to the address
+    plumb account redeem TOKEN            # redeem the link's token; the answer comes once
 
-`open` registers the identity at its holder: the request is **signed by the key it
-registers**, because a caller with no account yet has no credential to present — that hole is
-the design, not a gap in it. `--email` is the **anchor**: the address that survives losing the
-machine, because it is not on the machine. `--endpoint` overrides the account file's holder.
+`open` hands the address to the support service, which mails a credential link to it. `redeem`
+trades the link's token for the credential itself, once, and stores it where the channel reads
+(`~/.config/plumb/enrolment.json`, any prior file kept beside it). The link is spent by the answer.
+Coming back after losing a machine is the same two commands: your cases and `filed_by` are
+unchanged throughout.
 
-`redeem` trades a credential link's token for the credential itself, once, and stores it where
-the channel reads (`~/.config/plumb/enrolment.json`, any prior file kept beside it). The link is
-spent by the answer. `--endpoint` as above. Together the two are the lost-credential path: mint a
-fresh key, `open` with your anchor address, have the operator bind it to your account, `redeem`
-— your cases and `filed_by` are unchanged throughout.
-
-`create` takes no arguments and shows you nothing to write down. It generates a **root key** — 32
-bytes from the operating system — writes it `0600` beside the account, and derives everything else
-from it under a label: a signing key per writer, and the key your history is pseudonymised under.
-
-**No secret crosses the terminal**, which is what lets this be one command rather than two with a
-copy-and-paste between them.
-
-`export` prints the root as one string, for `PLUMB_ROOT` in a CI secret store, or to keep a copy of
-your own. Somebody who would rather this machine held nothing can export it, delete the file, and
-supply it from the environment on every run — the older posture, offered as a choice rather than
-imposed. Lost with no copy kept means the account is lost.
-
-Signing needs an extra, because Plumb's runtime declares no dependencies:
-`pip install 'plumbspec[account]'`. Without it, `plumb account` says so and names the repair.
-
-> **This is being replaced.** Creation is moving to one command with no arguments, which asks for an
-> address and confirms it, and the derivation is moving onto named primitives. What is documented
-> here is what the tool does today.
+Both send to `--endpoint`, or to `PLUMB_ENDPOINT` when it is not given.
 
 ### Running a holder
 
@@ -826,7 +791,7 @@ somewhere less obvious:
     plumb: managing a registry is the service operator's, and this is the client.
 
 If you are enrolling, you do not mint your own credential; the operator sends you one. If you want
-an identity nobody has to issue, `plumb account create`.
+an account of your own, `plumb account open --email ADDR`.
 
 ---
 

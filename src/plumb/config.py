@@ -56,11 +56,11 @@ class Config:
     mutation: bool = False
     #: The series holder this project hands its history to. **Configuration, not a secret** — the
     #: address is the field worth seeing in a diff, and holding it here is what lets a wrong
-    #: address fail as a wrong address (``ado6-sr4``). Anything secret never appears in this file
+    #: address fail as a wrong address. Anything secret never appears in this file
     #: and never in any file the working tree can sweep into a build artifact.
     endpoint: str = ""
     #: What this project calls its series. A name *inside* the store that holds it, never an
-    #: access boundary (``dev07-6-2-ur8``) — so it is the project's to choose, is configuration
+    #: access boundary (``dev07-6-2-ur7``) — so it is the project's to choose, is configuration
     #: rather than a secret, and is not something an operator has to issue.
     subject: str = ""
     #: The story-id namespaces this repository carries, longest-prefix wins (``dev07-3-2``). A spec is

@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from plumb.enrolment import Enrolment, NotEnrolled, load
@@ -31,22 +31,6 @@ VERSION_HEADER = "Plumb-Support-Version"
 #: What an attempt came to. Three outcomes rather than two, because "it arrived" and "stop
 #: trying" are different facts and collapsing them is how a refused record got reported as sent.
 ACCEPTED, RETRY, REFUSED = "accepted", "retry", "refused"
-
-#: The support service refused a counter and said which to use, and the client took it. Its own verdict
-#: rather than a `RETRY` the caller has to recognise by its wording: it is the one refusal that
-#: repairs itself, and the caller's response — send the same batch again — is not what it does with
-#: any other. Matching on the detail string would have made a reworded sentence a hang.
-RESYNCED = "resynced"
-
-#: How many times one batch may be re-sent after a counter re-synchronisation.
-#:
-#: **One, because the second attempt is the diagnosis.** A single client that has lost its place
-#: corrects and goes through. Two clients sharing a key — an ordinary CI matrix, two legs pushing
-#: in parallel, which is what any adopter with a matrix has on their first attempt — correct
-#: *against each other*, and an unbounded loop would let them thrash for as long as both keep
-#: trying. Bounded, the second refusal is evidence: the counter moved again while this request was
-#: in flight, and only another client can have moved it.
-RESYNC_RETRIES = 1
 
 #: The support service positively identified the *content* as unusable, and no retry changes that.
 #: Everything else non-2xx is retried: a version the support service does not know yet becomes
@@ -109,62 +93,6 @@ def _batches(records: list, budget: int) -> list[list]:
     if current:
         batches.append(current)
     return batches
-
-
-def _signing(project=None):
-    """The account this project pushes as, or ``None`` (`ch12-6`).
-
-    Preferred over the bearer credential wherever one is configured, because a signature is over
-    the *content* rather than presented beside it: it survives every hop, binds the body and the
-    support service, and is worth nothing to whoever captures it. ``None`` — not an error — where no
-    account or no passphrase is set, so the credential route keeps working unchanged and an
-    installation that never adopted an account notices nothing (`ch12-5`: two doors, one model).
-    """
-    from plumb import account_client
-
-    try:
-        config = account_client.load()
-    except (account_client.NoAccount, OSError, ValueError):
-        # No file is not no account: the file holds the endpoint, the public half and a counter,
-        # and every one of those is configuration or derivable from the one secret.
-        return _derived_account(project)
-    try:
-        account_client.root()
-    except (account_client.NoAccount, OSError, ValueError):
-        return None
-    return config
-
-
-def _derived_account(project=None):
-    """The same account, rebuilt from the passphrase where no file was left behind (`ch12-13`).
-
-    An identity is **one generated string** — that is the claim, and it is what an ephemeral host
-    can be handed. The file beside it holds the endpoint, the public half and a counter, none of
-    which is a secret and all of which is either configuration or derivable, so requiring it made
-    the claim false for exactly the case it was written for: a runner. Measured on this project's
-    own CI recipe and on the printed one — both set `PLUMB_PASSPHRASE` and nothing
-    else, both would fall silently back to the bearer route, find no credential either, and report
-    *not pushed* on a green build.
-
-    The endpoint comes from `plumb.toml`, where it is reviewable (`ch12-22`). The counter starts at
-    zero and is corrected by the support service, which is `ch12-6`'s rule already: a client that has lost
-    its place asks and is told, and a runner that keeps nothing has lost its place every time.
-    """
-    from plumb import account_client, identity
-    from plumb.config import Config
-
-    endpoint = Config.find(project or ".").endpoint
-    if not endpoint:
-        return None
-    try:
-        secret = account_client.root()
-    except (account_client.NoAccount, ValueError, OSError):
-        return None
-    try:
-        public = identity.Identity(secret, account_client.key_label()).public
-    except Exception:            # noqa: BLE001 — a missing signing back end is not an account
-        return None
-    return account_client.AccountConfig(endpoint, public)
 
 
 def _owning_project(path: Path) -> Path | None:
@@ -241,21 +169,17 @@ def push_series(store: Path, enrolment_path: Path | None = None,
 
     from plumb.transport import for_capability, variables
 
-    account = _signing(project) if enrolment_path is None else None
-    destination = None
-    if account is None:
-        # This capability's own destination, so a team self-hosting a holder is not thereby choosing
-        # who answers its support (`snd-D1`). An enrolment still answers where nothing more specific
-        # is named, so a project that had one keeps pushing exactly where it did.
-        destination = for_capability("series", enrolment_path=enrolment_path,
-                                     root=project or Path(store).parent)
-        if destination is None:
-            endpoint_var, credential_var, _ = variables("series")
-            return Outcome(reason=(
-                f"no destination named for series — set {endpoint_var} and {credential_var}, or "
-                f"enrol. A history stays on this machine, which is the default and not a fault"))
-    endpoint = account.endpoint if account else destination.url
-    subject = (destination.subject if destination else "") or _configured_subject(store, project)
+    # This capability's own destination, so a team self-hosting a holder is not thereby choosing
+    # who answers its support (`snd-D1`). An enrolment still answers where nothing more specific
+    # is named, so a project that had one keeps pushing exactly where it did.
+    destination = for_capability("series", enrolment_path=enrolment_path,
+                                 root=project or Path(store).parent)
+    if destination is None:
+        endpoint_var, credential_var, _ = variables("series")
+        return Outcome(reason=(
+            f"no destination named for series — set {endpoint_var} and {credential_var}, or "
+            f"enrol. A history stays on this machine, which is the default and not a fault"))
+    subject = destination.subject or _configured_subject(store, project)
     if not subject:
         return Outcome(reason=(
             "no subject to push under: name one with `subject = \"…\"` in plumb.toml. It names a "
@@ -271,32 +195,13 @@ def push_series(store: Path, enrolment_path: Path | None = None,
     if not pending:
         return Outcome()
 
-    url = f"{endpoint.rstrip('/')}/series/{subject}"
+    url = f"{destination.url.rstrip('/')}/series/{subject}"
     sent: list[str] = []
     # Read here rather than defaulted into the signature: a default binds at import, which makes
     # the budget unchangeable for the life of the process and — worse — makes a test that sets it
     # pass while never splitting anything. That is how the first version of this was proven.
     for batch in _batches(pending, CHUNK_BYTES):
-        for attempt in range(RESYNC_RETRIES + 1):
-            if account is not None:
-                verdict, detail, account = _deliver_signed(endpoint, subject, batch, account)
-            else:
-                verdict, detail = _deliver_batch(url, batch, destination)
-            if verdict != RESYNCED:
-                break
-            if attempt == RESYNC_RETRIES:
-                # Took the value we were told to use and were refused on it too. Nothing this
-                # client did can explain that — it is holding the counter the support service named
-                # moments ago — so the cause is another client signing with the same key, and
-                # saying which is the whole difference between a wait and a rewrite of the CI job.
-                verdict = RETRY
-                detail = (
-                    "the counter moved again while this push was in flight, so something else is "
-                    "signing with this key — a build matrix pushing from two legs at once is the "
-                    "usual cause. A counter is kept per KEY, and an account holds a set of them "
-                    "(`ch12-6`, `ch12-16`), so the repair is a key per concurrent writer rather "
-                    "than an account per leg: `plumb account add-key`. Nothing is lost — the "
-                    "unsent records stay unsent")
+        verdict, detail = _deliver_batch(url, batch, destination)
         if verdict == ACCEPTED:
             # Per batch, not at the end: this is what makes a half-finished push worth the part
             # that got through, and it is safe because the mark only ever moves forward.
@@ -310,32 +215,6 @@ def push_series(store: Path, enrolment_path: Path | None = None,
             return Outcome(sent=tuple(sent), refused=(str(store),), reason=detail)
         return Outcome(sent=tuple(sent), queued=(str(store),), reason=detail)
     return Outcome(sent=tuple(sent))
-
-
-#: Which fields carry the adopter's own words rather than facts about a run (`dev07-6-2`). A test node
-#: id and an aspect are written in the adopter's language and describe behaviour; a subject is a
-#: story id they already publish, a result and a timestamp describe the run. Only the first two are
-#: replaced.
-PSEUDONYMISED = ("test", "about")
-
-
-def pseudonymise(records: list[dict], key: bytes, account: str) -> list[dict]:
-    """Replace the adopter's own names with a keyed token, keeping identity (`dev07-6-2`).
-
-    The same name gives the same token run after run, so *which subject changes most often* survives
-    — which omitting the field would have destroyed. `None` is left alone: an aspect that is absent
-    is a fact about the citation and pseudonymising it would invent one.
-    """
-    from plumb import identity
-
-    out = []
-    for record in records:
-        copy = dict(record)
-        for field in PSEUDONYMISED:
-            if copy.get(field):
-                copy[field] = identity.token(key, str(copy[field]), account)
-        out.append(copy)
-    return out
 
 
 def wire_form(store: Path, enrolment_path: Path | None = None,
@@ -352,107 +231,7 @@ def wire_form(store: Path, enrolment_path: Path | None = None,
 
     _, pending = unsent(store)
     records = [asdict(r) for r in pending]
-    account = _signing() if enrolment_path is None else None
-    if account is None:
-        return records, "sent under a credential, with your own names carried as written"
-    try:
-        key = _digest_key()
-    except Exception:
-        return records, "sent signed; names would be replaced but the passphrase is not set"
-    return (pseudonymise(records, key, account.public[:16]),
-            "sent signed, with test and about replaced by a keyed token")
-
-
-def _digest_key() -> bytes:
-    """The key this account's names are replaced under — **read, not recomputed** (``ch12-24``).
-
-    Derived once when the account was made and carried on the account since. Recomputing it from
-    whatever root is current would mean that replacing a lost root silently renames every subject an
-    adopter already holds, which is the one thing a pseudonym must not do to the person it belongs
-    to. Falling back to deriving is for an account written before the field existed, and it
-    reproduces exactly what that account was already using.
-    """
-    from plumb import account_client, identity
-
-    secret = account_client.root()
-    try:
-        carried = account_client.load().digest_key
-    except account_client.NoAccount:
-        carried = ""
-    return bytes.fromhex(carried) if carried else identity.digest_key(secret)
-
-
-def _deliver_signed(endpoint: str, subject: str, batch: list, config):
-    """One signed request, and the counter advances whatever the answer is (`ch12-6`).
-
-    A counter is a *place in this key's sequence*, not a record of success: reusing one after a
-    refusal is a replay by construction, and the support service cannot tell an honest retry from one. So
-    it is saved before the outcome is known, and the returned config carries the value the next
-    batch must use. A refusal that says which value to use is answered by taking it, which is what
-    makes a client that has lost its place correct itself rather than stall.
-    """
-    from plumb import account_client
-
-    path = f"/series/{subject}"
-    # Pseudonymised on the signed route only, because that is the route with a root to key from
-    # (`ch12-24`). A bearer credential carries no secret of the adopter's, so there is nothing to
-    # key with and the names travel as written — stated rather than left to be discovered.
-    records = [asdict(r) for r in batch]
-    try:
-        records = pseudonymise(records, _digest_key(), config.public[:16])
-    except Exception:
-        pass
-    body = json.dumps({"records": records}).encode("utf-8")
-    try:
-        headers, advanced = account_client.signed(config, "POST", path, body)
-    except Exception as unusable:  # a missing back end or a refused passphrase, named not swallowed
-        return RETRY, f"cannot sign: {unusable}", config
-    account_client.save(advanced)
-    headers.update({"Content-Type": "application/json", VERSION_HEADER: str(PROTOCOL_VERSION)})
-    request = urllib.request.Request(url=f"{endpoint.rstrip('/')}{path}", data=body,
-                                     method="POST", headers=headers)
-    try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS):
-            return ACCEPTED, "", advanced
-    except urllib.error.HTTPError as refused:
-        # Read the body **first**, and carry what it says. A bare "the service said 507" is a number a
-        # user can neither infer nor fix, and the older bearer transport has always explained itself
-        # better than this one — which is what happens when the explaining is retrofitted onto the
-        # first path and not carried into the second. It is worse than annoying here: the support service
-        # distinguishes *I do not know this key* from *that signature does not verify*, and swallowing
-        # the body left even the maintainer unable to tell which one a filer had hit.
-        detail = ""
-        raw = b""
-        try:
-            raw = refused.read()
-            # `HTTPError.read()` answers once; anything downstream that wants the body — and
-            # `_accepts` does — gets this copy or gets nothing.
-            refused._plumb_body = raw
-            said = json.loads(raw.decode())
-            detail = said.get("error") or ""
-            for extra in ("receiver", "hint", "grants", "use"):
-                if said.get(extra) is not None:
-                    detail += f" [{extra}: {said[extra]}]"
-        except (ValueError, OSError):
-            detail = raw.decode("utf-8", "replace")[:200]
-        if refused.code == 409:
-            # The support service told us the value to use. Take it rather than reporting a failure a
-            # person has to interpret — this is the one refusal that repairs itself.
-            try:
-                use = json.loads(raw.decode()).get("use")
-            except (ValueError, OSError):
-                use = None
-            if use is not None:
-                # `replace`, never a fresh AccountConfig: rebuilding it from three fields silently
-                # dropped every field added since, and one of them records that this account has
-                # ever been proved — so a re-synchronised push would have un-recorded it.
-                return (RESYNCED, "counter re-synchronised with the support service",
-                        replace(advanced, counter=use - 1))
-        if refused.code in TERMINAL:
-            return REFUSED, f"support service refused ({refused.code}) at seq {batch[0].seq}: {detail}", advanced
-        return RETRY, f"support service said {refused.code}: {detail}", advanced
-    except (urllib.error.URLError, TimeoutError, OSError) as unreachable:
-        return RETRY, f"support service unreachable: {unreachable}", advanced
+    return records, "sent under a credential"
 
 
 def _deliver_batch(url: str, batch: list, sending_as) -> tuple[str, str]:

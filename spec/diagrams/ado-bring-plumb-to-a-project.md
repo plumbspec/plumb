@@ -1,6 +1,6 @@
 # ado · bring plumb to a project
 
-**Last updated** 2026-09-24 v9
+**Last updated** 2026-10-20 v10
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -14,8 +14,6 @@ flowchart TD
     INST[<b>ado1</b> · install the tool from a channel]:::process
     DECL[<b>ado2</b> · declare the project to it]:::process
     NEXT[<b>ado3</b> · take the named next step]:::process
-    HOLDQ{does the declaration<br/>name a holder?}:::question
-    IDEN[<b>ado6</b> · give the install an identity]:::process
 
     OUT([<b>END</b> · a board that answers for the subjects<br/>your tests cite — the developer's workflow begins]):::good
 
@@ -26,9 +24,7 @@ flowchart TD
     DONE([<b>END</b> · upgraded on its own stream, moved whole,<br/>or gone — with what was left named]):::good
     GREW([<b>END</b> · the one CLI grew a verb, and the<br/>footprint says what the module writes]):::good
 
-    IN --> INST --> DECL --> NEXT --> HOLDQ
-    HOLDQ -->|yes| IDEN --> OUT
-    HOLDQ -->|no| OUT
+    IN --> INST --> DECL --> NEXT --> OUT
     LATER --> WHICHQ
     WHICHQ -->|account| MAINT --> DONE
     WHICHQ -->|extend| MODADD --> GREW
@@ -250,54 +246,6 @@ flowchart TD
 
 ---
 
-### ado6 · give the install an identity
-
-> **As an adopter whose history will leave the machine I want the install to hold one generated
-> secret, so that pseudonymising — and anything that ever signs — derives from something nobody
-> had to issue me.**
-
-#### Information
-
-| Information | IO | Description | Required | Provenance |
-|---|---|---|---|---|
-| ado6-inf1 | In | `config` | yes | ado2 |
-| ado6-inf2 | Out | `identity.root` | yes | generated |
-| ado6-inf3 | Out | `identity.public` | yes | derived |
-| ado6-inf4 | Out | `identity.digest_key` | yes | derived |
-| ado6-inf5 | Out | `footprint_entry` | yes | generated |
-
-#### User Requirements
-  * ado6-ur1 - the identity is one generated key, made on this machine; nothing is handed to
-    anybody
-  * ado6-ur2 - creating it is one command that says what it wrote and where, and never prints
-    the secret
-  * ado6-ur3 - the tool answers offline whether the secret still derives the identity, and exits
-    non-zero on *no*
-  * ado6-ur4 - a file that is not an identity is read as no identity; absent, unreadable and
-    incomplete get the same repair
-  * ado6-ur5 - the secret can be exported, removed, and supplied from the environment on every
-    run
-
-#### System Requirements
-  * ado6-sr1 - it is a key and never a passphrase: nothing is stretched, and nothing crosses a
-    terminal
-  * ado6-sr2 - every purpose derives from the root under a label, by a published construction
-    implemented against its own test vectors, with the purpose encoded unambiguously
-  * ado6-sr3 - the key a history is pseudonymised under is derived once and carried, never
-    recomputed from whatever root is current
-  * ado6-sr4 - the secret and the configuration live in different homes; a change of destination
-    is never the same diff as a change of key
-  * ado6-sr5 - the secret's file is created with owner-only permission before anything is in it
-
-#### Non-Functional Requirements
-  * ado6-nfr1 - the private half never leaves the machine that made it: never transmitted, never
-    escrowed, never recoverable
-  * ado6-nfr2 - the root never signs and never travels; anything that signs is handed a derived
-    key
-
-#### Unknowns
-
-
 ## Glossary
 
 | Term | Meaning |
@@ -308,8 +256,6 @@ flowchart TD
 | Detection | What the init run found already present, so a second run finishes rather than destroys. |
 | Footprint | Everything the tool wrote on a machine, each entry with its disposition — module entries included. |
 | Module | An installable package that mounts verbs into the one CLI. See [mod · contribute a module](mod-contribute-a-module.md). |
-| Root | The install's one secret: generated here, never issued, never transmitted. Every other key derives from it under a label. |
-| Digest key | The derived key an adopter's own names are pseudonymised under before a history leaves the machine. Derived once, carried thereafter. |
 | Holder | Where a series lives when it lives elsewhere. Declared in the declaration; stood up in [hol · hold a series](hol-hold-a-series.md). |
 | Annotation artifact | The kilobyte the project compiles against — the citation vocabulary, and nothing to depend on. |
 | Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
@@ -335,9 +281,3 @@ stamp today; the requirement stands and the board says unproven.
 
 **Not carried:** the twenty-one-node self-description, the learned-twice histories, the measured
 anecdotes — the standards. ch9-16 (the release statement) left with the publishing flow.
-
-**ado6 is the identity's home.** The sixth question applies: an identity exists only for a history
-that leaves the machine, so it enters through a question the declaration already answered — the
-same shape as dev03-3. The signing mechanics a service would verify are not specified here:
-plumb's own holder authenticates nobody, and a module that needs to sign is handed a derived key
-(ado6-nfr2), so what it signs is that module's contract.

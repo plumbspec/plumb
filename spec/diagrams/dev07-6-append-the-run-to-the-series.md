@@ -1,6 +1,6 @@
 # dev07-6 · append the run to the series
 
-**Last updated** 2026-09-14 v3
+**Last updated** 2026-10-20 v4
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered where the project keeps a series,
 carrying the run's verdicts. Exits with the run in the history — and the history readable, which
@@ -104,13 +104,12 @@ flowchart TD
     batch stops the rest, and an outage partway keeps the batches that landed
   * dev07-6-2-ur3 - a hand-over has three outcomes and never two — accepted, retry, refused —
     because *it arrived* and *stop trying* are different facts
-  * dev07-6-2-ur4 - the adopter's own names travel as keyed tokens, and the key stays here
-  * dev07-6-2-ur5 - what would go over the wire can be printed with nothing sent
-  * dev07-6-2-ur6 - an unreachable or refusing holder leaves the backlog and never fails the
+  * dev07-6-2-ur4 - what would go over the wire can be printed with nothing sent
+  * dev07-6-2-ur5 - an unreachable or refusing holder leaves the backlog and never fails the
     run — a board is complete without the network
-  * dev07-6-2-ur7 - a discarded range comes back as discarded and never as a gap, and it is the
+  * dev07-6-2-ur6 - a discarded range comes back as discarded and never as a gap, and it is the
     first thing a reader is told
-  * dev07-6-2-ur8 - the subject a history is filed under is read from the project asked for, or
+  * dev07-6-2-ur7 - the subject a history is filed under is read from the project asked for, or
     from the project that owns the series file, and never from where the shell stands; finding
     no owner, the push refuses rather than guessing — a correctly delivered history must not
     land under somebody else's name
@@ -204,8 +203,7 @@ minting one was a claims change; conversion mints ids for every claim, so it is 
 
 **The o4 boundary, resolved.** The holder is declared through the configuration (`endpoint`) and
 its own side is now [hol](hol-hold-a-series.md); plumb's holder authenticates nobody, so nothing
-here is reached through an account. The identity that pseudonymises (ur4's key) is ado6's. A
-service that admits strangers is a module's, and its spec lives with the module.
+here is reached through an account. A service that admits strangers is a module's, and its spec lives with the module.
 
 **The close reads this interface.** dev10-3's bracketing by sequence and its volatile subjects
 are 6-3's answers consumed at the session close — the crossing the element trace should show once

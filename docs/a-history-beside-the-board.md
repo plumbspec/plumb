@@ -158,21 +158,15 @@ Only what the holder has not already been given goes over the wire, so pushing r
 and safe. Which store a run joins comes from the enrolment where it carries one, and otherwise from
 `subject` in `plumb.toml`.
 
-**Two ways to be recognised, and they differ in what leaves your machine.** An **account** — `plumb
-account create`, then `plumb account claim` — signs what it sends, and replaces your test names with
-a keyed token first: the same test is the same token on every run, so *which subject changes most
-often* still answers, and the holder never sees the name. A **credential** — `PLUMB_CREDENTIAL` in
-the environment, with `endpoint` in `plumb.toml` — is a bearer token presented beside the body, and
-on that route **your test names travel as written**. A test name describes behaviour, so that is the
-shape of your product leaving on a run, and it is worth choosing rather than discovering.
+A **credential** — `PLUMB_CREDENTIAL` in the environment, with `endpoint` in `plumb.toml` — is
+presented beside the body. A test name describes behaviour, so what leaves on a run is the shape
+of your product, and it is worth looking at before the first push.
 
 **See it before you send it.** `--dry-run` prints what would go over the wire and sends nothing:
 
     plumb series push series.jsonl --dry-run
 
-Its first line names the route it would take and what that means for your names — signed with names
-replaced, signed but the passphrase is not set, or under a credential with names as written. Worth
-reading once before the first push from any machine.
+Worth reading once before the first push from any machine.
 
 `pull` takes the file to write, and `--subject` on it means **which store to ask for** — not the
 subject id it means on `series show`. Two sibling subcommands, one flag, two meanings: check which

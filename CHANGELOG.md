@@ -2,6 +2,20 @@
 
 What each release gives you, and what to change to take it.
 
+## Unreleased
+
+### An account is your address
+
+`plumb account open --email ADDR` hands the address to the support service, which mails you a
+link; `plumb account redeem TOKEN` stores the credential it answers with. Nothing is generated on
+your machine first, and there is no key to keep.
+
+**What to change.** `plumb account create`, `export` and `show` are gone, and so are `--account`,
+`--root`, `PLUMB_ROOT`, `PLUMB_PASSPHRASE`, `PLUMB_ACCOUNT` and `PLUMB_KEY_LABEL`. A push goes with
+the credential its destination names, as it already did wherever no account was set up. The
+`plumbspec[account]` extra is gone; nothing else needs `cryptography`. A `~/.config/plumb/account.json`
+or `root` left from before is no longer read, and is yours to delete.
+
 ## 0.7.0 — one Python, and Java 8
 
 **One Python, not two.** Plumb needed 3.11 while your tests ran on whatever they ran on. It needs

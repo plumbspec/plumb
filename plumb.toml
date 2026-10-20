@@ -9,8 +9,8 @@ adapter = "python"
 # Where this project's own history goes, and what it calls it. `dev07-6-1` — Plumb traces itself, and a
 # capability its own board does not use is one nobody here is exercising.
 #
-# Both are configuration and neither is a secret (`ado6-sr4`), which is why they are in the file a
-# reviewer reads rather than in a secret store. The root is not here and never will be.
+# Both are configuration and neither is a secret, which is why they are in the file a
+# reviewer reads rather than in a secret store.
 #
 # `endpoint` is the SERIES receiver and is deliberately unset: an address that stops answering
 # queues silently, so a stale one costs nothing until somebody looks. Unset it is, until there is a
