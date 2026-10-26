@@ -76,9 +76,9 @@ def _repo(root):
     _git(root, "commit", "-qm", "in")
 
 
-# -- what the tool writes (`ado4`) -------------------------------------------------------------
+# -- what the tool writes (`dev00-1-4`) -------------------------------------------------------------
 
-@pytest.mark.proves("ado4", depth="component")
+@pytest.mark.proves("dev00-1-4", depth="component")
 def test_every_place_the_tool_writes_is_in_the_documented_inventory(monkeypatch, tmp_path):
     """A hand-kept list of paths stays right until somebody adds a writer, and nothing goes red
     when they do. So the docs are a view of the code, and this is what holds them to it."""
@@ -91,14 +91,14 @@ def test_every_place_the_tool_writes_is_in_the_documented_inventory(monkeypatch,
         assert leaf in documented, f"{wrote.where} is written and the reference never mentions it"
 
 
-@pytest.mark.proves("ado4", depth="standards-integration")
+@pytest.mark.proves("dev00-1-4", depth="standards-integration")
 def test_the_footprint_is_printed_with_the_paths_this_machine_actually_uses(monkeypatch, capsys,
                                                                             tmp_path):
     """The reference cannot show an adopter *their* paths — every location honours an `XDG_*`
     variable, so where the account sits is a property of the machine, not of the manual.
 
     It read `XDG_DATA_HOME`, which the core honoured only for the support store. That store left
-    with the capability (`mod5`), so the variable proves nothing here now and the claim is made
+    with the capability (`dev08-1-5`), so the variable proves nothing here now and the claim is made
     against one the core still reads.
     """
     from plumb import cli
@@ -109,12 +109,12 @@ def test_the_footprint_is_printed_with_the_paths_this_machine_actually_uses(monk
     assert cli.main(["footprint", "--project", str(root)]) == 0
     shown = capsys.readouterr().out
     assert str(tmp_path / "elsewhere") in shown, "the override, not the documented default"
-    # `ado4-ur3` — the list marks what nothing else holds, so a person can point the backup they
+    # `dev00-1-4-ur3` — the list marks what nothing else holds, so a person can point the backup they
     # already run at it. It used to say "Irreplaceable" inside the prose of one entry; it is a
     # marker on the entry now, and it reaches the series, which lives in the project and is
     # commonly git-ignored.
     assert "history.jsonl" in shown and "IRREPLACEABLE" in shown, "and what it would cost to lose"
-    # `ado4-nfr3` — the marker names what the file IS. It said "never into an archive" and then
+    # `dev00-1-4-nfr3` — the marker names what the file IS. It said "never into an archive" and then
     # "never copy it anywhere", and both instructed a reader whose threat model, infrastructure and
     # obligations this tool cannot see. What follows from carrying a credential is theirs.
     marks = re.findall(r"\[([^\]]+)\]", shown)
@@ -123,7 +123,7 @@ def test_the_footprint_is_printed_with_the_paths_this_machine_actually_uses(monk
         f"a marker names what a thing is and stops; these instruct: {marks}")
 
 
-@pytest.mark.proves("ado4", depth="component")
+@pytest.mark.proves("dev00-1-4", depth="component")
 def test_the_inventory_says_what_losing_each_place_would_cost(tmp_path):
     """A path on its own answers nothing: a cache and a session reading are both disposable and look
     nothing alike, and an account and an enrolment share a directory and could not differ more."""

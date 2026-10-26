@@ -1,11 +1,11 @@
-"""``plumb init`` — get a project from nothing to a board it can run (``ado2``, ``ado3``).
+"""``plumb init`` — get a project from nothing to a board it can run (``dev00-1-2``, ``dev00-1-3``).
 
 Adoption was measured and found to cost a reading of this repository. The expensive part was never
 the concepts; it was working out what to *write down* — which classes count as production, where
 the compiled tests live, what a classpath file is for. This detects what it can, writes the one
 config file, and says what to do next in commands rather than prose.
 
-**It completes, and never overwrites** (``ado2``). What is missing is written, what is already
+**It completes, and never overwrites** (``dev00-1-2``). What is missing is written, what is already
 there is left exactly as it is, and both are reported. Adopting in pieces is the observed failure
 mode, so finishing a partial adoption is the common path — and a tool that destroys work when run
 twice is a tool nobody dares run once.
@@ -204,7 +204,7 @@ JAVA_ANNOTATIONS_VERSION = "0.2.0"
 
 
 def init(root: Path | str = ".") -> Outcome:
-    """Write the declaration, and nothing else (``ado2``, ``ado2``).
+    """Write the declaration, and nothing else (``dev00-1-2``, ``dev00-1-2``).
 
     What adoption may write is the project's declaration: which adapter, what counts as production
     code, where the wired system begins. Everything past it — where a subject is written down, what
@@ -239,7 +239,7 @@ def init(root: Path | str = ".") -> Outcome:
 
 
 
-#: The next action, in commands (``ado3``). A capability nobody is told to reach for is a
+#: The next action, in commands (``dev00-1-3``). A capability nobody is told to reach for is a
 #: capability nobody uses, and "handed a directory" is not the same as "handed a method".
 _CITE = {
     JAVA: ('    import org.plumbspec.Proves;\n\n'

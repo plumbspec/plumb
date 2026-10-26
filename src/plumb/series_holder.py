@@ -4,7 +4,7 @@ Deliberately stdlib-only. It runs on a box already serving production sites, so 
 possible thing that can be correct is the right thing: no framework, no dependency tree to keep
 patched, no build step. It binds to localhost and expects a reverse proxy in front for TLS.
 
-It is the **second** API (``hol1-nfr1``): it touches no manifest, fills no slot, and moves no story's
+It is the **second** API (``dev07-6-2-2-1-nfr1``): it touches no manifest, fills no slot, and moves no story's
 status. Nothing it accepts can become evidence.
 
 **It authenticates nobody, and that is the design rather than an omission.** This holder is one
@@ -33,7 +33,7 @@ from plumb.holder import FileHolder
 
 
 def specification() -> dict:
-    """What this series holder serves, from the holder itself (``hol1-ur1``).
+    """What this series holder serves, from the holder itself (``dev07-6-2-2-1-ur1``).
 
     Served rather than documented: a document describes the holder somebody built, and this
     describes the one that is running — which is the one answering requests.
@@ -47,7 +47,7 @@ def specification() -> dict:
             "GET /health": "liveness",
         },
         # The producer batches against this, so it is published rather than agreed by coincidence
-        # (`hol1-ur1`, `dev07-6-2`): a client that guesses the cap is one that discovers it by being
+        # (`dev07-6-2-2-1-ur1`, `dev07-6-2`): a client that guesses the cap is one that discovers it by being
         # refused halfway through a backlog.
         "series": {"max_body_bytes": MAX_BODY_BYTES},
         "refusals": {
@@ -64,7 +64,7 @@ def specification() -> dict:
 POOL_BYTES = 2 * 1024 * 1024 * 1024
 
 #: What is left for whatever else lives on this host, below which this holder stops accepting
-#: (``hol2-ur1``). A service that fills a shared disk has not exceeded a quota, it has taken out
+#: (``dev07-6-2-2-2-ur1``). A service that fills a shared disk has not exceeded a quota, it has taken out
 #: everything beside it — and the number that prevents that is the **operator's**, because only they
 #: know what else is on the volume. A default that is generous enough to be safe everywhere would
 #: refuse on any small host, and one small enough to always work would protect nobody; so this is a
@@ -177,7 +177,7 @@ class SupportHandler(BaseHTTPRequestHandler):
             return self._respond(413, {"error": f"body exceeds {MAX_BODY_BYTES} bytes"})
         if self._room_to_accept() <= 0:
             # Retryable, never terminal: the producer keeps its backlog for the next attempt and the
-            # run that made it does not fail (`dev07-6-2`, `hol1-sr3`). Refusing to take more is what a
+            # run that made it does not fail (`dev07-6-2`, `dev07-6-2-2-1-sr3`). Refusing to take more is what a
             # shortage costs; discarding what is already held is what it must never cost.
             return self._respond(507, {
                 "error": "this holder has no room to accept more; the backlog is still yours",
@@ -211,7 +211,7 @@ class SupportHandler(BaseHTTPRequestHandler):
         # service has no scheduler and adding one would be a second operational obligation — the
         # cost we refused when we declined to self-host a tracker. But measured at 2.7 seconds
         # for a large project's log, so an adopter must not wait for our housekeeping: the reply is
-        # already flushed, and this thread is theirs to finish in (`hol1-nfr4` — the caller
+        # already flushed, and this thread is theirs to finish in (`dev07-6-2-2-1-nfr4` — the caller
         # is never held for our convenience).
         self._compact(subject)
         self._evict_if_over_pool()
@@ -225,7 +225,7 @@ class SupportHandler(BaseHTTPRequestHandler):
             return -1  # unreadable: never refuse on a reading we do not have
 
     def _room_to_accept(self) -> int:
-        """Free bytes beyond the headroom this host owes whatever else runs on it (``hol2-ur1``).
+        """Free bytes beyond the headroom this host owes whatever else runs on it (``dev07-6-2-2-2-ur1``).
 
         Negative or zero means no room. The response to that is to stop **accepting**, never to
         start discarding: an account past its allowance has spent its own budget and pays in its own
@@ -381,7 +381,7 @@ def build(store_root: Path | str, host="127.0.0.1", port=8081,
 
 
 def build_parser():
-    """The holder's own command surface, built where a check can read it (``ado1``).
+    """The holder's own command surface, built where a check can read it (``dev00-1-1``).
 
     Serving is the whole of it, and the bare form deployments already invoke. What used to be here
     besides — minting credentials, opening and closing a door — belonged to a holder that

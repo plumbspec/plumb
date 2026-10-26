@@ -53,7 +53,7 @@ mutation = false
 # property table, never a list: silence means behavioral, so an entry for an id nothing cites is
 # inert rather than a phantom row on a board, and this file still enumerates nothing.
 #
-# It is here because the tool reads no spec, executing or otherwise (`ado2-u1`, closed 2026-08-06).
+# It is here because the tool reads no spec, executing or otherwise (`dev00-1-2-u1`, closed 2026-08-06).
 # A Python spec collected by the run could hand this over and a Java one never could, so taking it
 # from an executing spec made the archetype mean one thing per language and left `plumb.toml` a
 # second home for the same fact. One home, and the same one for every adapter.

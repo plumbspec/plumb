@@ -1,6 +1,6 @@
 # dev07-3 · collect what the run did
 
-**Last updated** 2026-09-22 v7
+**Last updated** 2026-10-26 v8
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the observed run, carrying the
 run, the traces, the wiring facts and — where mutation ran — the scores. Exits to
@@ -27,8 +27,8 @@ flowchart TD
 
 ### dev07-3-1 · record one citation per citing test
 
-> **As whoever writes the adapter for a new language I want the adapter contract to be the whole
-> of what I need, so that adding my language never touches the core.**
+> **As a developer reading a citation I want it to carry what the test claimed beside what the
+> run observed of it, so that every fact on it can be checked rather than taken on trust.**
 
 #### Information
 
@@ -41,7 +41,7 @@ flowchart TD
 | dev07-3-1-inf05 | In | `citation.reached_outside_entry` | optional | parent |
 | dev07-3-1-inf06 | In | `citation.elapsed` | optional | parent |
 | dev07-3-1-inf07 | In | `story.mutation` | optional | parent |
-| dev07-3-1-inf08 | Out | `citation` — test · depth · result · grounding, and the optional facts | yes | derived |
+| dev07-3-1-inf08 | Out | `citation` — test · depth · result · wiring fact, and the optional facts | yes | derived |
 | dev07-3-1-inf09 | Out | `citation.result` | yes | observed |
 | dev07-3-1-inf10 | Out | `observer` | yes | observed |
 | dev07-3-1-inf11 | Out | `citation.ref` | optional | authored |
@@ -50,13 +50,13 @@ flowchart TD
 
 #### User Requirements
   * dev07-3-1-ur01 - the minimum citation is test, depth and result; an adapter that knows nothing
-    of grounding still emits a valid document
+    of wiring still emits a valid document
   * dev07-3-1-ur02 - the result is the runner's own signal normalized to passed, skipped or
     failed; the runner's word is used and never carried, so one outcome has one vocabulary
   * dev07-3-1-ur03 - a green setup is not a pass, and a teardown error is not one either — the
     result is the test body's
-  * dev07-3-1-ur04 - the grounding and mutation facts are slots, filled by the steps that produce
-    them and defined there
+  * dev07-3-1-ur04 - the wiring fact and the mutation facts are slots, filled by the steps that
+    produce them and defined there
   * dev07-3-1-ur05 - `citation.ref` is the consumer's own key — minted, owned and joined by their
     system; plumb never parses it, and it rides the citation so one test citing two stories may
     carry two
@@ -97,7 +97,7 @@ flowchart TD
 
 ### dev07-3-2 · assemble the manifest per story
 
-> **As a project whose ids are spreadsheet rows I want them carried untouched, so that adopting
+> **As a team whose ids are spreadsheet rows I want them carried untouched, so that adopting
 > this does not mean re-minting a corpus.**
 
 #### Information
@@ -126,8 +126,8 @@ flowchart TD
     denominator — what a project has left to do lives in the project
 
 #### System Requirements
-  * dev07-3-2-sr1 - the manifest is written outside the repository, keyed by the project's path,
-    and unlinked before every run — deliberately amnesiac
+  * dev07-3-2-sr1 - the manifest is kept outside the project's tree and begins empty every run,
+    so no run reads another run's facts
   * dev07-3-2-sr2 - the document declares the schema shape it was written against
 
 #### Non-Functional Requirements
@@ -174,18 +174,16 @@ flowchart TD
 #### System Requirements
   * dev07-3-3-sr1 - the manifest is the sole hand-off between language-specific and
     language-neutral components, and the one document the core reads
-  * dev07-3-3-sr2 - the manifest's shape is published as the adapter contract
-    (`docs/adapter-contract.md`), versioned, and the spec carries no second copy of its fields
+  * dev07-3-3-sr2 - the manifest's shape is published as the adapter contract, versioned, and
+    this chapter carries no second copy of its fields
   * dev07-3-3-sr3 - the supported schema majors are a window, and each major's required fields
     are its own
 
 #### Non-Functional Requirements
-  * dev07-3-3-nfr1 - nothing in the core imports an adapter, and a structural test reads the
-    source to say so
+  * dev07-3-3-nfr1 - nothing in the core depends on an adapter
 
 #### Unknowns
-  * dev07-3-3-u1 - the manifest is read and written whole, at a measured ~609 bytes per
-    citation; whether the document gains a streamable shape or the merge learns to stream is
+  * dev07-3-3-u1 - the manifest is read and written whole; whether the document gains a streamable shape or the merge learns to stream is
     worth deciding rather than defaulting into
   * dev07-3-3-u2 - two adapters observing the same production code — a polyglot module both can
     watch — may be the one case two instruments legitimately disagree; the comparability rule
@@ -199,39 +197,9 @@ flowchart TD
 
 | Term | Meaning |
 |---|---|
-| Annotation | The marker on a test naming the story it evidences — what a person writes, and the whole of what plumb needs to begin. |
-| Citation | One citing test's recorded facts for a story — minted here from the annotation and the run. What the annotation claims, plus what the run observed. |
-| Manifest | The language-neutral record the adapter produces and the core consumes: story id → archetype and citations. The sole interface. |
-| Archetype | Per subject, never per citation: behavioural or structural, declared in the project's configuration — precisely the part a test does not get to claim. |
 | Observer | Which adapter, at what version, on which runtime, by what mechanism, made a fact. Absent means not reported and is never inferred. |
 | Floor | The oldest runtime an adapter runs on. Declared by the adapter, held against what it ships. |
 | Extent | How many tests the run observed at all, cited or not — the one fact about the run itself. Zero means it looked and found none; absent means it could not say. |
 | Ref | The consumer's own external key on a citation — a ticket id, a spreadsheet row. Never minted or validated here. |
-| Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
-| Authored | Written by a person. An input nothing produces, or an output somebody typed. |
-| Derived | Computed by this step from what it took in. |
-| Observed | Read off a run, a tree or the world as it stands. |
-| Generated | Made by a tool rather than by a person. |
-| Parent | On a sub-flow's input: handed in by the chapter this one drills into. |
 
 ---
-
-## Working notes — not part of the chapter
-
-**The overload this conversion found.** `citation` had two meanings in the corpus: dev05's marker
-on a test, and this chapter's minted record. The marker is now `annotation` everywhere — which was
-already developer-day's own glossary word for it — and `citation` is reserved for the record,
-matching the schema. Renamed in developer-day, dev07 and both converted siblings in this pass.
-
-**`story.mutation`'s name** — it sits on the story, correctly, and its prefix reads like a
-citation field. This chapter owns the name and the recording stands: rename is a schema major,
-operator's call, queued with the `grounded`-vocabulary rename from dev07-1.
-
-**The typed data model.** Old ch2's Elements table (types, cardinality, domains) was the second
-copy of the adapter contract; the logical/physical split now stands, and whether converted
-chapters regain a data table in the current format is goldspec ch15's question, queued with the
-rewrite.
-
-**Not carried:** ch2-U1 and ch2-U2 (no third-party coverage or mutation engine) — settled claims,
-carried as SRs of dev07-1 and dev07-2. The migration window mechanics and streaming measurements
-beyond the one figure — ch2's essays, dropped as history.

@@ -1,16 +1,16 @@
 # dev07-6 · append the run to the series
 
-**Last updated** 2026-10-26 v5
+**Last updated** 2026-10-26 v6
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered where the project keeps a series,
-carrying the run's verdicts. Exits with the run in the history — and the history readable, which
-is what the close differences and a reader asks *when* of.
+carrying the run's verdicts. Exits with the run in the history and the history readable: closing
+a session compares against it, and a reader asks it *when*.
 
-One interface — read and write series data — with local and remote implementations behind it.
-Where the history lives is the project's declaration, never a second kind of history. The
-holder's own side — standing one up, and what it may spend of its host — is
-[hol · hold a series](hol-hold-a-series.md). Handing the history over (`dev07-6-2`) is done the way
-everything a run produced is sent, in [snd · send what a run produced](snd-send-what-a-run-produced.md).
+Where the history lives is the project's declaration, never a second kind of history. Handing it
+over is done the way everything a run produced is sent, in
+[dev07-6-2-1 · send what a run produced](dev07-6-2-1-send-what-a-run-produced.md); standing up a
+holder, and bounding what it may spend of its host, is
+[dev07-6-2-2 · hold a series](dev07-6-2-2-hold-a-series.md).
 
 ```mermaid
 flowchart TD
@@ -19,17 +19,23 @@ flowchart TD
     APPEND[<b>dev07-6-1</b> · append what changed]:::process
     HOLDQ{is a holder declared?}:::question
     SEND[<b>dev07-6-2</b> · hand the history to its holder]:::process
+    SND[[<b>dev07-6-2-1</b> · send what a run produced<br/>▸ drills down]]:::subroutine
+    GROWNQ{has the history outgrown<br/>the machine that writes it?}:::question
+    HOL[[<b>dev07-6-2-2</b> · hold a series<br/>▸ drills down]]:::subroutine
     READ[<b>dev07-6-3</b> · read it back]:::process
 
     OUT([<b>END</b> · a reader can tell <i>nothing happened</i> from<br/><i>we discarded it</i> from <i>we lost it</i>]):::good
 
     IN --> APPEND --> HOLDQ
-    HOLDQ -->|yes| SEND --> READ
-    HOLDQ -->|no| READ
+    HOLDQ -->|yes| SEND --> SND --> READ
+    HOLDQ -->|no| GROWNQ
+    GROWNQ -->|yes| HOL --> SEND
+    GROWNQ -->|no| READ
     READ --> OUT
 
     classDef terminal fill:#eef0ee,stroke:#52514e,color:#0b0b0b;
     classDef process fill:#e9eef5,stroke:#2a78d6,color:#0b0b0b;
+    classDef subroutine fill:#e9eef5,stroke:#2a78d6,color:#0b0b0b;
     classDef question fill:#fdf3d8,stroke:#b8860b,color:#0b0b0b;
     classDef good fill:#e2f2e2,stroke:#0ca30c,color:#0b0b0b;
 ```
@@ -59,15 +65,15 @@ flowchart TD
     a silent stop
   * dev07-6-1-ur4 - the origin is stamped when the series is created; a history carrying no
     stamp is reported as one of unknown extent, never as a short one
-  * dev07-6-1-ur5 - a line the store cannot be read as is refused by file, line and shape; an
-    unreadable store is an outcome, never a traceback
+  * dev07-6-1-ur5 - an entry that cannot be read is refused, saying where it is and what shape it
+    has; an unreadable history is an outcome the run reports, never a crash
 
 #### System Requirements
-  * dev07-6-1-sr1 - the local implementation is an append-only log in the project's own tree;
-    transitions, run markers and discard notes share one file, told apart by shape, because the
-    ordering between them is the point
-  * dev07-6-1-sr2 - the sequence is dense and monotonic, so a jump with no discard note beside
-    it means a record was lost rather than let go
+  * dev07-6-1-sr1 - a history kept in the project's own tree is append-only, and transitions, run
+    markers and records of discard share one order, because the ordering between them is the
+    point
+  * dev07-6-1-sr2 - the sequence is dense and monotonic, so a jump with no record of discard
+    beside it means a record was lost rather than let go
   * dev07-6-1-sr3 - what a fact cost rides as payload and never decides a transition — a
     duration moves every run, and admitting it would write an entry per citation per run
   * dev07-6-1-sr4 - the origin stamp is generated and never recomputed — a stamp that could be
@@ -96,46 +102,83 @@ flowchart TD
 | dev07-6-2-inf2 | In | `holder` | yes | authored |
 | dev07-6-2-inf3 | In | `holder.spec` | optional | observed |
 | dev07-6-2-inf4 | Out | `mark` | yes | observed |
+| dev07-6-2-inf5 | Out | `outgoing` | yes | derived |
 
 #### User Requirements
-  * dev07-6-2-ur1 - only what the holder has not been given is handed over, and the mark moves
-    on acceptance, only ever forwards
-  * dev07-6-2-ur2 - a backlog too large for one request splits into ordered batches; a failed
-    batch stops the rest, and an outage partway keeps the batches that landed
-  * dev07-6-2-ur3 - a hand-over has three outcomes and never two — accepted, retry, refused —
-    because *it arrived* and *stop trying* are different facts
-  * dev07-6-2-ur4 - what would go over the wire can be printed with nothing sent
-  * dev07-6-2-ur5 - an unreachable or refusing holder leaves the backlog and never fails the
-    run — a board is complete without the network
+  * dev07-6-2-ur1 - the mark moves only on acceptance, and only ever forwards
+  * dev07-6-2-ur2 - what is outstanding, when too large for one request, splits into ordered
+    batches; a failed batch stops the rest, and an outage partway keeps the batches that landed
+  * dev07-6-2-ur3 - the hand-over itself — what is outstanding, retrying, acknowledgement and its
+    outcomes — is [dev07-6-2-1 · send what a run produced](dev07-6-2-1-send-what-a-run-produced.md)'s
+  * dev07-6-2-ur4 - what would be sent can be printed with nothing sent
   * dev07-6-2-ur6 - a discarded range comes back as discarded and never as a gap, and it is the
     first thing a reader is told
-  * dev07-6-2-ur7 - the subject a history is filed under is read from the project asked for, or
-    from the project that owns the series file, and never from where the shell stands; finding
-    no owner, the push refuses rather than guessing — a correctly delivered history must not
-    land under somebody else's name
+  * dev07-6-2-ur7 - the name a history is filed under is read from the project asked for, or
+    from the project that owns the history, and never from where it was asked; finding no owner,
+    the hand-over refuses rather than guessing — a correctly delivered history must not land
+    under somebody else's name
 
 #### System Requirements
-  * dev07-6-2-sr1 - the wire is the whole promise: the holder's layout and backend are working
-    state, promised to nobody, and an adopter reads the same answers from either
-  * dev07-6-2-sr2 - the batch budget is bytes, deliberately under the holder's published limit,
-    because the two ends version separately and will drift
-  * dev07-6-2-sr3 - the backlog is derived by comparing the mark to the log, never kept in a
-    queue beside it — a queue beside a log is a copy free to disagree with it
+  * dev07-6-2-sr1 - what is sent and answered is the whole promise: how a holder lays out and
+    stores a history is its own, promised to nobody, and an adopter reads the same answers from
+    any holder
+  * dev07-6-2-sr2 - a batch is sized to stay under the limit the holder publishes, with room to
+    spare, because the two ends version separately and will drift
+  * dev07-6-2-sr3 - what is outstanding is derived by comparing the mark to the history, never
+    kept in a queue beside it — a queue beside a history is a copy free to disagree with it
 
 #### Non-Functional Requirements
   * dev07-6-2-nfr1 - custodial, never telemetry: the adopter is the primary consumer, and what
     is held is held for them
 
 #### Unknowns
-  * dev07-6-2-u1 - one set of behaviours is owed by every backend, and who runs the conformance
-    suite is unsettled — a permanent database in the test environment, or a file layout that is
-    the only exercised choice
-  * dev07-6-2-u2 - whether the client pins a holder's key and refuses a changed one is
-    undecided — specified once, never built, and against a holder run for oneself the case is
-    thinner
-  * dev07-6-2-u3 - whether encrypting the payload to the holder's key buys anything beside the
-    transport is undecided; if it is ever built, it lands as a standard construction named as
-    one — this is the part of a protocol that goes wrong quietly
+  * dev07-6-2-u1 - one set of behaviours is owed by every way a holder may store a history, and
+    who checks each of them against it is unsettled
+
+
+---
+
+### dev07-6-2-1 · send what a run produced
+
+> **As a developer I want the history handed to the holder I chose, so that it is held there and
+> what did not arrive is still here.**
+
+#### Information
+
+| Information | IO | Description | Required | Provenance |
+|---|---|---|---|---|
+| dev07-6-2-1-inf1 | In | `outgoing` | yes | dev07-6-2 |
+| dev07-6-2-1-inf2 | Out | `acknowledgement` | yes | observed |
+
+#### User Requirements
+
+#### System Requirements
+
+#### Non-Functional Requirements
+
+#### Unknowns
+
+
+---
+
+### dev07-6-2-2 · hold a series
+
+> **As an IT professional I want the team's histories held on a box we already run, so that a
+> history outgrowing the machine that wrote it is kept rather than lost.**
+
+#### Information
+
+| Information | IO | Description | Required | Provenance |
+|---|---|---|---|---|
+| dev07-6-2-2-inf1 | Out | `holder` | yes | derived |
+
+#### User Requirements
+
+#### System Requirements
+
+#### Non-Functional Requirements
+
+#### Unknowns
 
 
 ---
@@ -159,14 +202,14 @@ flowchart TD
     subjects keep changing
   * dev07-6-3-ur2 - every copy says whether it is the history or a cache, so a copy is never
     read as a second opinion; a copy a holder has accepted from is a cache, and a cache may run
-    longer than the authority
+    longer than the history it was copied from
   * dev07-6-3-ur3 - no store answers a question about a range it does not hold as though it
     held it — the extent is stated on every read
-  * dev07-6-3-ur4 - a pulled copy says what it is and names the holder it came from
+  * dev07-6-3-ur4 - a copy fetched from a holder says what it is and names the holder
 
 #### System Requirements
-  * dev07-6-3-sr1 - the interface is `plumb series push`, `show` and `pull`; local and remote
-    are implementations behind the same answers
+  * dev07-6-3-sr1 - handing over, reading and fetching a history are the same three asks wherever
+    it is held, and give the same answers
 
 #### Non-Functional Requirements
 
@@ -177,39 +220,11 @@ flowchart TD
 
 | Term | Meaning |
 |---|---|
-| Series | The append-only history of runs a project chooses to keep: transitions, run markers and discard notes in one ordered file. |
 | Transition | One fact changing, and when. Never a snapshot — an unchanged fact writes nothing. |
 | Run marker | The record every run writes, changed or not — what tells *nothing moved* from *nobody looked*. |
 | Mark | The highest sequence the holder has accepted. Moves on acceptance, only forwards. |
-| Holder | The one place a series lives when it lives elsewhere: absent, down or refusing without failing anything. |
+| Holder | The one place a series lives when it lives elsewhere. |
 | Cache | A local copy the history has moved past — labelled, so it is never a second opinion. |
-| Discard note | The record left where a range was let go, in sequence — so *discarded* and *lost* stay different answers. |
-| Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
-| Authored | Written by a person. An input nothing produces, or an output somebody typed. |
-| Derived | Computed by this step from what it took in. |
-| Observed | Read off a run, a tree or the world as it stands. |
-| Generated | Made by a tool rather than by a person. |
-| Parent | On a sub-flow's input: handed in by the chapter this one drills into. |
+| Record of discard | The record left in sequence where a range was let go, so *discarded* and *lost* stay different answers. |
 
 ---
-
-## Working notes — not part of the chapter
-
-**o3 applied.** ch11 converts whole: one interface, read/write series data; local and remote are
-implementations (6-1-sr1, 6-2-sr1, 6-3-sr1). No transmission chapter exists separately.
-
-**The unlabelled step is claimed.** ch11 drew *accumulate what changed* with no subject because
-minting one was a claims change; conversion mints ids for every claim, so it is now 6-1-ur1.
-
-**The o4 boundary, resolved.** The holder is declared through the configuration (`endpoint`) and
-its own side is now [hol](hol-hold-a-series.md); plumb's holder authenticates nobody, so nothing
-here is reached through an account. A service that admits strangers is a module's, and its spec lives with the module.
-
-**The close reads this interface.** dev10-3's bracketing by sequence and its volatile subjects
-are 6-3's answers consumed at the session close — the crossing the element trace should show once
-both are in one corpus.
-
-**From the three-source pass:** ur5 (unreadable store an outcome never a traceback), ur1-6-3-ur2's
-cache clauses, ur4 (pulled copy names its holder), nfr1 (reports and never grades) — tests only.
-`plumb series push/show/pull` — the cli. Compaction (*an overgrown series is compacted and still
-replays*) is the holder's behaviour and landed as hol2-sr4.

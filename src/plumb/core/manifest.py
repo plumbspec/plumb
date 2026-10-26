@@ -145,7 +145,7 @@ PARSEABLE_VERSIONS = frozenset({SCHEMA_MAJOR - 2, SCHEMA_MAJOR - 1, SCHEMA_MAJOR
 #: nothing to offer. Too **old** may still be in the chain, so the refusal says so — and where it
 #: is not, it says that instead rather than naming a command that cannot help.
 #: What Plumb's own shipped adapters still emit, and therefore what the window must keep reading
-#: whatever policy says (`ado1`: one artifact carries every adapter, so an adapter Plumb ships is
+#: whatever policy says (`dev00-1-1`: one artifact carries every adapter, so an adapter Plumb ships is
 #: Plumb's to keep readable). Empty now that the Java adapter emits the current major — it sat at
 #: 5 for two majors and worked only because the window happened to still include it, which is the
 #: kind of fact that should be visible rather than incidental.

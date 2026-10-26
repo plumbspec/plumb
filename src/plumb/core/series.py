@@ -30,12 +30,12 @@ from pathlib import Path
 
 from plumb.core.manifest import Manifest
 
-#: The version of the series interface — what a module declares it speaks (``mod1-ur2``).
+#: The version of the series interface — what a module declares it speaks (``dev08-1-1-ur2``).
 #:
 #: A module names a version per surface because one number cannot refuse on three axes: the board
 #: and the series interface move for different reasons and at different rates. The board has
 #: published ``BOARD_VERSION`` since it had consumers; this had none, so it published nothing, and
-#: a module could not have satisfied ``mod1-ur2`` for it however carefully it tried.
+#: a module could not have satisfied ``dev08-1-1-ur2`` for it however carefully it tried.
 #:
 #: **1 is this shape as it already stands**, not a new format: the entries, their ordering, the
 #: extent, and what `read` refuses. Minted rather than derived, because a surface with no version

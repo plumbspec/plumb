@@ -189,7 +189,7 @@ def _scratch(config: Config) -> Path:
     They are one run's input and output: rebuilt every time, meaningless between runs, and worth
     nothing to keep. Written into the project they made `plumb board` dirty somebody's repository,
     which `plumb session wrap-up` then refused (`dev10-1`) — the tool tripping its own gate on its
-    own output — and `ado2` refuses writing into an adopter's tree to begin with. The escapes from
+    own output — and `dev00-1-2` refuses writing into an adopter's tree to begin with. The escapes from
     there are a `.gitignore` the tool may not write or a gate taught to skip a path it recognises,
     and `session.py` already rejected both for the session reading and moved it out. This is the
     same decision, for the file the tool writes on *every* run rather than one command's.
@@ -324,7 +324,7 @@ def _java(config: Config, *, mutation: bool, report: Callable[[str], None] | Non
     say = report or (lambda line: None)
     options = config.options
     # **The same scratch the Python adapter uses, and for the same reason.** This defaulted to
-    # `build/plumb` *inside* the adopter's repository, which is the thing `ado2` refuses — one file
+    # `build/plumb` *inside* the adopter's repository, which is the thing `dev00-1-2` refuses — one file
     # is written into a project and it is the declaration. The run file and the manifest are one
     # run's input and output, rebuilt every time and worth nothing to keep, and writing them into
     # somebody's tree is what made `plumb board` dirty a repository that `plumb session wrap-up`
@@ -882,7 +882,7 @@ def _bundled_jar() -> str:
 
 
 def _bundled_annotations() -> str:
-    """The citation vocabulary alone (``ado1``) — what an adopter *compiles* against.
+    """The citation vocabulary alone (``dev00-1-1``) — what an adopter *compiles* against.
 
     Deliberately not ``_bundled_jar``: that one carries the observer, the mutator and the runner,
     and none of it belongs on somebody else's compile path just so they can write one citation.

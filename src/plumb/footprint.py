@@ -1,4 +1,4 @@
-"""Everything this tool writes, and which of it is worth taking away (``ado4``).
+"""Everything this tool writes, and which of it is worth taking away (``dev00-1-4``).
 
 The question this answers is *what do I back up, and what may I safely lose* — which nobody could
 answer before, because the answer was spread across five modules and a reader had to find each
@@ -6,12 +6,12 @@ default by reading source. That is the shape of every inventory that goes stale:
 maintains beside the thing it describes.
 
 So the list is **here, beside the code that writes**, and the documentation is a view of it rather
-than a second copy (``ado4``). What each entry carries is not a path but a *disposition* — whether
+than a second copy (``dev00-1-4``). What each entry carries is not a path but a *disposition* — whether
 it can be rebuilt, whether the repository already has it, whether it belongs to this project alone,
 and whether it carries a credential — because those are the four facts anybody deciding what to
 protect needs, and none of them is derivable from a filename.
 
-Each states what the entry **is**, never what to do about it (``ado4-nfr3``). *Must never leave the
+Each states what the entry **is**, never what to do about it (``dev00-1-4-nfr3``). *Must never leave the
 machine* was one of them, and it instructed a reader whose threat model, infrastructure and
 obligations this tool cannot see.
 """
@@ -36,11 +36,11 @@ class Wrote:
     #: Not this project's alone. One enrolment serves every repository that pushes to one holder,
     #: so restoring it *for* a project silently rebinds a credential that was never that project's.
     shared: bool = False
-    #: Carries a credential (``ado4-ur2``). What follows from that is the reader's: their threat
+    #: Carries a credential (``dev00-1-4-ur2``). What follows from that is the reader's: their threat
     #: model, their infrastructure and their obligations are not things this tool can see, so it
-    #: names what the file is and stops (``ado4-nfr3``).
+    #: names what the file is and stops (``dev00-1-4-nfr3``).
     secret: bool = False
-    #: Nothing else holds this. **Stated, never derived** (``ado4-ur3``): a series lives inside the
+    #: Nothing else holds this. **Stated, never derived** (``dev00-1-4-ur3``): a series lives inside the
     #: project and is commonly git-ignored, so deciding by location marks everything in the tree as
     #: carried and drops the one file most worth naming. Irreplaceability is a property of the
     #: artifact — a run that was not recorded cannot be recovered from a later one — and not of
@@ -60,8 +60,8 @@ def user_level() -> tuple[Wrote, ...]:
               "an operator-issued enrolment — the file form, which carries a credential",
               keep=True, shared=True, secret=True),
         # **The support store is not here.** The capability left the core in the release that gave
-        # the name up (`mod5`), and this list is what THIS tool writes. What a retired capability
-        # left behind stays exactly where it is (`mod5-ur4`) and is the adopter's to keep or
+        # the name up (`dev08-1-5`), and this list is what THIS tool writes. What a retired capability
+        # left behind stays exactly where it is (`dev08-1-5-ur4`) and is the adopter's to keep or
         # delete; the module that took the name writes nothing at all, because a client that
         # reaches a service has nothing to hold.
         Wrote(str(_home("XDG_STATE_HOME", ".local/state") / "plumb"),
@@ -98,7 +98,7 @@ def in_project(config, project: Path = Path(".")) -> tuple[Wrote, ...]:
 
 
 def from_modules() -> tuple[Wrote, ...]:
-    """What mounted modules declare they write (``mod2-ur2``, ``ado5-ur5``).
+    """What mounted modules declare they write (``dev08-1-2-ur2``, ``dev00-1-5-ur5``).
 
     Imported lazily because `modules` reads this module for the entry type, and a footprint that
     could not be built without discovering modules would make the core's own answer depend on what

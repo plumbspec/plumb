@@ -124,7 +124,7 @@ LEXICON = {
         (UNPROVEN, EVIDENCE_FAILED): "breached",
         (UNPROVEN, NOT_OBSERVED): "unwatched",
     },
-    # A parameter is a decision with a model and a measurement (`dev07-4-3-ur09`), so it derives
+    # A parameter is a decision with a model and a measurement (`dev07-4-3-ur11`), so it derives
     # identically and reads differently. Neither *holding* nor *breached* fits: a value is not
     # held, and a hypothesis that loses to its own placebo has not been breached, it has been
     # **refuted**. `unvalidated` is the adopter's own word for the ordinary case — a corpus of 81

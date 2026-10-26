@@ -59,7 +59,7 @@ def _manifest_of(project: Path):
     """Where this project's manifest landed — one place, for every adapter.
 
     This looked in two places while the adapters disagreed: the Python one wrote to the scratch
-    `ado2` keeps outside an adopter's tree and the Java one wrote `build/plumb/` inside it. The
+    `dev00-1-2` keeps outside an adopter's tree and the Java one wrote `build/plumb/` inside it. The
     fallback is gone with the disagreement, deliberately — a lookup that tries both is a lookup that
     would go on passing if either adapter started writing into somebody's repository again, and this
     suite exists to notice exactly that.

@@ -1,4 +1,4 @@
-"""``ado1`` — the documentation is checked against the tool it describes.
+"""``dev00-1-1`` — the documentation is checked against the tool it describes.
 
 The release gate already checks that links resolve, that anchors exist and that markup is
 well-formed. That verifies the docs as a **structure** and leaves them entirely unverified as a set
@@ -69,7 +69,7 @@ def flags() -> list[tuple[str, str]]:
     from plumb import series_holder as receiver
 
     # The reference documents two entry points, because `plumb registry` moved to the receiver's
-    # own command (`ado1-nfr2`) — managing a registry is the operator's, and the client could not
+    # own command (`dev00-1-1-nfr2`) — managing a registry is the operator's, and the client could not
     # perform it. So the check follows it there. Otherwise a correctly documented flag reads as one
     # the tool does not accept, and the fix somebody reaches for is deleting the documentation.
     return sorted(set(walk(cli.build_parser())) | set(walk(receiver.build_parser())))
@@ -86,7 +86,7 @@ def subcommands() -> list[str]:
     from plumb import series_holder as receiver
 
     # The reference documents two entry points, because `plumb registry` moved to the receiver's
-    # own command (`ado1-nfr2`) — managing a registry is the operator's, and the client could not
+    # own command (`dev00-1-1-nfr2`) — managing a registry is the operator's, and the client could not
     # perform it. So the check follows it there. Otherwise a correctly documented flag reads as one
     # the tool does not accept, and the fix somebody reaches for is deleting the documentation.
     return sorted(set(walk(cli.build_parser())) | set(walk(receiver.build_parser())))
@@ -95,7 +95,7 @@ def subcommands() -> list[str]:
 def receiver_flags() -> set[str]:
     """The receiver's own flags, which the reference now documents too.
 
-    `plumb registry` moved to the receiver's command (`ado1-nfr2`), because managing a registry is the
+    `plumb registry` moved to the receiver's command (`dev00-1-1-nfr2`), because managing a registry is the
     operator's and the client could not perform it. The reference follows it there, so this check
     has to follow it as well — otherwise the gate reads a correctly documented flag as one the tool
     does not accept, and the fix somebody reaches for is deleting the documentation.
@@ -116,7 +116,7 @@ def receiver_flags() -> set[str]:
     return found
 
 
-@pytest.mark.proves("ado1", depth="unit")
+@pytest.mark.proves("dev00-1-1", depth="unit")
 def test_every_flag_the_tool_accepts_is_in_the_reference():
     """`command-line.md` summarises itself as *every command and option*, which is a claim.
 
@@ -144,7 +144,7 @@ NOT_OURS = {
 }
 
 
-@pytest.mark.proves("ado1", depth="unit")
+@pytest.mark.proves("dev00-1-1", depth="unit")
 def test_no_flag_any_page_documents_has_been_removed_from_the_tool():
     """The other direction, and the one that rots silently: a flag deleted from the CLI leaves its
     paragraph behind, and the paragraph is what a reader tries.
@@ -175,13 +175,13 @@ def test_no_flag_any_page_documents_has_been_removed_from_the_tool():
         + ". A reader tries the paragraph, not the parser")
 
 
-@pytest.mark.proves("ado1", depth="unit")
+@pytest.mark.proves("dev00-1-1", depth="unit")
 def test_every_subcommand_is_in_the_reference():
     """The WHOLE path, not its last word.
 
     Matching on the last word alone is satisfied by coincidence: `friction pull` shipped
     undocumented and this passed, because `series pull` is documented and the word `pull` appears.
-    A gate a sibling command can satisfy on your behalf is not holding anything (`ado1`).
+    A gate a sibling command can satisfy on your behalf is not holding anything (`dev00-1-1`).
     """
     reference = REFERENCE.read_text()
     missing = [c for c in subcommands() if c not in reference]
@@ -189,7 +189,7 @@ def test_every_subcommand_is_in_the_reference():
 
 
 @pytest.mark.proves("dev07-5-2", depth="unit")
-@pytest.mark.proves("ado1", depth="unit")
+@pytest.mark.proves("dev00-1-1", depth="unit")
 def test_every_condition_code_the_board_can_emit_is_documented():
     """`dev07-5-2` makes the code the promise a consumer branches on, and says the set is finite and
     knowable. Knowable requires somewhere to read it: as filed, the set was discoverable only by
@@ -204,7 +204,7 @@ def test_every_condition_code_the_board_can_emit_is_documented():
 
 
 @pytest.mark.proves("dev07-5-3", depth="unit")
-@pytest.mark.proves("ado1", depth="unit")
+@pytest.mark.proves("dev00-1-1", depth="unit")
 def test_every_exit_code_is_documented_with_its_number():
     """The exit code is the one part of a board a machine reads by default, so leaving it to be
     discovered by running the tool is leaving the contract unstated (`dev07-5-3`)."""
@@ -261,7 +261,7 @@ def test_a_java_run_never_needs_the_python_runner():
     )
 
 
-@pytest.mark.proves("ado1", depth="unit")
+@pytest.mark.proves("dev00-1-1", depth="unit")
 def test_both_adapters_declare_the_manifest_shape_the_contract_documents():
     """The two shipped adapters must spell `schema_version` the same way, and the way the contract
     fixes it.

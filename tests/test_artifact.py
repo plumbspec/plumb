@@ -1,6 +1,6 @@
 """The shippable artifact, and running an adapter somewhere other than here (chapter 9).
 
-`ado1` — obtainable without this repository — is deliberately **not** cited from here. Nothing in
+`dev00-1-1` — obtainable without this repository — is deliberately **not** cited from here. Nothing in
 this file downloads an artifact into an environment it did not build, which is the whole of what
 that story claims; asserting the pieces and citing the whole is how a story comes to read PROVEN
 on the strength of tests that never asked it.
@@ -20,7 +20,7 @@ from plumb.launch import (_absolute, _bundled_jar, _interpreter, _own_path, _sha
 
 
 @pytest.mark.proves("dev07-3-3", depth="component")
-@pytest.mark.proves("ado2", depth="component")
+@pytest.mark.proves("dev00-1-2", depth="component")
 def test_both_adapters_are_handed_the_same_resolved_facts(tmp_path):
     """The launcher's job is identical in both directions, which is what makes a third language a
     third reader of one file rather than a third shape of orchestration."""
@@ -213,7 +213,7 @@ def test_one_adapter_declared_the_ordinary_way_is_unchanged(tmp_path):
     assert config.adapters() == (config,)
 
 
-@pytest.mark.proves("ado1", depth="component")
+@pytest.mark.proves("dev00-1-1", depth="component")
 def test_the_bundled_vocabulary_is_the_one_published_to_maven_central():
     """Two jars carry the citation vocabulary — the one bundled in the artifact and the one on
     Maven Central — and nothing kept them equal.

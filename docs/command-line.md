@@ -470,7 +470,7 @@ reason that has nothing to do with the project.
 ## `plumb modules`
 
 What is mounted, what each module adds, what surfaces it speaks and whether it reaches the network
-— the list `mod2` exists to make readable, so trusting a module is a decision over what it declares
+— the list `dev08-1-2` exists to make readable, so trusting a module is a decision over what it declares
 rather than a hope.
 
     $ plumb modules
@@ -693,12 +693,12 @@ session that never wrapped leave identical evidence, so the tool names both inst
 
 The delta since the open, and the gate.
 
-    $ plumb session wrap-up --next 'settle ado2' --ref ado2 --context 'the JVM adapter needs it first'
+    $ plumb session wrap-up --next 'settle dev00-1-2' --ref dev00-1-2 --context 'the JVM adapter needs it first'
       board     115 unproven of 199
       session   +2 proven since 2026-08-05T09:14:00+00:00
                 + dev07-6-3
                 + dev03
-      cursor    set → ado2
+      cursor    set → dev00-1-2
 
       OK — the next session runs: plumb session start
 

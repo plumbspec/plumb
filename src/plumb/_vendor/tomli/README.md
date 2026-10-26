@@ -10,7 +10,6 @@ it exists, so on 3.11 and up not a line of this is imported.
 **Why not a smaller parser of our own.** Plumb needs the whole of TOML, because the file is the
 adopter's and they write what TOML lets them write. A reader that handles the subset this project
 happens to use would misread a valid file quietly, which is the one failure a configuration reader
-must not have. Writing the primitive ourselves is what `dev07-6-2-u3` records as where a format
-goes wrong without anybody noticing.
+must not have. Writing the primitive ourselves is where a format goes wrong without anybody noticing.
 
 Updating it: copy the release wholesale, keep this file and `LICENSE`, change nothing else.

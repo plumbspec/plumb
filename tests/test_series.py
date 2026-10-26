@@ -445,7 +445,7 @@ def test_the_command_pushes_under_the_subject_of_the_project_it_was_given(tmp_pa
         f"pushed to {asked} — the subject followed the shell rather than the series"
 
 
-@pytest.mark.proves("snd3", depth="wiring")
+@pytest.mark.proves("dev07-6-2-1-3", depth="wiring")
 def test_a_push_goes_with_the_credential_its_destination_names(tmp_path, monkeypatch):
     """The series destination's own credential is what the request carries, on the wire."""
     import urllib.request

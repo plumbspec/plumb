@@ -1,4 +1,4 @@
-"""Sending a record, and not caring much whether it arrives (``snd2``, ``dev07-6-2-ur5``).
+"""Sending a record, and not caring much whether it arrives (``dev07-6-2-1-2``, ``dev07-6-2-1-4-ur3``).
 
 Capture never blocks the work. An unreachable endpoint is not an error the contributor should
 ever see: the record is already safe on their disk, it is marked in the outbox, and the next
@@ -156,7 +156,7 @@ def push_series(store: Path, enrolment_path: Path | None = None,
 
     A board is derived from a run and is **complete without the network**, so a support service being down
     must defer rather than fail the thing that produced the data — otherwise an outage turns every
-    board red for a reason that has nothing to do with the project. That is `dev07-6-2-ur5`.
+    board red for a reason that has nothing to do with the project. That is `dev07-6-2-1-4-ur3`.
 
     The mark advances **only on acceptance**, and now once **per accepted batch**: a high-water
     sequence can already express a partial hand-over, so an outage halfway through leaves exactly
@@ -168,7 +168,7 @@ def push_series(store: Path, enrolment_path: Path | None = None,
     from plumb.transport import for_capability, variables
 
     # This capability's own destination, so a team self-hosting a holder is not thereby choosing
-    # who answers its support (`snd-D1`). An enrolment still answers where nothing more specific
+    # who answers its support (`dev07-6-2-1-D1`). An enrolment still answers where nothing more specific
     # is named, so a project that had one keeps pushing exactly where it did.
     destination = for_capability("series", enrolment_path=enrolment_path,
                                  root=project or Path(store).parent)

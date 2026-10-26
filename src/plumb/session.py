@@ -1,6 +1,6 @@
 """The session loop — opening from a cursor and measuring what a session moved (``dev03``).
 
-Adoption happens once (``ado``); this happens every working day. The shape was in the field twice
+Adoption happens once (``dev00-1``); this happens every working day. The shape was in the field twice
 before it was written down, in two projects sharing no policy at all, and what they had written
 identically is what ships here: read the cursor, confirm the ground, take a reading, difference it,
 hold the gate.
@@ -44,7 +44,7 @@ def reading_path(project: Path) -> Path:
 
     Written beside the cursor it would be uncommitted work at the moment the gate looks for
     uncommitted work, so the tool's own scratch file would fail the tool's own gate (``dev10-1``);
-    the escape hatches from there are a `.gitignore` the tool is not allowed to write (``ado2``) or
+    the escape hatches from there are a `.gitignore` the tool is not allowed to write (``dev00-1-2``) or
     a gate that skips a path it recognises, which is a hole cut in a check to fit its author. The
     honest split is that the *cursor* is a handoff between two sessions and belongs in the
     repository, and a *reading* is within-session scratch on one machine and never travels.
@@ -81,7 +81,7 @@ class Cursor:
 
     def to_text(self) -> str:
         # Stamped, because this is a file the tool writes into somebody's repository and *behind*
-        # and *edited by hand* are otherwise the same bytes from the outside (`ado2`).
+        # and *edited by hand* are otherwise the same bytes from the outside (`dev00-1-2`).
         lines = [f"# written by plumb {__version__} — data, not shell: parsed, never sourced"]
         ordered = list(REQUIRED) + [k for k in self.fields if k not in REQUIRED]
         lines += [f'{key}="{self.fields[key]}"' for key in ordered if key in self.fields]

@@ -1,6 +1,6 @@
 # dev03 · open a session
 
-**Last updated** 2026-09-11 v6
+**Last updated** 2026-10-26 v7
 
 A sub-flow of [A developer's workflow](developer-day.md). Entered from `dev02 · clarify what the
 story means`, carrying `story.id`. Exits to `dev04 · pull the working branch`, carrying a cursor, the
@@ -56,7 +56,8 @@ flowchart TD
 
 #### Non-Functional Requirements
   * dev03-1-nfr1 - the cursor is read as data and never executed
-  * dev03-1-nfr2 - a key the mechanism does not know is rewritten untouched
+  * dev03-1-nfr2 - a field of the cursor this version of plumb does not recognise is kept exactly
+    as it was when the cursor is next written
 
 #### Unknowns
 
@@ -120,18 +121,13 @@ flowchart TD
     come to depend on it
 
 #### Unknowns
-  * dev03-3-u1 - the reading records the version that took it, and nothing yet reads it back
+  * dev03-3-u1 - whether a reading taken by another version of plumb is refused, or read and
+    flagged, is undecided
 
 ## Glossary
 
 | Term | Meaning |
 |---|---|
 | Cursor | What a session leaves behind saying where it stopped and what is next. |
-| Tree state | The state of each declared tree at the open: clean, or holding work. Checked by pull / fast-forward against what the last session expected. |
+| Tree state | The state of each declared tree at the open: clean, or holding work, compared against what the last session expected. |
 | Reading | The board as it stood at the open, kept so the close has something to difference against. |
-| Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
-| Authored | Written by a person. An input nothing produces, or an output somebody typed. |
-| Derived | Computed by this step from what it took in. |
-| Observed | Read off a run, a tree or the world as it stands. |
-| Generated | Made by a tool rather than by a person. |
-| Parent | On a sub-flow's input: handed in by the chapter this one drills into. |

@@ -1,15 +1,17 @@
 # A developer's workflow
 
-**Last updated** 2026-10-26 v11
+**Last updated** 2026-10-26 v12
 
-What a developer does, from picking up work to closing it — the `dev` step of
-[plumb · a project's stories, shown done](plumb-prove-every-story.md), whose story and
-requirements it expands. This is framed as an agile process, but plumb does not require any
-specific methodology.
+What a developer does, from picking up work to closing it. This is the corpus's main flow: every
+other chapter expands one of its steps, and its file name says which. This is framed as an agile
+process, but plumb does not require any specific methodology.
 
 ```mermaid
 flowchart TD
-    START([<b>START</b> · I want to close a story]):::terminal
+    START([<b>dev00</b> · I want to close a story]):::terminal
+
+    INSTQ{is plumb set up<br/>for this project?}:::question
+    ADO[[<b>dev00-1</b> · bring plumb to a project<br/>▸ drills down]]:::subroutine
 
     TAKE[<b>dev01</b> · take a story from the sprint backlog]:::process
     ASK[<b>dev02</b> · clarify what the story means]:::process
@@ -18,10 +20,14 @@ flowchart TD
     PULL[<b>dev04</b> · pull the working branch]:::process
     TEST[<b>dev05</b> · annotate and write the tests]:::process
     WORK[<b>dev06</b> · do the work]:::process
+    NAMEQ{does the code need a name<br/>the story's words do not give?}:::question
+    LEX[[<b>dev06-1</b> · say it in the reader's words<br/>▸ drills down]]:::subroutine
 
     RUN[[<b>dev07</b> · run plumb — the proving pipeline]]:::subroutine
     JUDGE{is the proof what the story needs?}:::question
     CONF[<b>dev08</b> · update the plumb configuration]:::process
+    LACKQ{does plumb lack what<br/>the story needs?}:::question
+    MOD[[<b>dev08-1</b> · contribute a module<br/>▸ drills down]]:::subroutine
     COMMIT[<b>dev09</b> · commit, naming the story]:::process
     MORE{more to do on this story?}:::question
 
@@ -31,11 +37,19 @@ flowchart TD
 
     DONE([<b>END</b> · the story closes with derived proof rather than on authored status]):::good
 
-    START --> TAKE --> ASK --> OPENQ
+    START --> INSTQ
+    INSTQ -->|no| ADO --> TAKE
+    INSTQ -->|yes| TAKE
+    TAKE --> ASK --> OPENQ
     OPENQ -->|yes| OPEN --> PULL
     OPENQ -->|no| PULL
-    PULL --> TEST --> WORK --> RUN --> JUDGE
-    JUDGE -->|"the depth or the type is wrong"| CONF --> RUN
+    PULL --> TEST --> WORK --> NAMEQ
+    NAMEQ -->|yes| LEX --> RUN
+    NAMEQ -->|no| RUN
+    RUN --> JUDGE
+    JUDGE -->|"proven at the wrong depth"| CONF --> LACKQ
+    LACKQ -->|yes| MOD --> RUN
+    LACKQ -->|no| RUN
     JUDGE -->|"not proven yet"| WORK
     JUDGE -->|yes| COMMIT --> MORE
     MORE -->|yes| TEST
@@ -51,10 +65,57 @@ flowchart TD
     classDef good fill:#e2f2e2,stroke:#0ca30c,color:#0b0b0b;
 ```
 
-The story's status should not be typed anywhere. It is named in the commit, the pull request and the
-merge, and whatever holds the backlog reads it from there.
-
 ## Nodes
+
+### dev00 · I want to close a story
+
+> **As a developer I want to finish a piece of work and have it shown to be finished, so that what
+> I hand over is complete rather than asserted.**
+
+#### Information
+
+| Information | IO | Description | Required | Provenance |
+|---|---|---|---|---|
+| dev00-inf1 | In | `sprint_backlog` | yes | authored |
+| dev00-inf2 | Out | `story` | yes | authored |
+
+#### User Requirements
+  * dev00-ur1 - a story carries an identifier the team already uses
+  * dev00-ur2 - the team records somewhere what is in flight
+  * dev00-ur3 - the team has somewhere to ask what a story means
+#### System Requirements
+  * dev00-sr1 - a version control system with branches and pull requests
+  * dev00-sr2 - a test runner the language supports
+  * dev00-sr3 - plumb set up for the project (dev00-1), with its adapter for that language
+#### Non-Functional Requirements
+  * dev00-nfr1 - running plumb costs about what running the tests already costs
+  * dev00-nfr2 - nothing in the flow writes a status anybody could have typed
+#### Unknowns
+
+
+---
+
+### dev00-1 · bring plumb to a project
+
+> **As a team I want plumb installed and pointed at our project without reading its repository,
+> so that the first thing we see is a board answering for the stories our tests cite.**
+
+#### Information
+
+| Information | IO | Description | Required | Provenance |
+|---|---|---|---|---|
+| dev00-1-inf1 | Out | `config` | yes | derived |
+
+#### User Requirements
+
+#### System Requirements
+
+#### Non-Functional Requirements
+
+#### Unknowns
+
+
+---
 
 ### dev01 · take a story from the sprint backlog
 
@@ -69,12 +130,13 @@ merge, and whatever holds the backlog reads it from there.
 | dev01-inf2 | Out | `story.id` | yes | derived |
 
 #### User Requirements
-  * dev01-ur1 - A story id from the team's own list
+  * dev01-ur1 - the story taken is named by the id the team's own list gives it, and by no id
+    plumb made up
 
 #### System Requirements
 
 #### Non-Functional Requirements
-  * dev01-nfr1 - Plumb does NOT decide what is on that list or the order.
+  * dev01-nfr1 - plumb never decides what is on that list or its order
 
 #### Unknowns
 
@@ -93,21 +155,11 @@ merge, and whatever holds the backlog reads it from there.
 | dev02-inf2 | Out | `clarified_story` | yes | authored |
 
 #### User Requirements
-  * dev02-ur1 - Stories will split, merge, be inserted, and renumbered.
-  * dev02-ur2 - Automatically update identifiers.
+  * dev02-ur1 - an ambiguity is settled with whoever owns the story, before a test is written
 
 #### System Requirements
 
 #### Non-Functional Requirements
-  * dev02-nfr1 - An identifier opens with its flow's sigil and number; node segments are
-    bare numbers, because position already says *node*; row segments carry their kind —
-    inf, ur, sr, nfr, u
-  * dev02-nfr2 - Each number is left-padded to the width its own largest member needs, so a plain sort
-    puts them in order without tooling. A series numbered no higher than 9 uses one digit; adding a
-    tenth member takes the whole series to two digits and rewrites every one of them. The key stays
-    as short as it can be.
-  * dev02-nfr3 - An identifier written as an example is spelled without a prefix, so that a rewrite
-    of real identifiers cannot reach it
 
 #### Unknowns
   * dev02-u1 - Amending a shared specification is not something one developer does alone, and nothing
@@ -124,26 +176,24 @@ merge, and whatever holds the backlog reads it from there.
 
 | Information | IO | Description | Required | Provenance |
 |---|---|---|---|---|
-| dev03-inf1 | In | `config.cursor` | yes | authored |
-| dev03-inf2 | In | `config.repos` | yes | authored |
+| dev03-inf1 | In | `config.cursor` | yes | parent |
+| dev03-inf2 | In | `config.repos` | yes | parent |
 | dev03-inf3 | In | `story.id` | yes | dev01 |
-| dev03-inf4 | In | `board` | optional | dev07 |
+| dev03-inf4 | In | `board` | optional | observed |
 | dev03-inf5 | Out | `cursor` | yes | derived |
 | dev03-inf6 | Out | `tree_state` | yes | derived |
 | dev03-inf7 | Out | `reading` | optional | observed |
-| dev03-inf8 | In | `config.series` | optional | authored |
+| dev03-inf8 | In | `config.series` | optional | parent |
 
 #### User Requirements
-  * dev03-ur1 - the loop is optional, and nothing else may come to depend on it
-  * dev03-ur2 - an absent cursor is reported, never reconstructed from the commit log
+  * dev03-ur1 - opening and closing a session are optional, and no other step may come to depend on
+    them
 
 #### System Requirements
-  * dev03-sr1 - the mechanism ships; where the cursor lives and which trees a session spans are the
-    project's own declaration
+  * dev03-sr1 - where the cursor lives and which trees a session spans are the project's own
+    declaration
 
 #### Non-Functional Requirements
-  * dev03-nfr1 - opening reports and refuses nothing — a dirty tree is an ordinary way to leave a
-    machine mid-thought
 
 #### Unknowns
 
@@ -163,16 +213,12 @@ merge, and whatever holds the backlog reads it from there.
 | dev04-inf2 | Out | `working_tree` | yes | derived |
 
 #### User Requirements
-  * dev04-ur1 - reconcile changes to story citations
+  * dev04-ur1 - a story the branch's tests cite that the pull renamed or removed is reconciled
+    before new tests are written against it
 
 #### System Requirements
-  * dev04-sr1 - plumb needs a working directory
 
 #### Non-Functional Requirements
-  * dev04-nfr1 - plumb only writes the configuration; the session cursor; and a series, if the project keeps one; into the repository
-  * dev04-nfr2 - plumb reduces developer workload
-    * dev04-nfr2.1 - No more than a single annotation
-    * dev04-nfr2.2 - Configuration that is self-descriptive
 
 #### Unknowns
 
@@ -222,10 +268,33 @@ merge, and whatever holds the backlog reads it from there.
 | dev06-inf3 | Out | `working_tree` | yes | authored |
 
 Where the story's words and the code's names differ, the work goes through
-[lex · say it in the reader's words](lex-say-it-in-the-readers-words.md).
+[dev06-1 · say it in the reader's words](dev06-1-say-it-in-the-readers-words.md).
 
 #### User Requirements
   * dev06-ur1 - the work is aimed at tests that already exist
+
+#### System Requirements
+
+#### Non-Functional Requirements
+
+#### Unknowns
+
+
+---
+
+### dev06-1 · say it in the reader's words
+
+> **As a developer I want a name for what the code holds that outlives the story's audience, so
+> that the next audience to arrive does not rename the core.**
+
+#### Information
+
+| Information | IO | Description | Required | Provenance |
+|---|---|---|---|---|
+| dev06-1-inf1 | In | `story.id` | yes | dev01 |
+| dev06-1-inf2 | Out | `implementation_name` | yes | derived |
+
+#### User Requirements
 
 #### System Requirements
 
@@ -245,7 +314,7 @@ Where the story's words and the code's names differ, the work goes through
 
 | Information | IO | Description | Required | Provenance |
 |---|---|---|---|---|
-| dev07-inf1 | In | `config` | yes | authored |
+| dev07-inf1 | In | `config` | yes | parent |
 | dev07-inf2 | In | `annotation` | yes | dev05 |
 | dev07-inf3 | In | `working_tree` | yes | dev06 |
 | dev07-inf4 | Out | `board` | yes | derived |
@@ -286,6 +355,30 @@ Where the story's words and the code's names differ, the work goes through
 
 #### Non-Functional Requirements
   * dev08-nfr1 - an annotation alone is enough to begin; configuring is an enhancement
+
+#### Unknowns
+
+
+---
+
+### dev08-1 · contribute a module
+
+> **As whoever builds a module I want to add a capability plumb lacks without forking it, so that
+> a team that needs it installs it beside the tool it already has.**
+
+#### Information
+
+| Information | IO | Description | Required | Provenance |
+|---|---|---|---|---|
+| dev08-1-inf1 | In | `board_format` | yes | authored |
+| dev08-1-inf2 | Out | `module_artifact` | yes | derived |
+| dev08-1-inf3 | Out | `namespace` | yes | derived |
+
+#### User Requirements
+
+#### System Requirements
+
+#### Non-Functional Requirements
 
 #### Unknowns
 
@@ -342,17 +435,10 @@ Where the story's words and the code's names differ, the work goes through
 
 #### User Requirements
   * dev10-ur1 - the session is measured as the change in what is proven, and by nothing else
-  * dev10-ur2 - a negative delta is a result, never a fault
 
 #### System Requirements
-  * dev10-sr1 - where the project keeps a history, the session is bracketed by sequence number
-    rather than by differencing two summaries
 
 #### Non-Functional Requirements
-  * dev10-nfr1 - the gate is held before anything is spent or written, so a refusal costs only the
-    time it takes to read it
-  * dev10-nfr2 - the gate checks that work is committed and the cursor is set, never that the
-    session went well
 
 #### Unknowns
 
@@ -378,8 +464,7 @@ Where the story's words and the code's names differ, the work goes through
 #### System Requirements
 
 #### Non-Functional Requirements
-  * dev11-nfr1 - this flow derives status
-  * dev11-nfr2 - integration with a team's story management tool is not part of plumb
+  * dev11-nfr1 - integration with a team's story management tool is not part of plumb
 
 #### Unknowns
   
@@ -394,32 +479,5 @@ Where the story's words and the code's names differ, the work goes through
 | Working tree | The branch as it stands on the developer's machine. |
 | Annotation | The marker on a test naming the story it evidences. The whole of what plumb needs to begin. |
 | Proven | Derived and checked by a run, never has to be typed. |
-| Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
-| Authored | Written by a person. An input nothing produces, or an output somebody typed. |
-| Derived | Computed by this step from what it took in. |
-| Observed | Read off a run, a tree or the world as it stands. |
-| Generated | Made by a tool rather than by a person. |
-| Parent | On a sub-flow's input: handed in by the chapter this one drills into. |
 
 ---
-
-## Working notes — not part of the chapter
-
-**Lower — inside `run plumb`, not beside it.** Everything today's chapter 0 draws as a sibling:
-Observing the run · Collecting what the run did · Deciding whether it is proven · Reporting it ·
-Checking the tests bite · Keeping the history. At this altitude they are one step, and they need a
-parent chapter — which is today's chapter 0 minus its first three nodes.
-
-**Same level, and therefore a duplicate.** `Working in sessions` is this flow, differing only in
-carrying state between days.
-
-**Higher — the two crossings.** The specification arrives from goldspec at `take a story`; the board
-leaves at `commit` and `push`, to whatever holds the backlog.
-
-**Not in this flow at all.** `Adoption`, `Accounts`, `The support API` — the support process.
-
-**Steps that exist nowhere in the corpus:** take a story · pull · clarify · write the tests · do the
-work · commit · push. Seven of the eleven.
-
-**Does not survive here:** `rewrite every citation to one story` — spec maintenance, not something
-done between pulling and pushing.

@@ -1,20 +1,20 @@
-"""How the CLI discovers a contributed module and links its verbs in (``mod1``–``mod4``).
+"""How the CLI discovers a contributed module and links its verbs in (``dev08-1-1``–``dev08-1-4``).
 
 **The core owns the parser.** A module hands over a *declaration* — what it is called, what
 surfaces it speaks, what verbs it mounts, what it writes, whether it reaches the network — and the
 core builds the parser from it. It is never handed the parser to mutate.
 
-That follows from ``mod2`` rather than from taste: an adopter's decision to trust a module has to
+That follows from ``dev08-1-2`` rather than from taste: an adopter's decision to trust a module has to
 be "over a list rather than a hope". A module that mounts by running code against an argparse
 object cannot be listed before it runs, cannot be refused for naming a core verb, and can shadow
 anything already there. Reading a declaration first is what makes refusing one possible at all.
 
 **What the core promises back** is the set of surfaces it publishes, each with its own version
-(``mod1-ur2``) — the board, the series interface and transport today. A module declares the version it speaks
+(``dev08-1-1-ur2``) — the board, the series interface and transport today. A module declares the version it speaks
 per surface, and one it cannot be given is refused by name rather than discovered at runtime by a
 verb that half works.
 
-**Nothing here probes.** A module that cannot reach what it needs is inert by ``mod1-ur3``: its
+**Nothing here probes.** A module that cannot reach what it needs is inert by ``dev08-1-1-ur3``: its
 verbs mount, run, and report their own standing. The core cannot tell a service being down from a
 credential being wrong, and a core that guessed would report the wrong one.
 """
@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 #: The entry-point group an installed package declares to be discovered. Installing is the whole of
-#: enabling (``mod4-ur1``): there is no register step and no key that turns a module on, because a
+#: enabling (``dev08-1-4-ur1``): there is no register step and no key that turns a module on, because a
 #: mount somebody has to remember to enable is a mount that is off in production.
 GROUP = "plumb.modules"
 
@@ -63,14 +63,14 @@ class Verb:
 
 @dataclass(frozen=True)
 class Declaration:
-    """What a module says about itself, before any of it is mounted (``mod2``).
+    """What a module says about itself, before any of it is mounted (``dev08-1-2``).
 
     ``surfaces`` maps a surface the core publishes to the version this module speaks. ``writes``
     holds `footprint.Wrote` entries, so `plumb footprint` names what a module added and with what
-    disposition (``mod2-ur2``, ``ado5-ur5``) — a module's state is invisible to the person deciding
+    disposition (``dev08-1-2-ur2``, ``dev00-1-5-ur5``) — a module's state is invisible to the person deciding
     what to protect otherwise, and the core stops being able to answer for it the moment a
     capability moves out. ``network`` is declared so the install's trust decision is over verbs,
-    writes and reach together (``mod2-ur4``).
+    writes and reach together (``dev08-1-2-ur4``).
     """
 
     name: str
@@ -123,7 +123,7 @@ def discover(reserved) -> list:
     """Every installed module, mounted or refused, in a stable order.
 
     ``reserved`` is the set of verb names the core already owns. A module naming one is refused and
-    said so (``mod2-ur1``); it is not silently renamed and it does not win.
+    said so (``dev08-1-2-ur1``); it is not silently renamed and it does not win.
 
     **One broken extension never costs the tool.** A module whose import raises is reported as an
     install fault and every other module still mounts, so a half-installed environment degrades to
@@ -158,7 +158,7 @@ def discover(reserved) -> list:
 
 
 def _uncontested(found: list) -> list:
-    """Every module held against the others, which no single declaration can see (``mod2-ur5``).
+    """Every module held against the others, which no single declaration can see (``dev08-1-2-ur5``).
 
     ``_checked`` compares one declaration against the core's verbs. Two modules claiming one name
     pass it individually and collide at the parser, and what happened then depended on the
@@ -167,10 +167,10 @@ def _uncontested(found: list) -> list:
 
     **A contested name mounts for nobody.** The core cannot know which one was meant, and the
     alternative is picking by discovery order — the entry point's name, a string neither author
-    chose for this and no adopter reads (``mod2-nfr1``). A verb answering from somewhere the
+    chose for this and no adopter reads (``dev08-1-2-nfr1``). A verb answering from somewhere the
     adopter did not choose writes their data somewhere they did not choose.
 
-    Only the contested name is lost. Everything else mounts (``mod2-sr2``).
+    Only the contested name is lost. Everything else mounts (``dev08-1-2-sr2``).
     """
     claims: dict = {}
     for module in found:
@@ -194,7 +194,7 @@ def _uncontested(found: list) -> list:
             for verb in theirs)
         settled.append(Mounted(module.name, module.declaration,
                                f"{said} — a contested name mounts for nobody, because the core "
-                               f"cannot know which was meant (`mod2-ur5`)"))
+                               f"cannot know which was meant (`dev08-1-2-ur5`)"))
     return settled
 
 
@@ -213,7 +213,7 @@ def _checked(declared: Declaration, reserved) -> Mounted:
     from plumb.footprint import Wrote
 
     # Checked here so it is refused by name rather than found later by whatever reads the field.
-    # `mod2` is that trusting a module is a decision over a list; a list with something unreadable
+    # `dev08-1-2` is that trusting a module is a decision over a list; a list with something unreadable
     # in it is the failure that argument exists to prevent.
     unreadable = [w for w in declared.writes if not isinstance(w, Wrote)]
     if unreadable:
@@ -227,7 +227,7 @@ def _checked(declared: Declaration, reserved) -> Mounted:
     if taken:
         return Mounted(declared.name, declared,
                        f"mounts {', '.join(taken)}, which the core already owns — a module's verbs "
-                       f"are its own (`mod2-ur1`)")
+                       f"are its own (`dev08-1-2-ur1`)")
     return Mounted(declared.name, declared)
 
 
@@ -235,7 +235,7 @@ def mount(groups, reserved, say=None) -> list:
     """Link every module that will mount, and say why of every one that will not.
 
     ``groups`` is the CLI's own subparser action, so a module's verb is indistinguishable from a
-    core verb once mounted — which is the whole of ``mod4``'s *the one CLI grows a verb*.
+    core verb once mounted — which is the whole of ``dev08-1-4``'s *the one CLI grows a verb*.
     """
     found = discover(reserved)
     for module in found:

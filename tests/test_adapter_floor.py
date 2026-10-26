@@ -241,7 +241,7 @@ def test_every_shipped_class_holds_at_the_declared_release():
 
 
 def test_every_vendored_licence_is_declared_as_package_data():
-    """Code that ships under someone else's licence ships with it (`ado4`).
+    """Code that ships under someone else's licence ships with it (`dev00-1-4`).
 
     `packages.find` collects modules and nothing else, so the notice beside a vendored parser is
     left out of the wheel while the code it covers goes in — a licence fault rather than a missing

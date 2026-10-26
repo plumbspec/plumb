@@ -22,6 +22,6 @@ flowchart TD
 
 Shape carries the role, so a flow reads in greyscale and in print.
 
-Six shapes, and the set is closed. What is undecided, what is constrained and what is imposed are
-**not** shapes: they carry ids under the node they affect, where a reader meets them beside the step
-rather than in the margin of a picture.
+This corpus draws six of the method's seven shapes; it tunes no parameter, so it draws none. What
+is undecided and what is imposed are **not** shapes: they carry ids under the node they affect,
+where a reader meets them beside the step rather than in the margin of a picture.

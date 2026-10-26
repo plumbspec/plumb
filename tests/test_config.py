@@ -8,7 +8,7 @@ from plumb.config import JAVA, PYTHON, Config, InvalidConfig
 
 
 @pytest.mark.proves("dev07-1-3", depth="component")
-@pytest.mark.proves("ado2", depth="component")
+@pytest.mark.proves("dev00-1-2", depth="component")
 def test_a_project_declares_itself_in_one_file_whatever_language_it_is(tmp_path):
     """The same reader serves both adapters, which is the only thing that makes one command
     possible: a Java project has no `pyproject.toml`, so a Python-shaped home could never have
@@ -28,7 +28,7 @@ def test_a_project_declares_itself_in_one_file_whatever_language_it_is(tmp_path)
 
 
 @pytest.mark.proves("dev07-1-3", depth="unit")
-@pytest.mark.proves("ado2", depth="unit")
+@pytest.mark.proves("dev00-1-2", depth="unit")
 def test_the_declared_values_stay_in_the_adapters_own_spelling():
     """`App#handleRequest` and `myapp.cli:main` name one idea in two languages (`dev07-1-3`).
     Inventing a third spelling would make every adapter translate out of a form none of them

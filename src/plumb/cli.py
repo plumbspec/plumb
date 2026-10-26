@@ -3,11 +3,11 @@
 ``plumb board`` runs the adapter over a test run and emits the derived result (``dev07-5-1``).
 
 **The support verb is not here.** It was, and it left with the capability in the release that gave
-the name up (``mod5``). What answers that name now is a module, mounted through the
+the name up (``dev08-1-5``). What answers that name now is a module, mounted through the
 `plumb.modules` entry point like any other — and the core keeps no copy of it, because a core that
-still ships the verb is a core that still claims the capability (``mod5-ur3``, ``mod5-nfr1``). What
+still ships the verb is a core that still claims the capability (``dev08-1-5-ur3``, ``dev08-1-5-nfr1``). What
 stayed is what a module builds on: the transport surface and the enrolment it resolves through
-(``mod5-sr2``).
+(``dev08-1-5-sr2``).
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def cmd_series_push(args) -> int:
     **Never fails on an unreachable holder.** A board is derived from a run and complete without
     the network, so the exit code says whether the *store* was readable rather than whether the
     network was up — otherwise a holder outage becomes a red build for a reason that has nothing
-    to do with the project (`dev07-6-2-ur5`, `dev07-5-3`'s shape).
+    to do with the project (`dev07-6-2-1-4-ur3`, `dev07-5-3`'s shape).
     """
     store = Path(args.file)
     if not store.is_file():
@@ -272,7 +272,7 @@ def cmd_manifest_migrate(args) -> int:
 
 
 def cmd_init(args) -> int:
-    """``ado2``, ``ado3`` — write what is missing, keep what is there, say what to do next."""
+    """``dev00-1-2``, ``dev00-1-3`` — write what is missing, keep what is there, say what to do next."""
     from plumb.scaffold import init, next_steps
 
     outcome = init(args.project)
@@ -290,7 +290,7 @@ def cmd_init(args) -> int:
 
 
 def cmd_account(args) -> int:
-    """The self-provisioned route, which is the one a client can actually perform (`ado1-nfr2`).
+    """The self-provisioned route, which is the one a client can actually perform (`dev00-1-1-nfr2`).
 
     `plumb registry` used to sit here and could not: it manages the registry of a holder, which
     only its operator has, and a command a tool ships is a claim that the operation is the reader's
@@ -539,7 +539,7 @@ def cmd_session(args) -> int:
 
 
 def cmd_footprint(args) -> int:
-    """What this tool has written, where, and what losing each place would cost (`ado4`).
+    """What this tool has written, where, and what losing each place would cost (`dev00-1-4`).
 
     Printed rather than only documented, because the reference cannot show an adopter *their* paths:
     every location honours an `XDG_*` variable and two have overrides of their own, so the answer to
@@ -560,14 +560,14 @@ def cmd_footprint(args) -> int:
                  footprint.user_level()),
                 # Last, and named as theirs. A module's state is invisible to whoever is deciding
                 # what to protect otherwise, and the core stops being able to answer for it the
-                # moment a capability moves out (`mod2-ur2`). Omitted entirely where no module
+                # moment a capability moves out (`dev08-1-2-ur2`). Omitted entirely where no module
                 # declares anything, because a module with no state is ordinary, not a finding.
                 ("added by modules — the core does not own these",
                  footprint.from_modules()))
     for heading, places in (s for s in sections if s[1]):
         print(f"\n{heading}\n")
         for wrote in places:
-            # `ado4-ur3` — the list names what is irreplaceable, so somebody can point the backup
+            # `dev00-1-4-ur3` — the list names what is irreplaceable, so somebody can point the backup
             # they already run at it. That is what the archive this tool used to offer was for, and
             # saying it costs a word where taking custody cost three policies core cannot own.
             marks = " ".join(filter(None, [
@@ -579,7 +579,7 @@ def cmd_footprint(args) -> int:
             for line in textwrap.wrap(wrote.what, 72):
                 print(f"      {line}")
     # Facts, and then nothing. What to do about a secret depends on a threat model, an
-    # infrastructure and a set of obligations this tool cannot see, and `ado4-nfr3` is the whole
+    # infrastructure and a set of obligations this tool cannot see, and `dev00-1-4-nfr3` is the whole
     # argument: naming what a thing is leaves the judgement where it belongs.
     print("\nIRREPLACEABLE means nothing else holds it: a run that was not recorded cannot be\n"
           "recovered from a later one, and a record that has not reached a holder exists only\n"
@@ -608,7 +608,7 @@ def _say_left(left) -> None:
 
 
 def cmd_registry_moved(args) -> int:
-    """Named where it is performed, rather than failing where it is used (`ado1-nfr2`)."""
+    """Named where it is performed, rather than failing where it is used (`dev00-1-1-nfr2`)."""
     print("plumb: managing a registry is the service operator's, and this is the client.\n\n"
           "  It belongs to whoever runs a holder, where it can actually be performed.\n"
           "  If you are enrolling, you do not mint your own credential — the operator sends one.\n"
@@ -891,7 +891,7 @@ def _conditions(board) -> dict[str, int]:
 
 
 def _channel() -> str:
-    """Which stream this install came from, if it was resolved through one (``ado1``).
+    """Which stream this install came from, if it was resolved through one (``dev00-1-1``).
 
     Read from a marker the installer wrote beside the binary rather than from the artifact, because
     the channel is a property of the install: one build can be named by both channels at once, so
@@ -910,7 +910,7 @@ def build_parser() -> argparse.ArgumentParser:
     """``plumb <group> <command>`` — the board and friction capture. The nesting was added
     before it was needed, so that gaining a second group moved no existing command."""
     parser = argparse.ArgumentParser(prog="plumb", description="Plumb — proof that a story is done")
-    # `ado1`. The first thing anyone does with an unfamiliar tool is ask what it is, and until
+    # `dev00-1-1`. The first thing anyone does with an unfamiliar tool is ask what it is, and until
     # this existed the answer was an argument-parsing error. It is also the only way to get the
     # version out of an artifact installed from a rolling `latest` URL, where the user never typed
     # one — which is what makes a defect report actionable and a friction record unambiguous.
@@ -999,7 +999,7 @@ def build_parser() -> argparse.ArgumentParser:
     sess.set_defaults(func=cmd_session)
 
     # Kept as a parser rather than removed, so the command that moved says where it went instead of
-    # answering with argparse's "invalid choice" (`ado1-nfr2`).
+    # answering with argparse's "invalid choice" (`dev00-1-1-nfr2`).
     moved = groups.add_parser("registry", help="moved: operator-side, on the series holder's command")
     moved.add_argument("rest", nargs="*")
     moved.set_defaults(func=cmd_registry_moved)
@@ -1015,13 +1015,13 @@ def build_parser() -> argparse.ArgumentParser:
     modules.set_defaults(func=cmd_modules)
 
     # Last, and after every core verb exists, because what the core owns is the set a module may
-    # not name (`mod2-ur1`) — and that set is only complete here. A mount placed earlier would let
+    # not name (`dev08-1-2-ur1`) — and that set is only complete here. A mount placed earlier would let
     # whichever module happened to load first take a name the core was about to add.
     from plumb.modules import mount
 
     found = mount(groups, reserved=set(groups.choices),
                   say=lambda line: print(line, file=sys.stderr))
-    # Carried to the command rather than recomputed by it (`mod2-sr3`). It asked `discover` again
+    # Carried to the command rather than recomputed by it (`dev08-1-2-sr3`). It asked `discover` again
     # with an empty reserved set, so the listing could refuse nothing for naming a core verb and
     # printed a module as mounted — verbs, surfaces and writes — while every invocation of the
     # tool refused that same module. The trust decision is made on this list.
@@ -1030,7 +1030,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_modules(args) -> int:
-    """``mod4`` — the mounted modules, their verbs, their surfaces and their reach."""
+    """``dev08-1-4`` — the mounted modules, their verbs, their surfaces and their reach."""
     from plumb.modules import render
 
     print(render(args.mounted))

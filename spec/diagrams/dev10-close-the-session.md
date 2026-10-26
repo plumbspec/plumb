@@ -1,6 +1,6 @@
 # dev10 · close the session
 
-**Last updated** 2026-09-14 v9
+**Last updated** 2026-10-26 v10
 
 A sub-flow of [A developer's workflow](developer-day.md). Entered from `dev09 · commit, naming the
 story`, carrying a commit, a board and — where the project keeps a series — the opening reading. Exits to `dev11 · push and open a pull
@@ -17,12 +17,12 @@ flowchart TD
     HIST[<b>dev10-3</b> · place the session in the history]:::process
     WRITE[<b>dev10-4</b> · write the cursor for the next session]:::process
 
-    OUT([<b>END</b> · a cursor somebody with no memory of today<br/>can open — and, where a series is kept, a delta]):::good
+    OUT([<b>END</b> · a cursor somebody with no memory of today<br/>can open, a delta — and, where a series is kept,<br/>the session placed in the history]):::good
 
     IN --> GATE
     GATE -->|"uncommitted, or a cursor field empty"| REFUSED
-    GATE -->|"committed, and the cursor names what is next"| SERQ
-    SERQ -->|yes| MEASURE --> HIST --> WRITE
+    GATE -->|"committed, and the cursor names what is next"| MEASURE --> SERQ
+    SERQ -->|yes| HIST --> WRITE
     SERQ -->|no| WRITE
     WRITE --> OUT
 
@@ -37,8 +37,8 @@ flowchart TD
 
 ### dev10-1 · hold the gate
 
-> **As a developer returning to work I want the close to have committed the work and filled the
-> cursor, so that I can open where it stopped.**
+> **As a developer returning to work I want the close to refuse until the work is committed and the
+> cursor filled, so that I can open where it stopped.**
 
 #### Information
 
@@ -95,8 +95,8 @@ flowchart TD
   * dev10-2-nfr2 - a negative delta is a result and never a fault
 
 #### Unknowns
-  * dev10-2-u1 - a reading left by an earlier session is differenced as though it were this
-    one's; nothing compares its timestamp to now
+  * dev10-2-u1 - whether a reading left by an earlier session is refused, or differenced and
+    flagged as stale, is undecided
 
 
 ---
@@ -155,9 +155,8 @@ flowchart TD
 
 #### System Requirements
   * dev10-4-sr1 - the cursor is committed, because it travels between two sessions
-  * dev10-4-sr2 - a state file the tool replaces is replaced atomically, carrying the ownership
-    and mode of what it replaced — a reader that re-reads can otherwise catch half a file, and
-    a replacement created under another user's umask is one the next reader cannot open
+  * dev10-4-sr2 - a state file the tool replaces is never read half-written, and the replacement
+    stays readable by whoever could read the old one
 
 #### Non-Functional Requirements
 
@@ -171,9 +170,3 @@ flowchart TD
 | Delta | The change between the opening reading and the closing board. |
 | Reading | The board as it stood at the open, kept so the close has something to difference against. |
 | Tree state | The state of each declared tree: clean, or holding work. |
-| Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
-| Authored | Written by a person. An input nothing produces, or an output somebody typed. |
-| Derived | Computed by this step from what it took in. |
-| Observed | Read off a run, a tree or the world as it stands. |
-| Generated | Made by a tool rather than by a person. |
-| Parent | On a sub-flow's input: handed in by the chapter this one drills into. |

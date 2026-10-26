@@ -367,7 +367,7 @@ def test_the_instrument_is_a_property_of_the_fact_not_of_the_document():
 
 
 def test_no_bundled_adapter_emits_a_version_the_core_refuses():
-    """Plumb ships every adapter (`ado1`), so an adapter Plumb ships is Plumb's to keep readable.
+    """Plumb ships every adapter (`dev00-1-1`), so an adapter Plumb ships is Plumb's to keep readable.
 
     Retiring a schema version its **own** adapter still emits does not inconvenience an adopter —
     it breaks every project in that language, and the refusal it prints is a loop: *re-run your
@@ -378,7 +378,7 @@ def test_no_bundled_adapter_emits_a_version_the_core_refuses():
     hardcodes 5, the window had moved to 6 and 7, and **284 green tests did not notice**. They
     could not — the Python adapter emits the current version, and the Java path skips without a
     JVM, so this repository passes whichever way that constant reads. The check runs where the
-    machinery is *assembled* rather than where it is used, which is the same reason `ado1` lives
+    machinery is *assembled* rather than where it is used, which is the same reason `dev00-1-1` lives
     where it does.
 
     A pure source scan of a constant, needing no JVM and no build, so it costs nothing and
@@ -397,7 +397,7 @@ def test_no_bundled_adapter_emits_a_version_the_core_refuses():
 
 
 def test_the_adapter_never_calls_a_citation_annotation_member_directly():
-    """`plumb-annotations` is the **consumer's** artifact (`ado1`), so the `Proves` the Java
+    """`plumb-annotations` is the **consumer's** artifact (`dev00-1-1`), so the `Proves` the Java
     adapter binds to at runtime is whichever version *their* build resolved — which may predate
     any member added since. A direct call compiles cleanly here and throws `NoSuchMethodError`
     there.
@@ -469,7 +469,7 @@ def test_both_shipped_adapters_stamp_a_measurement_time():
     """A field nothing fills is worse than no field: it reads as *not reported* everywhere and
     nobody can tell that from an adapter that simply never learned to. Checked at the source of
     both, because the Java one is not exercised by this suite without a JVM — the blindness
-    `ado1` records, and the one that let it sit two majors behind."""
+    `dev00-1-1` records, and the one that let it sit two majors behind."""
     root = Path(__file__).resolve().parents[1]
     java = (root / "adapters/java/adapter/src/main/java/org/plumbspec/PlumbListener.java").read_text()
     python = (root / "src/plumb/adapters/python/adapter.py").read_text()

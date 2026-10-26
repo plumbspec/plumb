@@ -18,7 +18,7 @@ def maven(tmp_path: Path, package: str = "com/acme/orders") -> Path:
     return tmp_path
 
 
-@pytest.mark.proves("ado2", depth="component")
+@pytest.mark.proves("dev00-1-2", depth="component")
 def test_adoption_writes_what_is_missing_and_keeps_what_is_there(tmp_path):
     """Finishing a partial adoption is the common path, not the exceptional one — and a tool that
     destroys work when run twice is a tool nobody dares run once."""
@@ -34,7 +34,7 @@ def test_adoption_writes_what_is_missing_and_keeps_what_is_there(tmp_path):
     assert "hand-edited" in (tmp_path / "plumb.toml").read_text(), "left exactly as it is"
 
 
-@pytest.mark.proves("ado2", depth="component")
+@pytest.mark.proves("dev00-1-2", depth="component")
 def test_what_it_writes_is_a_config_the_tool_can_actually_read(tmp_path):
     """A scaffold that emits something the tool then refuses is worse than emitting nothing: the
     adopter cannot tell their project apart from a broken tool."""
@@ -57,8 +57,8 @@ def test_the_detected_package_is_the_deepest_one_that_still_covers_everything(tm
     assert detect(two).production == ("com.acme.*",), "stops where the tree forks"
 
 
-@pytest.mark.proves("ado1", depth="component")
-@pytest.mark.proves("ado1", depth="component")
+@pytest.mark.proves("dev00-1-1", depth="component")
+@pytest.mark.proves("dev00-1-1", depth="component")
 def test_a_java_project_is_told_exactly_what_to_paste(tmp_path):
     """The blocker a second adoption hits. `@Proves` is a Java annotation, so it must be on the
     COMPILE classpath or the adopter's test does not compile — and it otherwise appeared only as a
@@ -102,7 +102,7 @@ def test_each_build_tool_is_told_how_to_produce_its_own_classpath(tmp_path):
         "and why it matters — Gradle keeps resources out of the class directories"
 
 
-@pytest.mark.proves("ado1", depth="unit")
+@pytest.mark.proves("dev00-1-1", depth="unit")
 def test_nothing_is_written_into_a_java_project_beyond_its_config(tmp_path):
     """`plumb init` earns the right to be run on somebody's repository by touching almost nothing.
 
@@ -124,7 +124,7 @@ def test_nothing_is_written_into_a_java_project_beyond_its_config(tmp_path):
     assert not (root / ".plumb").exists(), "no jar planted in their tree"
 
 
-@pytest.mark.proves("ado3", depth="component")
+@pytest.mark.proves("dev00-1-3", depth="component")
 def test_adoption_ends_by_saying_what_to_do_next_in_commands(tmp_path):
     """A capability nobody is told to reach for is a capability nobody uses. The difference
     between handing someone a directory and handing them a method they can continue."""
@@ -136,7 +136,7 @@ def test_adoption_ends_by_saying_what_to_do_next_in_commands(tmp_path):
     assert "dependency:build-classpath" in steps, "the step Java cannot start without"
 
 
-@pytest.mark.proves("ado3", depth="unit")
+@pytest.mark.proves("dev00-1-3", depth="unit")
 def test_a_python_project_is_told_python_things(tmp_path):
     (tmp_path / "src" / "myapp").mkdir(parents=True)
     (tmp_path / "src" / "myapp" / "__init__.py").touch()
@@ -146,7 +146,7 @@ def test_a_python_project_is_told_python_things(tmp_path):
     assert "pytest.mark.proves" in next_steps(found)
 
 
-@pytest.mark.proves("ado3", depth="unit")
+@pytest.mark.proves("dev00-1-3", depth="unit")
 def test_what_it_could_not_work_out_is_said_rather_than_guessed(tmp_path):
     """A config that looks complete and is wrong costs more than one visibly unfinished."""
     notes = " ".join(detect(maven(tmp_path)).notes)
@@ -156,7 +156,7 @@ def test_what_it_could_not_work_out_is_said_rather_than_guessed(tmp_path):
 
 # ---- the install answers for itself ---------------------------------------------------------
 
-@pytest.mark.proves("ado1", depth="component")
+@pytest.mark.proves("dev00-1-1", depth="component")
 def test_the_installed_artifact_says_which_version_it_is(capsys):
     """Asked, the tool names itself. Until this existed the answer was an argument-parsing error —
     the first thing Plumb ever said to a first-time user was that it did not understand the
@@ -197,7 +197,7 @@ def test_a_failed_helper_reports_why_and_not_only_that_it_failed(monkeypatch):
     assert any("Observer.java:309" in line for line in said), "the trace is the diagnosis"
 
 
-@pytest.mark.proves("ado1", depth="component")
+@pytest.mark.proves("dev00-1-1", depth="component")
 def test_a_missing_adapter_names_plumbs_install_and_not_the_project(tmp_path, monkeypatch):
     """`_bundled` returned "" for an install layout that does not carry the jar, the entry was
     dropped from the classpath, and a JVM launched without its main class exited 1 in 0.127s —
@@ -217,7 +217,7 @@ def test_a_missing_adapter_names_plumbs_install_and_not_the_project(tmp_path, mo
     assert "install.sh" in message or "PLUMB_JAVA_CLASSPATH" in message, "name the repair"
 
 
-@pytest.mark.proves("ado1", depth="component")
+@pytest.mark.proves("dev00-1-1", depth="component")
 def test_a_project_supplying_the_adapter_itself_is_not_refused(tmp_path, monkeypatch):
     """Relative entries resolve against the project root, because that is the JVM's working
     directory. Checking them against Plumb's own would refuse a working project — a worse
@@ -650,7 +650,7 @@ def test_an_internal_runner_error_is_not_reported_as_the_project_s_fault():
     assert "Fix the run first" in stopped, "a killed or uncollectable run is still the run's"
 
 
-@pytest.mark.proves("ado2", depth="unit")
+@pytest.mark.proves("dev00-1-2", depth="unit")
 def test_the_written_config_carries_no_note_that_acting_on_it_makes_false(tmp_path):
     """`plumb init`'s notes describe the moment it looked, and the config is what then changes.
 

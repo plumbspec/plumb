@@ -396,7 +396,7 @@ def test_an_xfail_is_not_a_skip(outcome, wasxfail, expected):
 def test_a_parameter_reads_as_a_parameter_and_its_folds_reduce_all_of():
     """The third subject kind, and it costs a row in a table rather than a branch anywhere.
 
-    A parameter derives exactly as a decision does — `dev07-4-3-ur09` says it **is** a decision with a
+    A parameter derives exactly as a decision does — `dev07-4-3-ur11` says it **is** a decision with a
     model and a measurement — and reads differently, because neither *holding* nor *breached*
     fits. A value is not held; a hypothesis that loses to its own placebo has not been breached, it
     has been **refuted**. `unvalidated` is the ordinary case for a real corpus: priors with a

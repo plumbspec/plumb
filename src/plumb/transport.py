@@ -1,19 +1,19 @@
-"""Where one capability's output goes (`snd`).
+"""Where one capability's output goes (`dev07-6-2-1`).
 
-**A destination belongs to a capability, not to the machine** (`snd-D1`). One credential and one
+**A destination belongs to a capability, not to the machine** (`dev07-6-2-1-D1`). One credential and one
 base URL for everything the tool sends made a person choose between self-hosting a holder and being
 answered by a support service, because both hung off the same address — which is not configuration,
 it is a choice between two products. A capability names its own, and a project names as many as it
 uses.
 
-**Absence is the ordinary state and never an error** (`snd2-sr1`). With no destination named for a
+**Absence is the ordinary state and never an error** (`dev07-6-2-1-2-sr1`). With no destination named for a
 capability, what that capability produced stays on this machine. That is what makes *nothing leaves
 without being told where* a guarantee rather than a promise about somebody's configuration: there is
 no default address to forget to change.
 
 **A destination is not a relationship.** It says where to send, what to send with, and which store
 there it owns — and nothing about who the sender is to whoever runs it. That is the service's to
-decide from the credential it authenticated (`snd1-sr2`), and the enrolment this replaces said so
+decide from the credential it authenticated (`dev07-6-2-1-1-sr2`), and the enrolment this replaces said so
 itself: the client's claim was overwritten on arrival. A field nobody downstream trusts is one the
 core has no business carrying.
 """
@@ -25,7 +25,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-#: The version of the transport surface, which is what a module declares it speaks (`mod1-ur2`).
+#: The version of the transport surface, which is what a module declares it speaks (`dev08-1-1-ur2`).
 #:
 #: **1 is this shape as it stands**: a destination per capability, resolved from the environment
 #: first and a file second. Published because the series module already reaches through this and
@@ -33,7 +33,7 @@ from pathlib import Path
 #: be refused against.
 TRANSPORT_VERSION = 1
 
-#: Every field of a destination is readable from the environment (`snd1-ur3`). A runner can set a
+#: Every field of a destination is readable from the environment (`dev07-6-2-1-1-ur3`). A runner can set a
 #: variable; not every runner can mount a file, and a file in a working tree is collectable by an
 #: artifact upload or a cache step written for something else.
 _MACHINE_WIDE = ("PLUMB_ENDPOINT", "PLUMB_CREDENTIAL", "PLUMB_SUBJECT")
@@ -87,7 +87,7 @@ def for_capability(capability: str, *, enrolment_path: Path | None = None,
        that already exists keeps answering for every capability that has nothing more specific.
 
     ``None`` is a state and not a failure: nothing was named, so nothing of this capability's
-    leaves (`snd2-ur1`).
+    leaves (`dev07-6-2-1-2-ur1`).
     """
     endpoint, credential, subject = variables(capability)
     found = _from_env(capability, (endpoint, credential, subject))

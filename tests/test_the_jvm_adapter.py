@@ -156,7 +156,7 @@ def _work() -> Path:
     """Where a board over the reference project puts its run file and manifest.
 
     **Asked of the tool rather than assumed.** These were spelled `build/plumb` here, which was true
-    only while the Java adapter wrote inside the adopter's tree — the thing `ado2` refuses, and the
+    only while the Java adapter wrote inside the adopter's tree — the thing `dev00-1-2` refuses, and the
     disagreement with the Python adapter that nothing caught until the two were asked the same
     question. A test that spells the answer out is a test that has to be edited when the answer
     moves, which is how it comes to be the last thing still asserting the old one.

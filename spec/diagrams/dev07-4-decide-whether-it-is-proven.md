@@ -1,6 +1,6 @@
 # dev07-4 · decide whether it is proven
 
-**Last updated** 2026-09-14 v4
+**Last updated** 2026-10-26 v5
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the manifest, carrying the
 stories' facts. Exits to `dev07-5 · report it`, carrying a verdict per story that nobody could
@@ -10,7 +10,7 @@ have typed.
 flowchart TD
     IN([<b>START</b> · the manifest, and the stories<br/>its citations name]):::terminal
 
-    NAMES[<b>dev07-4-1</b> · check the citation names a real story]:::process
+    NAMES[<b>dev07-4-1</b> · check the citation's id lands<br/>in a declared namespace]:::process
     REFUSED[/<b>REFUSED</b> · an id outside every declared namespace<br/>fails the run, named/]:::bad
     GATE[<b>dev07-4-2</b> · hold the gate — ran and passed,<br/>then the archetype's own check]:::process
     VERDICT[<b>dev07-4-3</b> · derive the verdict live]:::process
@@ -19,7 +19,7 @@ flowchart TD
 
     IN --> NAMES
     NAMES -->|"an id outside every declared namespace"| REFUSED
-    NAMES -->|"every id lands in a spec"| GATE
+    NAMES -->|"every id lands in a declared namespace"| GATE
     GATE --> VERDICT --> OUT
 
     classDef terminal fill:#eef0ee,stroke:#52514e,color:#0b0b0b;
@@ -30,10 +30,10 @@ flowchart TD
 
 ## Nodes
 
-### dev07-4-1 · check the citation names a real story
+### dev07-4-1 · check the citation's id lands in a declared namespace
 
-> **As a reader of a board I want a typo'd id to fail the run, so that it never lands beside a
-> real story looking exactly as authoritative.**
+> **As a reader of a board I want an id outside every namespace the project declared to fail the
+> run, so that a mistyped id never lands beside a real story looking just as real.**
 
 #### Information
 
@@ -44,15 +44,13 @@ flowchart TD
 | dev07-4-1-inf3 | In | `namespace` | optional | authored |
 
 #### User Requirements
-  * dev07-4-1-ur1 - a citation naming a story that does not exist fails rather than landing
-    beside a real one
-  * dev07-4-1-ur2 - an id matching none of the declared namespaces fails the run, named; the
-    question is asked only where the project declared namespaces at all
+  * dev07-4-1-ur1 - a citation whose id lies in none of the declared namespaces fails the run,
+    named, rather than landing beside a real story
+  * dev07-4-1-ur2 - the question is asked only where the project declared namespaces at all
   * dev07-4-1-ur3 - the check reads the shape of the id, never whether a document exists behind
     the namespace
 
 #### System Requirements
-  * dev07-4-1-sr1 - the declared namespaces are the configuration's `specs`
 
 #### Non-Functional Requirements
   * dev07-4-1-nfr1 - the check is a scan over ids and declarations, needing no further run, so
@@ -65,8 +63,8 @@ flowchart TD
 
 ### dev07-4-2 · hold the gate — ran and passed, then the archetype's own check
 
-> **As somebody trusting a green story I want two checks in series with no exemption in either,
-> so that there is no weaker branch for a fake to hide in.**
+> **As somebody trusting a green story I want no kind of claim to have an easier way to pass than
+> any other, so that a fake has no branch to hide in.**
 
 #### Information
 
@@ -97,45 +95,39 @@ flowchart TD
   * dev07-4-2-ur07 - the archetype selects a check and can never grant a pass
   * dev07-4-2-ur08 - the archetype is declared per subject in the project's configuration,
     defaults to behavioural, and is never written on the test or inferred from it
-  * dev07-4-2-ur09 - one execution yields one grounding fact, so no test serves both archetypes;
+  * dev07-4-2-ur09 - one execution yields one wiring fact, so no test serves both archetypes;
     a test citing both fails on the side its execution did not serve
-  * dev07-4-2-ur10 - a claimed wired rung — wiring, standards-integration, smoke, e2e — whose
-    execution never grounded is refuted; unit and component claim isolation and are never
-    refuted for it
+  * dev07-4-2-ur10 - a claimed wired rung (`dev07-4-2-sr1`) whose wiring fact is `ungrounded` or
+    `inert` is refuted; unit and component claim isolation and are never refuted for it
   * dev07-4-2-ur11 - which arm refused is said, from the citations that actually decided the
     verdict, so a story refused by one arm is never explained by another's fact
 
 #### System Requirements
   * dev07-4-2-sr1 - the depth vocabulary is the core's own — unit · component · wiring ·
-    standards-integration · smoke · smoke/e2e · e2e — and a claimed depth outside it raises the
-    named condition `depth.unsupported`, never a guess
+    standards-integration · smoke · smoke/e2e · e2e — of which the wired rungs are wiring,
+    standards-integration, smoke, smoke/e2e and e2e; a claimed depth outside the vocabulary
+    raises the named condition `depth.unsupported`, never a guess
   * dev07-4-2-sr2 - the wired rungs are a fixed set the refutation reads; no project declaration
     widens or narrows it
-  * dev07-4-2-sr3 - a condition is three separately-addressable parts — a code, a next step and
-    an example — and only the code is a promise; the prose may be reworded freely
-  * dev07-4-2-sr4 - the gate judges a claim against the project's own configuration — the
-    archetype, the entry points, the reduction — so a wrong depth or type is corrected there,
-    which is the loop the parent flow draws to `dev08`
+  * dev07-4-2-sr3 - the gate judges a claim against the project's own configuration — the
+    archetype, the entry points, the reduction — so a wrong depth or archetype is corrected there,
+    which is the loop [A developer's workflow](developer-day.md) draws through `dev08`
 
 #### Non-Functional Requirements
-  * dev07-4-2-nfr1 - grounding is on the critical path and mutation never is; the deeper check
-    informs and cannot block
-  * dev07-4-2-nfr2 - non-functional is not a third archetype: availability, degradation and
-    removability are behavioural claims whose entry point is the assembled artifact
+  * dev07-4-2-nfr1 - the wiring fact is on the critical path and mutation never is; the deeper
+    check informs and cannot block
+  * dev07-4-2-nfr2 - availability, degradation and removability are behavioural claims, and
+    their entry point is the assembled artifact
+  * dev07-4-2-nfr3 - whether a claim is structural is the project's declaration, held at spec
+    review and never derived; a mis-declaration costs its author the behavioural proof rather
+    than granting a free one
 
 #### Unknowns
-  * dev07-4-2-u1 - the structural mirror is stronger than one adapter can see: an observer that
-    watches execution alone cannot assert a read, emits the older schema major, and its
-    structural stories are proved today by the weaker fact
+  * dev07-4-2-u1 - an observer that watches execution alone cannot assert a read; what a
+    structural story is proved by under such an observer is undecided
   * dev07-4-2-u2 - component versus wiring intent is not derivable; the claimed depth is trusted
     where the wired-rung refutation cannot reach it, and the remainder is named rather than
     hidden
-  * dev07-4-2-u3 - archetype honesty is a spec-review residue: nothing derives that a claim *is*
-    structural, and the mis-declaration costs its author the behavioural proof rather than
-    granting a free one
-  * dev07-4-2-u4 - assertion meaningfulness is not mechanizable: a test can run the code and
-    assert nothing, and mutation does not close this — it checks the code as written, not the
-    claim
 
 
 ---
@@ -167,7 +159,7 @@ flowchart TD
   * dev07-4-3-ur03 - the status is computed live each run and never stored — a stored status is a
     claim about a past run read as a claim about this one
   * dev07-4-3-ur04 - the achieved vector reports the rungs that actually passed; required depth is
-    the team's policy, lives in the overlay, and never gates
+    the team's policy, kept outside the core, and never gates
   * dev07-4-3-ur05 - a subject with declared aspects gets a verdict per aspect and no aggregate,
     so no reader is shown a green no aspect earned
   * dev07-4-3-ur06 - the conditions say why the verdict reads as it does, in codes a reader's
@@ -175,14 +167,16 @@ flowchart TD
   * dev07-4-3-ur07 - cited-and-unproven says which kind: evidence that failed, evidence nobody
     observed — a citation that never ran is no evidence at all, and a flaky runner is not a
     broken claim — or evidence that never existed
+  * dev07-4-3-ur08 - a story whose tests also reached production code outside every entry point is
+    surfaced whatever its status
   * dev07-4-3-ur09 - a decision's standing is its own vocabulary — it holds or it is breached, and
-    it never reads proven: proven is a claim about the past, and a decision is a claim about the
-    future that no evidence about the past can support
+    it never reads proven
   * dev07-4-3-ur10 - a decision nothing has measured and nothing is scheduled to review is
     surfaced as its own condition, because silence and health look identical and the silence is
     the finding
-  * dev07-4-3-ur08 - a grounded story that also reached code no door serves is surfaced whatever
-    its status
+  * dev07-4-3-ur11 - a parameter is derived as a decision is and read in its own words —
+    supported, unvalidated, refuted or unmeasured — and never as held or breached, because a value
+    is not held and an estimate that loses to its own placebo is refuted
 
 #### System Requirements
   * dev07-4-3-sr1 - the achieved vector is the depths of the story's passing citations,
@@ -192,8 +186,9 @@ flowchart TD
 
 #### Non-Functional Requirements
   * dev07-4-3-nfr1 - the gate proves the shape of a proof and never its meaning: PROVEN reads
-    *somebody wrote a test for this, and the test really ran the real thing* — stated as a
-    boundary so it can be held against the tool
+    *somebody wrote a test for this, and the test really ran the real thing*; a test that runs
+    the code and asserts nothing passes it, and mutation does not close this, because it checks
+    the code as written and not the claim
   * dev07-4-3-nfr2 - the core forces only what it can verify; process, priority and required
     depth are policy, and a rule nobody can check is a rule people satisfy on paper
   * dev07-4-3-nfr3 - nothing authored depends on anything derived
@@ -218,38 +213,12 @@ flowchart TD
 | Term | Meaning |
 |---|---|
 | Gate | The two checks in series: ran and passed, then the archetype's own check over the wiring fact. |
-| Archetype | What kind of claim a subject makes — behavioural or structural. Declared by the project, never by the test being judged. |
-| Rung | One level of the proof pyramid: unit · component · wiring · standards-integration · smoke/e2e. |
+| Archetype | What kind of claim a subject makes — behavioural or structural. Per subject, never per citation; declared by the project, never by the test being judged. |
+| Rung | One level of the proof pyramid. The levels, and which of them are wired, are `dev07-4-2-sr1`'s. |
+| Wired rung | A rung whose claim is that the test reached the production system through an entry point. |
+| Depth | The rung a citation claims its test works at, as opposed to the rungs it achieved. |
 | Achieved vector | The rungs a story is actually proven at, as opposed to the depth its citations claimed. |
 | Gate outcome | One citation's own answer — proven, passed-wiring-not-verified, unproven, not-passed — before the story's citations reduce. |
 | Passed — wiring not verified | The first check held and the wiring fact could not answer; the condition says which of its two causes, because the remedies differ. |
-| Verdict | Per story: status, achieved vector, conditions, and aspects where declared. Derived, live, stored nowhere. |
-| Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
-| Authored | Written by a person. An input nothing produces, or an output somebody typed. |
-| Derived | Computed by this step from what it took in. |
-| Observed | Read off a run, a tree or the world as it stands. |
-| Generated | Made by a tool rather than by a person. |
-| Parent | On a sub-flow's input: handed in by the chapter this one drills into. |
 
 ---
-
-## Working notes — not part of the chapter
-
-**The gate folded in, per the operator's o2.** ch1.2's four subjects are ur01, ur04, ur06 and
-ur11; its three unknowns and the JVM read-gap are u1–u4. The four `ch1-2-*` ids retire with ch1.
-
-**Landed here as promised from dev07-1's conversion:** the wired-rung refutation (was ch3-6) as
-ur10, with `wired_rung` as its authored input.
-
-**ch1-9's missing element.** The claim-version comparison is specified with no element to compare
-— no field in a citation, story or manifest carries one, and nothing produces one. Kept as u3 on
-the verdict node rather than a requirement, because choosing what a claim version *is* changes
-what a citation means.
-
-**From the rebuild test:** the reduction rule (ur1 — one passing citation is enough beside a
-failing one) was pinned by a test and stated in no chapter; likewise *no partial credit for
-touching nothing* (ur05) and *authored-in-derived-out* (nfr3).
-
-**Became requirements, not steps:** ch0-8 (grounding on the critical path) as nfr1; ch1-8 (shape
-never meaning) and ch1-5 (gate only the verifiable) as the verdict node's nfr1/nfr2 — all three
-were produce-nothing prohibition nodes.

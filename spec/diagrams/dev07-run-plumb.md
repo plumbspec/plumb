@@ -1,10 +1,12 @@
 # dev07 · run plumb — the proving pipeline
 
-**Last updated** 2026-09-13 v17
+**Last updated** 2026-10-26 v18
 
 A sub-flow of [A developer's workflow](developer-day.md). Entered from `dev06 · do the work`,
-carrying the configuration, the annotations and the working tree. Exits to the claims, carrying a
-board — one command returned it.
+carrying the configuration, the annotations and the working tree, and entered again from
+`dev08 · update the plumb configuration` once the configuration is corrected. Exits to the
+developer's judgement — is the proof what the story needs? — carrying a board, the manifest and,
+where a series is kept, the run in its history.
 
 ```mermaid
 flowchart TD
@@ -68,11 +70,11 @@ Drills down into [dev07-1 · run the suite under observation](dev07-1-run-the-su
 
 #### System Requirements
   * dev07-1-sr1 - observing is the adapter's, in the language's own tooling
-  * dev07-1-sr2 - the launcher picks the adapter from the configuration (`adapter`) and the core
-    never learns which; an unknown adapter fails as a launch, never as a verdict
-  * dev07-1-sr3 - the launcher resolves the declarations once and hands whichever adapter runs
-    the same resolved answers, as a file — answers, never questions, because an adapter may not
-    run in this process
+  * dev07-1-sr2 - the adapter is the one the project declares, and the core never learns which;
+    an adapter that is not known fails the launch, never a verdict
+  * dev07-1-sr3 - the project's declarations are resolved once, and whichever adapter runs is
+    handed the same resolved answers — answers, never questions, because an adapter may run
+    apart from the core
 
 #### Non-Functional Requirements
 
@@ -99,17 +101,12 @@ Drills down into [dev07-2 · check the tests bite](dev07-2-check-the-tests-bite.
 | dev07-2-inf6 | In | `citation.elapsed` | optional | dev07-1 |
 
 #### User Requirements
-  * dev07-2-ur1 - only code the story's tests drove beneath a declared entry point is mutated
-  * dev07-2-ur2 - every test citing the story runs against each mutant
 
 #### System Requirements
-  * dev07-2-sr1 - the proof is only as complete as the mutations implemented
-  * dev07-2-sr2 - the implemented set is `flip-comparison`, `negate-branch` and `swap-return`,
-    applied to the language's own parse tree, and nothing outside it is ever applied
+  * dev07-2-sr1 - a fixed, closed set of mutations is applied to the language's own parse tree,
+    and nothing outside it
 
 #### Non-Functional Requirements
-  * dev07-2-nfr1 - off by default because it is slow, not because it is optional; the
-    configuration (`mutation`) or the command (`plumb board --mutation`) turns it on
 
 #### Unknowns
 
@@ -184,8 +181,9 @@ Drills down into [dev07-4 · decide whether it is proven](dev07-4-decide-whether
 
 Drills down into [dev07-5 · report it](dev07-5-report-it.md).
 
-> **As a developer about to act on the result I want one board naming each story's status, depth
-> and residue, so that what I do next comes from what was proven.**
+> **As a developer about to act on the result I want one board naming, for each story, whether it
+> is proven, the rungs its tests reached and what its checks could not settle, so that what I do
+> next comes from what was proven.**
 
 #### Information
 
@@ -200,8 +198,8 @@ Drills down into [dev07-5 · report it](dev07-5-report-it.md).
 #### User Requirements
 
 #### System Requirements
-  * dev07-5-sr1 - `plumb board --json` emits the documented, versioned neutral format for tools
-    downstream
+  * dev07-5-sr1 - the board has one documented, versioned machine-readable format, and every
+    other rendering of it is a view of that format
 
 #### Non-Functional Requirements
 
@@ -243,31 +241,14 @@ Drills down into [dev07-6 · append the run to the series](dev07-6-append-the-ru
 |---|---|
 | Run | One execution of the suite, observed. |
 | Trace | The runtime's own per-test record of what the test drove. |
+| Entry point | A declared place where the production system begins doing work for a caller — a command, a route, a handler, a job. Declared once by the project, in whatever form its adapter reads. |
+| Wiring fact | What the run recorded about whether a citing test reached the production system through an entry point. Its five values are named in `dev07-1-4`. |
 | Mutation | Deliberate small changes to driven code, to see whether the citing tests notice. |
-| Manifest | The one document the core reads: facts about the run, never verdicts. |
-| Annotation | The marker on a test naming the story it evidences — what a person writes. |
-| Citation | One citing test's recorded facts for a story, minted at collect from the annotation and the run. |
-| Verdict | The core's derived answer per story: proven or not, and how far. |
-| Board | What plumb emits: per story, whether it is proven and how far. Not the sprint backlog. |
-| Series | The append-only history of runs a project chooses to keep. |
-| Provenance | The fifth column of an Information table: where an input came from, or how an output was made. |
-| Authored | Written by a person. An input nothing produces, or an output somebody typed. |
-| Derived | Computed by this step from what it took in. |
-| Observed | Read off a run, a tree or the world as it stands. |
-| Generated | Made by a tool rather than by a person. |
-| Parent | On a sub-flow's input: handed in by the chapter this one drills into. |
+| Manifest | The language-neutral record of a run that the adapters produce and the core reads: per story, its archetype and its citations. Facts, never verdicts, and the one document the core reads. |
+| Annotation | The marker on a test naming the story it evidences — what a person writes, and the whole of what plumb needs to begin. |
+| Citation | One citing test's recorded facts for a story: what its annotation claims, plus what the run observed. Minted at collect. |
+| Verdict | Per story: its status, achieved vector, conditions, and aspects where declared. Derived each run and stored nowhere. |
+| Board | What a run hands a person and their tools: per story, whether it is proven, the rungs reached, and what its checks could not settle. Not the sprint backlog. |
+| Series | The append-only history of runs a project chooses to keep: transitions, run markers and records of discard, in one order. |
 
 ---
-
-## Working notes — not part of the chapter
-
-`ch0-3` in chapter-03-observing.md is the source of the refusal claim, and the operator reads it
-as a story that entered from classpath and backwards-compatibility trouble, phrased so awkwardly
-it obscures its own point. When ch3 is converted it should say what dev07-1-ur1 now says: the
-adapter's runtime matches the project's own. The pre-launch detection, the wider-run allowance
-and the measured multi-module case are that chapter's material, not this altitude's.
-
-*Grounding* (operator, 2026-09-11): the word reads as jargon and both senses leave the corpus.
-The pipeline sense converts to plain english when ch3 and the gate chapter do — say what it is:
-the test drove production code beneath a declared entry point. The session sense is already gone
-from dev03.

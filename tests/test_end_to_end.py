@@ -833,11 +833,11 @@ def test_a_namespace_is_declared_and_is_never_a_directory(monkeypatch, capsys, t
         "and a subject reads the same in every scope containing it (`dev07-5-1`)"
 
 
-@pytest.mark.proves("ado2", depth="smoke")
+@pytest.mark.proves("dev00-1-2", depth="smoke")
 def test_adoption_is_one_command_one_file_and_then_a_board(monkeypatch, capsys, tmp_path):
     """The whole distance from a project with no Plumb in it to a board, measured.
 
-    `ado2` and `ado3` already hold what `init` writes and what it says afterwards. What neither
+    `dev00-1-2` and `dev00-1-3` already hold what `init` writes and what it says afterwards. What neither
     reaches is the claim's own measure: adoption is the distance to **a board**, so a test that
     stops at the config stops one step before the thing being claimed.
 

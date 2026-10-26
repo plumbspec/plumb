@@ -1,4 +1,4 @@
-"""Where one capability's output goes (`snd`).
+"""Where one capability's output goes (`dev07-6-2-1`).
 
 **Asserted as a difference.** Each test configures a destination and then changes exactly one
 thing, because a resolver that answers the same whatever it is given passes a suite as readily as
@@ -6,7 +6,7 @@ one that reads its inputs.
 
 The case the whole chapter exists for is `test_two_capabilities_reach_two_different_hosts`: one
 credential and one base URL for everything made self-hosting a holder and being answered by a
-support service the same choice (`snd-D1`).
+support service the same choice (`dev07-6-2-1-D1`).
 """
 
 from __future__ import annotations
@@ -27,9 +27,9 @@ def _env(monkeypatch, **pairs):
         monkeypatch.setenv(name, value)
 
 
-@pytest.mark.proves("snd1", depth="unit")
+@pytest.mark.proves("dev07-6-2-1-1", depth="unit")
 def test_two_capabilities_reach_two_different_hosts(monkeypatch, tmp_path):
-    """`snd-D1` — a destination belongs to a capability, not to the machine.
+    """`dev07-6-2-1-D1` — a destination belongs to a capability, not to the machine.
 
     With one endpoint for everything, self-hosting a holder and being answered by a support
     service were the same decision. They are two now, and a runner can express both.
@@ -48,15 +48,15 @@ def test_two_capabilities_reach_two_different_hosts(monkeypatch, tmp_path):
     assert series.url != support.url
 
 
-@pytest.mark.proves("snd2", depth="unit")
+@pytest.mark.proves("dev07-6-2-1-2", depth="unit")
 def test_no_destination_is_the_ordinary_state_and_never_an_error(monkeypatch, tmp_path):
-    """`snd2-sr1`. Absence is what makes *nothing leaves without being told where* a guarantee."""
+    """`dev07-6-2-1-2-sr1`. Absence is what makes *nothing leaves without being told where* a guarantee."""
     _env(monkeypatch, PLUMB_ENROLMENT=str(tmp_path / "absent.json"))
     assert for_capability("series") is None
     assert for_capability("support") is None
 
 
-@pytest.mark.proves("snd1", depth="unit")
+@pytest.mark.proves("dev07-6-2-1-1", depth="unit")
 def test_the_machine_wide_pair_still_serves_every_capability(monkeypatch, tmp_path):
     """One address for everything stays workable — it stops being the only thing expressible."""
     _env(monkeypatch, PLUMB_ENDPOINT="https://one.example.com", PLUMB_CREDENTIAL="shared",
@@ -65,7 +65,7 @@ def test_the_machine_wide_pair_still_serves_every_capability(monkeypatch, tmp_pa
     assert for_capability("support").url == "https://one.example.com"
 
 
-@pytest.mark.proves("snd1", depth="unit")
+@pytest.mark.proves("dev07-6-2-1-1", depth="unit")
 def test_a_capabilitys_own_pair_is_preferred_over_the_machines(monkeypatch, tmp_path):
     _env(monkeypatch, PLUMB_ENDPOINT="https://one.example.com", PLUMB_CREDENTIAL="shared",
          PLUMB_SERIES_ENDPOINT="https://holder.ourteam.internal",
@@ -75,7 +75,7 @@ def test_a_capabilitys_own_pair_is_preferred_over_the_machines(monkeypatch, tmp_
     assert for_capability("support").url == "https://one.example.com", "the rest keep the machine's"
 
 
-@pytest.mark.proves("snd1", depth="unit")
+@pytest.mark.proves("dev07-6-2-1-1", depth="unit")
 def test_an_enrolment_file_still_names_a_destination_for_everything(monkeypatch, tmp_path):
     """Consent was expressed as a file, and a file that already exists keeps working.
 
@@ -96,9 +96,9 @@ def test_an_enrolment_file_still_names_a_destination_for_everything(monkeypatch,
     assert for_capability("support").url == "https://filed.example.com", "and the rest are unmoved"
 
 
-@pytest.mark.proves("snd1", depth="unit")
+@pytest.mark.proves("dev07-6-2-1-1", depth="unit")
 def test_a_destination_says_nothing_about_a_relationship():
-    """`snd1-sr2` — who the sender is to a service is the service's to decide.
+    """`dev07-6-2-1-1-sr2` — who the sender is to a service is the service's to decide.
 
     The client's claim was advisory anyway: the enrolment it came from says the service overwrites
     it from the credential it authenticated. A field nobody downstream trusts is one the core has
@@ -115,9 +115,9 @@ def test_a_destination_must_be_reachable_and_carry_something_to_send_with():
             Destination(*bad), why
 
 
-@pytest.mark.proves("snd1", depth="unit")
+@pytest.mark.proves("dev07-6-2-1-1", depth="unit")
 def test_a_capability_name_becomes_the_variable_a_runner_sets(monkeypatch, tmp_path):
-    """`snd1-ur3` — every field readable from the environment, because a runner can set one."""
+    """`dev07-6-2-1-1-ur3` — every field readable from the environment, because a runner can set one."""
     from plumb.transport import variables
 
     assert variables("series") == ("PLUMB_SERIES_ENDPOINT", "PLUMB_SERIES_CREDENTIAL",
@@ -125,16 +125,16 @@ def test_a_capability_name_becomes_the_variable_a_runner_sets(monkeypatch, tmp_p
     assert variables("run-history")[0] == "PLUMB_RUN_HISTORY_ENDPOINT", "a dash is not a variable"
 
 
-@pytest.mark.proves("snd1", depth="wiring")
+@pytest.mark.proves("dev07-6-2-1-1", depth="wiring")
 def test_a_series_is_pushed_to_the_address_its_own_capability_names(monkeypatch, tmp_path, capsys):
-    """`snd1-ur1`, `snd1-ur3`, through `plumb series push`.
+    """`dev07-6-2-1-1-ur1`, `dev07-6-2-1-1-ur3`, through `plumb series push`.
 
     Every citation here used to call `for_capability` directly. That proves the resolver and says
     nothing about the command an adopter runs — and the story is that *hosting my own history costs
     me nothing about who answers my questions*, which is a claim about where a push lands.
 
     The machine-wide pair is set to somewhere else on purpose: the specific winning over the
-    general is the whole of `snd1`, and a test with only one address named cannot tell the two
+    general is the whole of `dev07-6-2-1-1`, and a test with only one address named cannot tell the two
     apart.
     """
     from plumb import cli, transmit

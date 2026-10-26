@@ -4,7 +4,7 @@ The holder tests run a real HTTP server on a real socket. The claim is that a hi
 network boundary and comes back the same; a mocked transport would assert only that I wired my own
 mock correctly.
 
-**The support half of this file left with the capability** (`mod5`). Filing, the outbox and the
+**The support half of this file left with the capability** (`dev08-1-5`). Filing, the outbox and the
 record schema were the core's, and are a module's now — what stayed is the transport underneath,
 which both always shared.
 """
@@ -51,7 +51,7 @@ def enrolled(tmp_path, endpoint, credential="tester-secret-token") -> Path:
     return path
 
 
-# ── local by default (snd2) ──────────────────────────────────────────────────
+# ── local by default (dev07-6-2-1-2) ──────────────────────────────────────────────────
 
 
 

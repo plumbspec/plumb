@@ -1,4 +1,4 @@
-"""Who is filing, and whether their records may leave (``snd2``).
+"""Who is filing, and whether their records may leave (``dev07-6-2-1-2``).
 
 Consent is established **once, at enrolment**, never re-asked per record. An installation nobody
 enrolled keeps everything local and never transmits — the core ships to anyone, so that is the
@@ -36,7 +36,7 @@ DEFAULT_ENROLMENT = Path(
 
 
 class NotEnrolled(Exception):
-    """No enrolment, so nothing transmits. Not an error — the default (``snd2``)."""
+    """No enrolment, so nothing transmits. Not an error — the default (``dev07-6-2-1-2``)."""
 
 
 @dataclass(frozen=True)
@@ -64,7 +64,7 @@ class Enrolment:
 
     @property
     def may_transmit(self) -> bool:
-        """Enrolment *is* the consent (``snd2``); there is no per-record question to ask."""
+        """Enrolment *is* the consent (``dev07-6-2-1-2``); there is no per-record question to ask."""
         return True
 
     def to_json(self) -> str:

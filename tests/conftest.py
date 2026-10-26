@@ -57,7 +57,7 @@ def runnable_tmp(tmp_path, request):
     *the installer did not mark the binary executable*, which is a real defect and was not this
     one.
 
-    Skipping instead would be worse than the confusion: `ado1`'s whole claim is that the artifact
+    Skipping instead would be worse than the confusion: `dev00-1-1`'s whole claim is that the artifact
     **runs** in an environment of the adopter's own, and a test that quietly stops checking on the
     hosts where it is hardest to check is not evidence of anything. So the fallback is a directory
     beside the checkout, on a filesystem the repository is already known to be executable from,

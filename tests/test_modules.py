@@ -1,11 +1,11 @@
-"""How the CLI discovers a module and links its verbs in (``mod1``–``mod4``).
+"""How the CLI discovers a module and links its verbs in (``dev08-1-1``–``dev08-1-4``).
 
 **Asserted as a difference.** Each test builds a declaration that mounts and then breaks exactly
 one thing, because a mount that refuses everything passes a suite as readily as one that refuses
 the right thing. The clean declaration is asserted mounted first.
 
 The refusals are the half worth proving. A mount that links whatever it is handed cannot support
-`mod2`'s claim that trusting a module is a decision over a list — the list is only worth reading if
+`dev08-1-2`'s claim that trusting a module is a decision over a list — the list is only worth reading if
 something is checked against it.
 """
 
@@ -50,9 +50,9 @@ def test_a_clean_declaration_mounts():
     assert _checked(_declaration(), reserved={"board"}).refused == ""
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_a_module_may_not_mount_a_verb_the_core_owns():
-    """`mod2-ur1`. It is refused and named, never silently renamed, and it never wins.
+    """`dev08-1-2-ur1`. It is refused and named, never silently renamed, and it never wins.
 
     The core's set is only complete once every core verb is added, which is why the mount runs
     last — a mount placed earlier would let whichever module loaded first take a name the core was
@@ -75,22 +75,22 @@ def test_a_surface_the_core_does_not_publish_is_refused():
     assert "telemetry" in refused and "publishes no version of" in refused
 
 
-@pytest.mark.proves("mod1", depth="unit")
+@pytest.mark.proves("dev08-1-1", depth="unit")
 def test_a_surface_version_the_core_cannot_give_is_refused():
-    """`mod1-ur2` — a version per surface, refused by name rather than half-working at runtime."""
+    """`dev08-1-1-ur2` — a version per surface, refused by name rather than half-working at runtime."""
     refused = _checked(_declaration(surfaces={"series": published()["series"] + 41}),
                        reserved=set()).refused
     assert "series" in refused and str(published()["series"]) in refused
 
 
-@pytest.mark.proves("mod1", depth="unit")
+@pytest.mark.proves("dev08-1-1", depth="unit")
 def test_the_core_publishes_a_version_for_every_surface_it_names():
     """A surface with no version is one nobody can refuse by name."""
     assert all(isinstance(v, int) and v > 0 for v in published().values()), published()
     assert {"board", "series"} <= set(published())
 
 
-@pytest.mark.proves("mod4", depth="wiring")
+@pytest.mark.proves("dev08-1-4", depth="wiring")
 def test_a_mounted_group_reaches_its_callable_through_the_parser(capsys):
     """The point of the whole thing: a module's verb is indistinguishable from a core verb."""
     parser = argparse.ArgumentParser(prog="plumb")
@@ -115,10 +115,10 @@ def test_a_mounted_group_reaches_its_callable_through_the_parser(capsys):
     assert reached == {"loudly": True}
 
 
-@pytest.mark.proves("mod4", depth="wiring")
-@pytest.mark.proves("mod1", depth="wiring")
+@pytest.mark.proves("dev08-1-4", depth="wiring")
+@pytest.mark.proves("dev08-1-1", depth="wiring")
 def test_the_one_cli_grows_the_verb(tmp_path, capsys):
-    """`mod4` — through `plumb` itself, and this is the only test that proves the thing claimed.
+    """`dev08-1-4` — through `plumb` itself, and this is the only test that proves the thing claimed.
 
     Every other mount test builds its own `ArgumentParser`, which proves `_bind` and says nothing
     about the CLI an adopter runs: the discovery, the check against the published surfaces and the
@@ -151,9 +151,9 @@ def test_a_bare_group_is_not_a_command():
         parser.parse_args(["example"])
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_render_says_what_a_module_adds_and_what_it_reaches():
-    """`mod2` — the trust decision is over verbs, writes and reach together."""
+    """`dev08-1-2` — the trust decision is over verbs, writes and reach together."""
     shown = render([Mounted("example", _declaration(network=True))])
     assert "example (run)" in shown
     assert "series 1" in shown
@@ -163,15 +163,15 @@ def test_render_says_what_a_module_adds_and_what_it_reaches():
     assert "writes ~/.local/share/example" in shown, shown
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_a_write_that_is_not_a_footprint_entry_refuses_the_module():
-    """`mod2-ur1`, `mod2-ur2`. The field is what `plumb footprint` reads, so a module that fills it
+    """`dev08-1-2-ur1`, `dev08-1-2-ur2`. The field is what `plumb footprint` reads, so a module that fills it
     with something else is refused here rather than printing a dataclass repr at an adopter."""
     refused = _checked(_declaration(writes=("~/.local/share/example",)), reserved={"board"}).refused
     assert "not footprint entries" in refused, refused
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_a_refused_module_contributes_nothing_to_the_footprint(monkeypatch):
     """What it said about itself was not accepted; the one list somebody protects a machine from is
     not where unchecked text belongs."""
@@ -192,7 +192,7 @@ def test_no_modules_is_an_ordinary_state_and_says_so():
     assert "installing one is the whole of enabling it" in render([])
 
 
-@pytest.mark.proves("mod4", depth="wiring")
+@pytest.mark.proves("dev08-1-4", depth="wiring")
 def test_a_module_from_outside_this_tree_is_discovered(tmp_path, monkeypatch):
     """The case that matters: a package plumb never heard of, mounting because it is installed.
 
@@ -248,9 +248,9 @@ def test_a_module_that_will_not_import_is_named_and_the_rest_still_mount(tmp_pat
     assert "series" in found and found["series"].refused == ""
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_a_modules_declared_writes_reach_the_footprint(tmp_path, monkeypatch):
-    """`mod2-ur2`, `ado5-ur5`. A module's state is invisible to whoever is deciding what to protect.
+    """`dev08-1-2-ur2`, `dev00-1-5-ur5`. A module's state is invisible to whoever is deciding what to protect.
 
     It matters most at a handover: the release that moves a capability out of the core is the one
     where the core stops naming what that capability wrote, and the store does not stop existing.
@@ -282,8 +282,8 @@ def test_a_module_that_writes_nothing_adds_no_section(tmp_path, monkeypatch):
     assert footprint.from_modules() == ()
 
 
-@pytest.mark.proves("ado5", depth="wiring")
-@pytest.mark.proves("mod2", depth="wiring")
+@pytest.mark.proves("dev00-1-5", depth="wiring")
+@pytest.mark.proves("dev08-1-2", depth="wiring")
 def test_the_command_prints_what_modules_declared(tmp_path, capsys):
     """Through `plumb footprint`, because calling `from_modules()` proves only that it computes.
 
@@ -311,9 +311,9 @@ def test_the_series_module_names_what_it_writes():
         "a history nothing else holds is not marked as such")
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_a_name_two_modules_claim_mounts_for_neither(monkeypatch):
-    """`mod2-ur5`. Nothing checked this: `_checked` holds a declaration against the CORE's verbs
+    """`dev08-1-2-ur5`. Nothing checked this: `_checked` holds a declaration against the CORE's verbs
     and against nothing else, so two modules claiming one name were both accepted.
 
     What followed depended on the interpreter. At the floor argparse took the second silently and
@@ -338,9 +338,9 @@ def test_a_name_two_modules_claim_mounts_for_neither(monkeypatch):
         assert other in module.refused, f"{name} is not told who else claims it: {module.refused}"
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_an_uncontested_verb_is_untouched_by_somebody_elses_collision(monkeypatch):
-    """The tool answers for every verb that is not contested (`mod2-sr2`). One bad pair of modules
+    """The tool answers for every verb that is not contested (`dev08-1-2-sr2`). One bad pair of modules
     taking an unrelated third one down is the failure the refusal exists to avoid."""
     from plumb.modules import discover
 
@@ -357,9 +357,9 @@ def test_an_uncontested_verb_is_untouched_by_somebody_elses_collision(monkeypatc
     assert not found["ledger"].refused, "an uncontested module lost its verb to somebody else"
 
 
-@pytest.mark.proves("mod2", depth="wiring")
+@pytest.mark.proves("dev08-1-2", depth="wiring")
 def test_the_listing_is_what_the_tool_mounted(monkeypatch, capsys):
-    """`mod2-sr3`, through `plumb modules`.
+    """`dev08-1-2-sr3`, through `plumb modules`.
 
     It called `discover(reserved=set())`, so the listing could never refuse anything for naming a
     core verb — and printed a module as mounted, with its verbs and writes, while every invocation
@@ -379,7 +379,7 @@ def test_the_listing_is_what_the_tool_mounted(monkeypatch, capsys):
     assert "the core already owns" in shown
 
 
-@pytest.mark.proves("mod2", depth="unit")
+@pytest.mark.proves("dev08-1-2", depth="unit")
 def test_one_distribution_found_twice_is_not_two_modules(monkeypatch):
     """An editable install plus that tree's `src/` on `PYTHONPATH` — what CONTRIBUTING asks for —
     puts dist-info and egg-info both on the path and the same entry point is read from each.
@@ -400,11 +400,11 @@ def test_one_distribution_found_twice_is_not_two_modules(monkeypatch):
     assert not found[0].refused, f"and it was refused for colliding with itself: {found[0].refused}"
 
 
-# -- the handover (`mod5`) ------------------------------------------------------------------------
+# -- the handover (`dev08-1-5`) ------------------------------------------------------------------------
 
-@pytest.mark.proves("mod5", depth="wiring")
+@pytest.mark.proves("dev08-1-5", depth="wiring")
 def test_the_core_has_given_the_name_up():
-    """`mod5-ur3`. The core keeps no copy against which the module could be said to be wrong.
+    """`dev08-1-5-ur3`. The core keeps no copy against which the module could be said to be wrong.
 
     Asserted against the parser an adopter meets, because *the core no longer offers this* is a
     claim about the CLI and not about which files are in the tree.
@@ -416,9 +416,9 @@ def test_the_core_has_given_the_name_up():
         "the core still owns `support`, so the module that took it is refused on every invocation")
 
 
-@pytest.mark.proves("mod5", depth="wiring")
+@pytest.mark.proves("dev08-1-5", depth="wiring")
 def test_a_module_may_now_take_the_name(monkeypatch, capsys):
-    """`mod5-ur1`. The whole point: an adopter's verb keeps working across the release that moves
+    """`dev08-1-5-ur1`. The whole point: an adopter's verb keeps working across the release that moves
     it, so where the capability is built is not a thing they have to notice."""
     from plumb.cli import main
 
@@ -434,9 +434,9 @@ def test_a_module_may_now_take_the_name(monkeypatch, capsys):
     assert reached.get("ran"), "the module's verb did not answer `plumb support file`"
 
 
-@pytest.mark.proves("mod5", depth="unit")
+@pytest.mark.proves("dev08-1-5", depth="unit")
 def test_what_the_module_builds_on_did_not_leave_with_the_capability():
-    """`mod5-sr2`. A module cannot speak a version of something the core stopped having, and a
+    """`dev08-1-5-sr2`. A module cannot speak a version of something the core stopped having, and a
     holder somebody runs themselves must not come to depend on whoever answers support."""
     from plumb.modules import published
     from plumb.transport import TRANSPORT_VERSION, for_capability  # noqa: F401 - it must import
