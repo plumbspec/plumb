@@ -1,6 +1,6 @@
 # mod · contribute a module
 
-**Last updated** 2026-09-24 v7
+**Last updated** 2026-10-26 v8
 
 What whoever builds a module does, from a capability plumb lacks to a verb an adopter can
 install. Exits to [ado · bring plumb to a project](ado-bring-plumb-to-a-project.md), whose
@@ -132,7 +132,7 @@ one CLI grows a verb]):::good
 |---|---|---|---|---|
 | mod5-inf1 | In | `module_artifact` | yes | mod4 |
 | mod5-inf2 | In | `core_release` — the one that drops the name | yes | observed |
-| mod5-inf3 | Out | `handover` | yes | derived |
+| mod5-inf3 | Out | `name_handover` | yes | derived |
 
 #### User Requirements
   * mod5-ur1 - the core dropping the name and the module mounting it are one release, so no

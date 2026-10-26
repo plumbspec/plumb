@@ -1,12 +1,15 @@
 # A developer's workflow
 
-**Last updated** 2026-09-15 v10
+**Last updated** 2026-10-26 v11
 
-What a developer does, from picking up work to closing it.  This is framed as an agile process, but plumb does not require any specific methodology.
+What a developer does, from picking up work to closing it — the `dev` step of
+[plumb · a project's stories, shown done](plumb-prove-every-story.md), whose story and
+requirements it expands. This is framed as an agile process, but plumb does not require any
+specific methodology.
 
 ```mermaid
 flowchart TD
-    START([<b>dev00</b> · I want to close a story]):::terminal
+    START([<b>START</b> · I want to close a story]):::terminal
 
     TAKE[<b>dev01</b> · take a story from the sprint backlog]:::process
     ASK[<b>dev02</b> · clarify what the story means]:::process
@@ -53,40 +56,6 @@ merge, and whatever holds the backlog reads it from there.
 
 ## Nodes
 
-### dev00 · I want to close a story
-
-> **As a developer I want to finish a piece of work and have it shown to be finished, so that what
-> I hand over is complete rather than asserted.**
-
-#### Information
-
-| Information | IO | Description | Required | Provenance |
-|---|---|---|---|---|
-| dev00-inf1 | In | The team's list of what is in flight — a sprint backlog, a story board, whatever the team keeps | yes | authored |
-| dev00-inf2 | In | A repository the team works in | yes | authored |
-| dev00-inf3 | Out | A merged change, and a board showing the story proven | yes | derived |
-
-#### User Requirements
-
-  * dev00-ur1 - A story with an identifier the team already uses
-  * dev00-ur2 - Somewhere the team records what is in flight
-  * dev00-ur3 - Somewhere to ask what a story means
-
-#### System Requirements
-
-  * dev00-sr1 - A version control system with branches and pull requests
-  * dev00-sr2 - A test runner the language supports
-  * dev00-sr3 - Plumb installed, and its adapter for that language
-
-#### Non-Functional Requirements
-
-  * dev00-nfr1 - Running plumb costs about what running the tests already costs
-  * dev00-nfr2 - Nothing in the flow writes a status anybody could have typed
-
-#### Unknowns
-
----
-
 ### dev01 · take a story from the sprint backlog
 
 > **As a developer starting work I want to take the next thing the team agreed on, so that what I
@@ -121,7 +90,7 @@ merge, and whatever holds the backlog reads it from there.
 | Information | IO | Description | Required | Provenance |
 |---|---|---|---|---|
 | dev02-inf1 | In | `story.id` | yes | dev01 |
-| dev02-inf2 | Out | `clarified story` | yes | authored |
+| dev02-inf2 | Out | `clarified_story` | yes | authored |
 
 #### User Requirements
   * dev02-ur1 - Stories will split, merge, be inserted, and renumbered.
@@ -190,7 +159,7 @@ merge, and whatever holds the backlog reads it from there.
 
 | Information | IO | Description | Required | Provenance |
 |---|---|---|---|---|
-| dev04-inf1 | In | `clarified story` | yes | dev02 |
+| dev04-inf1 | In | `clarified_story` | yes | dev02 |
 | dev04-inf2 | Out | `working_tree` | yes | derived |
 
 #### User Requirements
@@ -251,6 +220,9 @@ merge, and whatever holds the backlog reads it from there.
 | dev06-inf1 | In | `story.id` | yes | dev01 |
 | dev06-inf2 | In | `test_suite` | yes | dev05 |
 | dev06-inf3 | Out | `working_tree` | yes | authored |
+
+Where the story's words and the code's names differ, the work goes through
+[lex · say it in the reader's words](lex-say-it-in-the-readers-words.md).
 
 #### User Requirements
   * dev06-ur1 - the work is aimed at tests that already exist

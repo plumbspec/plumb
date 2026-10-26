@@ -13,19 +13,23 @@
 # sitting beside the spec that adopted it.
 
 [conventions]
-# The corpus is a set of process flows, each named by its sigil: `dev` (a developer's day and its
-# drill-downs), `ado` (bringing plumb to a project), `rel` (cutting a release), `mod`
-# (contributing a module), `hol` (holding a series), `snd` (sending what a run produced to a
-# destination), `lex` (saying a verdict in the reader's own words). The namespace is their alternation, because
-# a citation is held against the spec that owns its sigil and no other.
-namespace = "(?:dev|ado|rel|mod|hol|snd|lex)"
+# The corpus is one main flow and the flows under it, each named by its sigil: `ado` (bringing
+# plumb to a project), `dev` (a developer's day and its drill-downs), `hol` (holding a series) and
+# `mod` (contributing a module) are its steps; `snd` (sending what a run produced) and `lex` (saying
+# a verdict in the reader's own words) are entered from inside them. The namespace is their
+# alternation, because a citation is held against the spec that owns its sigil and no other.
+#
+# Cutting a release is not here: it is the maintainers' procedure rather than a process plumb serves
+# anybody through, so it is a runbook and not a chapter.
+namespace = "(?:dev|ado|mod|hol|snd|lex)"
 flow_dir  = "diagrams"
 # Every flow chapter's name carries its sigil and a hyphen; `legend.md` — the shared mermaid
 # legend, not a flow — is the one file the pattern deliberately misses.
 flow_glob = "*-*.md"
+# The flow the corpus starts from; every other flow is drawn from it or linked from one that is.
+main_flow = "plumb-prove-every-story.md"
 
 
-# The chapters are in the process-flow shape — mermaid flow, `## Nodes` with story, Information
 # The corpus spans repositories: the method's own spec defines the vocabulary this one's flows
 # consume. A gate seeing half a corpus cannot tell a correct reference to a neighbour from a
 # reference to nothing, so the extent is declared. A sibling is read for the names it defines and

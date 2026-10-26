@@ -1,6 +1,6 @@
 # dev07-6 · append the run to the series
 
-**Last updated** 2026-10-20 v4
+**Last updated** 2026-10-26 v5
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered where the project keeps a series,
 carrying the run's verdicts. Exits with the run in the history — and the history readable, which
@@ -9,7 +9,8 @@ is what the close differences and a reader asks *when* of.
 One interface — read and write series data — with local and remote implementations behind it.
 Where the history lives is the project's declaration, never a second kind of history. The
 holder's own side — standing one up, and what it may spend of its host — is
-[hol · hold a series](hol-hold-a-series.md).
+[hol · hold a series](hol-hold-a-series.md). Handing the history over (`dev07-6-2`) is done the way
+everything a run produced is sent, in [snd · send what a run produced](snd-send-what-a-run-produced.md).
 
 ```mermaid
 flowchart TD
@@ -93,9 +94,8 @@ flowchart TD
 |---|---|---|---|---|
 | dev07-6-2-inf1 | In | `series` | yes | dev07-6-1 |
 | dev07-6-2-inf2 | In | `holder` | yes | authored |
-| dev07-6-2-inf5 | In | `holder.spec` | optional | observed |
-| dev07-6-2-inf3 | Out | `mark` | yes | observed |
-| dev07-6-2-inf4 | Out | `hand_over` | yes | observed |
+| dev07-6-2-inf3 | In | `holder.spec` | optional | observed |
+| dev07-6-2-inf4 | Out | `mark` | yes | observed |
 
 #### User Requirements
   * dev07-6-2-ur1 - only what the holder has not been given is handed over, and the mark moves

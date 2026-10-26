@@ -1,6 +1,6 @@
 # snd · send what a run produced
 
-**Last updated** 2026-10-20 v2
+**Last updated** 2026-10-26 v3
 
 What a developer does to get what their run produced somewhere they chose — a history to a holder
 their team runs, a record to a service that answers them. The holder this reaches is
@@ -132,6 +132,10 @@ capabilities.
 #### User Requirements
   * snd3-ur1 - what is handed over is presented with the credential of the destination it is
     addressed to
+
+#### System Requirements
+
+#### Non-Functional Requirements
 
 #### Unknowns
 
