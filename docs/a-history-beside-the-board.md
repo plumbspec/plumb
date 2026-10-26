@@ -218,7 +218,7 @@ taken from the first of these that answers:
 An endpoint and a credential count only as a pair; one without the other is skipped. With none of
 them, nothing is pushed and the history stays on this machine. `series pull` finds its holder the
 same way, so a history is read back from where it was sent. `plumb.toml` never names an address:
-an `endpoint` key there is refused by name.
+an `endpoint` key there is not read; the run names it and carries on.
 
 The request carries one secret: the credential, as a bearer token. Nothing is signed and there is no
 account key. The endpoint is the holder's **base URL**, and the client sends to

@@ -1,6 +1,6 @@
 # dev07-6-2-1 · send what a run produced
 
-**Last updated** 2026-10-26 v6
+**Last updated** 2026-10-26 v7
 
 What a developer does to get what their run produced somewhere they chose — a history to a holder
 their team runs, a record to a service they chose. The holder this reaches is
@@ -69,8 +69,9 @@ configuration names one.
     is to a service is the service's to decide from the credential it authenticated
   * dev07-6-2-1-1-sr3 - two capabilities naming the same address are two destinations that happen to agree,
     and neither reads the other's
-  * dev07-6-2-1-1-sr4 - an address written in a project's configuration is refused by name, and
-    never read or silently ignored: a destination is named in the environment of the run
+  * dev07-6-2-1-1-sr4 - an address written in a project's configuration is never read and never
+    silently ignored: the run names it and carries on, and a destination is named in the
+    environment of the run
 
 #### Non-Functional Requirements
   * dev07-6-2-1-1-nfr1 - a credential in a file in a working tree is collectable by an artifact upload or a

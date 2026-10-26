@@ -70,9 +70,10 @@ def _push_series(store: Path, enrolment: str | None, project: str | None = None)
 def _unreadable_project(store: Path, project) -> str | None:
     """Why the project a series belongs to cannot be read, or ``None`` when it can.
 
-    Read before anything is sent or fetched, so a configuration the run refuses — an address in
-    plumb.toml among them (`dev07-6-2-1-1-sr4`) — is a sentence and an exit code, not a traceback
-    from wherever the file happened to be read first.
+    Read before anything is sent or fetched, so a configuration that cannot be read at all is a
+    sentence and an exit code, not a traceback from wherever the file happened to be read first.
+    A setting written where it cannot be used — an address in plumb.toml among them
+    (`dev07-6-2-1-1-sr4`) — is named here and the command carries on (`dev00-1-2-ur6`).
     """
     from plumb.config import Config, InvalidConfig
     from plumb.transmit import _owning_project
@@ -81,9 +82,11 @@ def _unreadable_project(store: Path, project) -> str | None:
     if root is None:
         return None
     try:
-        Config.find(root)
+        config = Config.find(root)
     except InvalidConfig as bad:
         return str(bad)
+    for note in config.ignored:
+        print(f"plumb: {note}", file=sys.stderr)
     return None
 
 
@@ -732,10 +735,10 @@ def _board(args) -> int:
     import contextlib
 
     from plumb.core.board import Board, natural_key
-    from plumb.core.gate import label, NOTHING_OBSERVED, prose, run_conditions
+    from plumb.core.gate import CONFIG_IGNORED, label, NOTHING_OBSERVED, prose, run_conditions
     from plumb.core.manifest import InvalidManifest, Manifest
 
-    namespaces, absent, blind, declared = (), (), (), ()
+    namespaces, absent, blind, declared, ignored = (), (), (), (), ()
     told_project = args.project is not None
     if not told_project:
         args.project = "."
@@ -765,7 +768,7 @@ def _board(args) -> int:
             except InvalidConfig as bad:
                 print(f"{bad}", file=sys.stderr)
                 return EXIT_CANNOT_BOARD
-            namespaces, declared = config.specs, config.declared
+            namespaces, declared, ignored = config.specs, config.declared, config.ignored
     else:
         from plumb.config import Config, InvalidConfig
         from plumb.launch import LaunchFailed, produce
@@ -788,7 +791,7 @@ def _board(args) -> int:
                 manifest, absent, blind = produce(config, pytest_args=args.pytest_args,
                                                   mutation=args.mutation, report=say,
                                                   tests=getattr(args, "tests", False))
-                namespaces, declared = config.specs, config.declared
+                namespaces, declared, ignored = config.specs, config.declared, config.ignored
         except (LaunchFailed, InvalidConfig) as bad:
             print(f"{bad}", file=sys.stderr)
             return EXIT_CANNOT_BOARD
@@ -800,8 +803,12 @@ def _board(args) -> int:
     # Scope changes the *view* and never a status (`dev07-5-1`), and it is applied where the verdicts
     # are derived rather than to the document — the run observed what it observed whatever you
     # asked to see, so run-level facts read the whole manifest.
+    for note in ignored:
+        # Named where it happened, and on the board below: the run went ahead without it
+        # (`dev00-1-2-ur6`).
+        print(f"plumb: {note}", file=sys.stderr)
     board = Board.render(manifest, namespaces, absent, blind, scope=args.scope,
-                         rendered_by=__version__, declared=declared)
+                         rendered_by=__version__, declared=declared, ignored=ignored)
     # Derived once and used twice — printed for a person, returned for a machine — so the two can
     # never disagree about what this run was (`dev07-5-2`, `dev07-5-3`).
     nothing_observed = NOTHING_OBSERVED in run_conditions(manifest, namespaces, absent, blind,
@@ -922,12 +929,16 @@ def _board(args) -> int:
             print(f"       next · {condition.next_step}")
             if condition.example:
                 print(f"    example · {condition.example}")
-    for code in run_conditions(manifest, namespaces, absent, blind, declared=declared):
+    for code in run_conditions(manifest, namespaces, absent, blind, declared=declared,
+                               ignored=ignored):
         # On the board itself, not only on stderr above: what a reader keeps, pastes into a
         # ticket or scrolls back to is the board, and a run-level fact that lives only in the
         # chatter is one the board still fails to state (`dev07-5-2`).
         condition = prose(code)
         print(f"\n  this run  [{code}]")
+        if code == CONFIG_IGNORED:
+            for note in ignored:
+                print(f"         · {note}")
         print(f"       what · {condition.what}")
         print(f"       next · {condition.next_step}")
         print(f"    example · {condition.example}")

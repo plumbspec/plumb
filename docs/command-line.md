@@ -227,6 +227,7 @@ is finite, and this is it:
 | `structural.executed` | a structural subject's citing test ran production code, so it exercised the shape rather than reading it |
 | `observation.none` | no tests were observed at all, so there was nothing to derive from |
 | `observation.uncited` | tests ran and none of them cited a subject — nothing claimed yet, or citations that could not be read |
+| `config.ignored` | a setting in `plumb.toml` (or a leftover `[tool.plumb]`) is written where the run cannot use it — a key under the wrong section, an `endpoint`. Each is named above the board; the run carried on without it |
 | `spec.orphan` | a story id belongs to no declared spec — outside every namespace in `specs`. Carried on that story, and once for the run |
 | `adapter.absent` | an adapter this project declares did not run, so a language is missing |
 | `observation.failed` | the instrument was declared and never reached your code, so grounding is `not-checked` everywhere — for the instrument's reason, not yours |
@@ -660,8 +661,8 @@ Kubernetes mounts, Vault templating.
 
 `plumb account` reads `PLUMB_ENDPOINT` when `--endpoint` is not given. `plumb series pull` finds its
 holder exactly as push does, so a history is read back from where it was sent. `plumb.toml` never
-names an address: an `endpoint` key there stops `series push` and `pull` with exit `2`, naming the
-variable to set instead.
+names an address: an `endpoint` key there is not read — the command names it and the variable to set
+instead, and carries on.
 
 ---
 

@@ -449,7 +449,7 @@ Sending is per **capability** — a series history is one, and a module can add 
 capability's destination comes from the environment of the run: that capability's own variables
 first (`PLUMB_SERIES_ENDPOINT` and `PLUMB_SERIES_CREDENTIAL` for the series), then the machine-wide
 pair `PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL`, then an enrolment file. `plumb.toml` never names an
-address — an `endpoint` key there is refused by name. With none of them set, what the capability produced stays local, and that is the default rather than a fault. A
+address — an `endpoint` key there is not read; the run names it and carries on. With none of them set, what the capability produced stays local, and that is the default rather than a fault. A
 destination that cannot be reached is reported in one line and never fails the run.
 
 Capturing and answering a support case is not part of the core; a module provides it, and what its

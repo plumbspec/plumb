@@ -204,7 +204,7 @@ def test_an_address_in_the_project_file_is_refused_by_name(tmp_path, monkeypatch
 
     code = cli.main(["series", "push", str(log), "--project", str(project)])
     said = capsys.readouterr().err
-    assert code != 0, said
+    assert code == 0, "a run never halts on what it finds"
     assert "endpoint" in said and "PLUMB_ENDPOINT" in said and "Traceback" not in said, said
 
 

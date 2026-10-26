@@ -106,6 +106,8 @@ class Board:
     #: The ids the project named in its own configuration, which no namespace check calls orphans
     #: (`dev07-4-1-ur5`).
     declared: tuple = ()
+    #: Settings the run could not use where they were written (`dev00-1-2-ur6`).
+    ignored: tuple = ()
     #: Adapters this project declares that did not run (`dev07-3-3`). A board missing a language is
     #: part of an answer, and saying so is what stops it reading as the whole one.
     absent_adapters: tuple = ()
@@ -124,7 +126,7 @@ class Board:
     def render(cls, manifest: Manifest, namespaces=(), absent_adapters=(),
                blind_adapters=(), scope: str | None = None,
                rendered_by: str | None = None, rendered_at: str | None = None,
-               declared=()) -> "Board":
+               declared=(), ignored=()) -> "Board":
         """Derive, and show the part asked for.
 
         **Scope narrows the verdicts and never the manifest** (`dev07-5-1`). The caller used to filter
@@ -147,6 +149,7 @@ class Board:
                         for sid, v in verdicts.items()}
         return cls(verdicts=verdicts, manifest=manifest,
                    namespaces=tuple(namespaces), declared=tuple(sorted(declared)),
+                   ignored=tuple(ignored),
                    absent_adapters=tuple(absent_adapters),
                    blind_adapters=tuple(blind_adapters),
                    rendered_by=rendered_by, rendered_at=rendered_at or _rendered_at())
@@ -180,7 +183,7 @@ class Board:
             "conditions": [_signal(c) for c in
                            run_conditions(self.manifest, self.namespaces,
                                           self.absent_adapters, self.blind_adapters,
-                                          self.declared)],
+                                          self.declared, self.ignored)],
             "stories": {
                 sid: {
                     "status": v.status,

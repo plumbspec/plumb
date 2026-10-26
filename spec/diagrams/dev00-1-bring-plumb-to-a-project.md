@@ -1,6 +1,6 @@
 # dev00-1 · bring plumb to a project
 
-**Last updated** 2026-10-26 v12
+**Last updated** 2026-10-26 v13
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -105,6 +105,9 @@ flowchart TD
   * dev00-1-2-ur3 - what is missing is written, what is there is kept, and the run reports both
   * dev00-1-2-ur4 - a file the tool wrote once belongs to the project the moment it lands
   * dev00-1-2-ur5 - the project's declaration carries the version that wrote it
+  * dev00-1-2-ur6 - a setting the run cannot use where it is written — a key filed under the wrong
+    section, an address, a declaration left in a file no longer read — is named on the board and
+    the run carries on; only a declaration that cannot be read at all leaves no board
 
 #### System Requirements
   * dev00-1-2-sr1 - every adapter is handed values already resolved and reads no configuration format

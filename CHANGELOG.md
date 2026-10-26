@@ -18,13 +18,17 @@ or `root` left from before is no longer read, and is yours to delete.
 
 ### An address is named where the run is
 
-`plumb.toml` never names a destination. An `endpoint` key there stops `series push` and `pull` with
-exit 2 and names the variable to set instead, rather than being read on one path and ignored on
+`plumb.toml` never names a destination. An `endpoint` key there is not read: the run names it and
+the variable to set instead, and carries on, rather than being read on one path and ignored on
 another. `series pull` now finds its holder exactly as `push` does, `PLUMB_SERIES_*` first, so a
 history is read back from where it was sent.
 
 **What to change.** Move an `endpoint` from `plumb.toml` to `PLUMB_ENDPOINT`, or
 `PLUMB_SERIES_ENDPOINT` for the series alone.
+
+**A run never halts on a setting it cannot use.** A top-level key written inside a section, an
+`endpoint`, or a leftover `[tool.plumb]` in `pyproject.toml` used to stop the run with exit 2. Each
+is now named on the board as `config.ignored`, and the run carries on without it.
 
 **Fixed.** A board read with `--manifest` and `--series` no longer crashes after appending. An
 unreachable service is a message from `plumb account`, and an unreadable `plumb.toml` one from

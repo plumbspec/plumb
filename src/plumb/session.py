@@ -204,7 +204,7 @@ def take_reading(config, project: Path):
     with contextlib.redirect_stdout(sys.stderr):
         manifest, absent, blind = produce(config, report=lambda line: None)
     board = Board.render(manifest, config.specs, absent, blind, rendered_by=__version__,
-                         declared=config.declared)
+                         declared=config.declared, ignored=config.ignored)
     return Reading(statuses(board), datetime.now(timezone.utc).isoformat(timespec="seconds"),
                    __version__, _series_seq(config, project)), manifest
 

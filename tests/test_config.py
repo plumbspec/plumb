@@ -62,8 +62,8 @@ def test_a_project_configured_the_old_way_is_told_where_it_moved(tmp_path):
     from "you configured nothing" and is the one thing they did not do."""
     (tmp_path / "pyproject.toml").write_text('[tool.plumb]\nroots = ["src/app"]\n')
 
-    with pytest.raises(InvalidConfig, match="plumb.toml"):
-        Config.find(tmp_path)
+    told = Config.find(tmp_path).ignored
+    assert any("[tool.plumb]" in note and "plumb.toml" in note for note in told), told
 
     (tmp_path / "plumb.toml").write_text('production = ["src/app"]\n')
     assert Config.find(tmp_path).production == ("src/app",), "with the new home present, it reads"

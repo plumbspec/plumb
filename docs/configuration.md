@@ -14,12 +14,19 @@ writes a first one; this page is every key it can hold.
 **Where it is read from.** The directory you run in, or the one `--project DIR` names. Plumb does not
 search parent directories. Every relative path in the file is relative to the file's own directory,
 not to where you ran the command. With no `plumb.toml` at all, a run still happens with every
-default below. A `[tool.plumb]` table in `pyproject.toml` is refused and you are told to move it here.
+default below. A `[tool.plumb]` table in `pyproject.toml` is not read; the run names it, tells you to
+move it here, and carries on.
 
 **Top-level keys go above the first `[table]`.** In TOML a key written after a `[header]` belongs to
 that table, so `specs = […]` appended at the end of a file that ends in `[python]` is a setting of
-`[python]`. Plumb refuses a file with `specs`, `production`, `sources`, `entry_points`, `mutation`,
-`subject` or `adapter` inside a table, and names the key. A key this page does not list is not read.
+`[python]`. When `specs`, `production`, `sources`, `entry_points`, `mutation`, `subject` or `adapter`
+is written inside a table, Plumb names the key and runs without it — the board carries
+`config.ignored` and says which. A key this page does not list is not read.
+
+**Nothing in this file stops a run except a file that cannot be read at all**: invalid TOML, an
+unknown `adapter`, `adapter` beside `[[adapters]]` blocks, or a list key given something other than a
+list of strings. Those leave no board (exit `2`). Everything else that cannot be used is named on
+the board, and the run carries on.
 
 ## Top-level keys
 
@@ -36,7 +43,8 @@ that table, so `specs = […]` appended at the end of a file that ends in `[pyth
 | `cursor` | `".plumb/next-session.txt"` | where `plumb session` keeps the handoff between two sessions |
 | `repos` | `["."]` | which working trees `plumb session` checks are committed |
 
-`endpoint` is **refused**. Where history is sent is named in the environment of the run —
+`endpoint` is **not read**: the run names it on the board (`config.ignored`) and carries on. Where
+history is sent is named in the environment of the run —
 `PLUMB_SERIES_ENDPOINT`, `PLUMB_ENDPOINT` or an enrolment file — never in the project. See
 [Environment](command-line.md#environment).
 

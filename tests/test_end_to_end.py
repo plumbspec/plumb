@@ -1160,3 +1160,23 @@ def test_the_text_board_says_an_adapter_ran_blind_as_the_json_does(monkeypatch, 
     assert "observation.failed" in in_json, in_json
     cli.main(["board", root])
     assert "observation.failed" in capsys.readouterr().out
+
+
+@pytest.mark.proves("dev00-1-2", depth="smoke")
+@pytest.mark.parametrize("written, named", [
+    ('endpoint = "https://example.invalid"\n', "`endpoint`"),
+    ('[java]\nspecs = ["APP"]\n', "`specs` is written inside [java]"),
+])
+def test_a_setting_the_run_cannot_use_is_named_and_the_run_carries_on(
+        monkeypatch, capsys, tmp_path, written, named):
+    """`dev00-1-2-ur6` — never halt on what is found: the board is derived, exits 0, and says on
+    the board itself which setting was not used and why."""
+    root = project(tmp_path, CITES_PASSING, config=written)
+    monkeypatch.syspath_prepend(root + "/src")
+    monkeypatch.chdir(root)
+    assert cli.main(["board", "--json", root]) == 0
+    codes = [c["code"] for c in json.loads(capsys.readouterr().out)["conditions"]]
+    assert "config.ignored" in codes, codes
+    assert cli.main(["board", root]) == 0
+    text = capsys.readouterr().out
+    assert "[config.ignored]" in text and named in text, text

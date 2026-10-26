@@ -101,6 +101,9 @@ EVIDENCE_FAILED = "evidence.failed"
 #: signal meant to nominate chores for automation was noise. It matters wherever a check runs
 #: against the world rather than against the repository.
 NOT_OBSERVED = "evidence.not-observed"
+#: A setting written where the run cannot use it (`dev00-1-2-ur6`). The run carries on; the board
+#: says what it did not use.
+CONFIG_IGNORED = "config.ignored"
 
 #: What a derived status is **called**, per kind of subject (`dev07-4-3-ur05`).
 #:
@@ -246,6 +249,14 @@ RUN_CONDITIONS = {
                   "runs against the world and could not reach it — and run them",
         example="a check that reaches a keyserver reads unobserved while the keyserver is down, "
                 "rather than failed",
+    ),
+    CONFIG_IGNORED: Condition(
+        code=CONFIG_IGNORED,
+        what="a setting in the project's configuration is written where this run cannot use it, "
+             "so the run went ahead without it",
+        next_step="read the lines naming each one, above the board, and move or remove the "
+                  "setting — the board below is what the run measured without it",
+        example="`specs` written under [java] is read by nothing; above the first `[` it is read",
     ),
     NOTHING_OBSERVED: Condition(
         code=NOTHING_OBSERVED,
@@ -438,7 +449,7 @@ def orphaned(sid: str, namespaces=(), declared=()) -> bool:
 
 
 def run_conditions(manifest: Manifest, namespaces=(), absent_adapters=(),
-                   blind_adapters=(), declared=()) -> tuple[str, ...]:
+                   blind_adapters=(), declared=(), ignored=()) -> tuple[str, ...]:
     """What this run has to say about *itself*, before any story is derived (``dev07-5-2``).
 
     Only one thing so far, and it is the one the rest of the gate structurally cannot notice: a run
@@ -475,6 +486,8 @@ def run_conditions(manifest: Manifest, namespaces=(), absent_adapters=(),
         # that ran blind has said everything except one thing, and a reader who cannot tell those
         # apart does not know whether the results above are worth anything (`dev07-1-3`).
         codes.append(OBSERVATION_FAILED)
+    if ignored:
+        codes.append(CONFIG_IGNORED)
     return tuple(codes)
 
 

@@ -110,6 +110,10 @@ class Config:
     #: The directory the config was found in; every relative path is relative to it, not to the
     #: caller's working directory.
     root: Path = field(default_factory=Path)
+    #: Settings written where the run cannot use them — a key under the wrong section, an address,
+    #: a declaration in a file no longer read — each named in a sentence. Never a refusal: the run
+    #: carries on and the board says what it did not use (`dev00-1-2-ur6`).
+    ignored: tuple = ()
 
     @property
     def declared(self) -> frozenset:
@@ -128,8 +132,7 @@ class Config:
         start = Path(start)
         path = start / CONFIG_NAME
         if not path.is_file():
-            _refuse_stale_pyproject(start)
-            return cls(root=start)
+            return cls(root=start, ignored=_stale_pyproject(start))
         return cls.parse(path.read_text(), root=start)
 
     @classmethod
@@ -151,7 +154,7 @@ class Config:
                 f"blocks, and those mean different things. Put every adapter in a block — including "
                 f"{table['adapter']!r} — and remove the top-level line. A project with one adapter "
                 f"keeps writing it the ordinary way.")
-        _refuse_misplaced_keys(table)
+        ignored = _misplaced_keys(table)
         adapter = table.get("adapter", PYTHON)
         if adapter not in ADAPTERS:
             raise InvalidConfig(
@@ -159,13 +162,12 @@ class Config:
             )
         production = _strings(table, "production")
         if "endpoint" in table:
-            # Refused rather than ignored (`dev07-6-2-1-1-sr4`): a destination is named in the
-            # environment of the run, and a key that was once read and is now skipped would leave a
-            # project believing it sends somewhere it does not.
-            raise InvalidConfig(
-                f"{CONFIG_NAME}: `endpoint` names an address, and an address is named in the "
-                f"environment of the run — set PLUMB_ENDPOINT, or PLUMB_SERIES_ENDPOINT for the "
-                f"series alone, and remove the key")
+            # Named and not used (`dev07-6-2-1-1-sr4`): a destination is named in the environment
+            # of the run, and a key once read and now skipped in silence would leave a project
+            # believing it sends somewhere it does not. Never a refusal — the run carries on.
+            ignored += (f"{CONFIG_NAME}: `endpoint` is not read — an address is named in the "
+                        f"environment of the run: set PLUMB_ENDPOINT, or PLUMB_SERIES_ENDPOINT "
+                        f"for the series alone, and remove the key",)
         return cls(
             adapter=adapter,
             entry_points=_strings(table, "entry_points"),
@@ -188,6 +190,7 @@ class Config:
             lexicon=dict(table.get("lexicon", {})),
             options=table.get(adapter, {}),
             root=Path(root),
+            ignored=ignored,
         )
 
     def adapters(self) -> tuple["Config", ...]:
@@ -244,7 +247,7 @@ TOP_LEVEL_ONLY = ("specs", "production", "sources", "entry_points", "mutation",
                   "subject", "adapter")
 
 
-def _refuse_misplaced_keys(table: dict) -> None:
+def _misplaced_keys(table: dict) -> tuple:
     """A key written under a `[section]` belongs to that section, and is never looked for again.
 
     TOML has no way to say *I meant this at the top level*, and the emitted config ends with an
@@ -254,21 +257,24 @@ def _refuse_misplaced_keys(table: dict) -> None:
     indistinguishable from one where nobody meant to write it. Measured by walking into it — three
     subjects became one, with no output changed anywhere.
 
-    So it is said instead. This is `dev07-3-3`'s rule — a board must not quietly answer for less than
-    it was asked — applied one layer up, at the file that decides what it was asked.
+    So it is said instead, on the board, and the run carries on (`dev00-1-2-ur6`). This is
+    `dev07-3-3`'s rule — a board must not quietly answer for less than it was asked — applied one
+    layer up, at the file that decides what it was asked.
     """
+    found = []
     for name, value in table.items():
         if not isinstance(value, dict):
             continue
         for key in TOP_LEVEL_ONLY:
             if key in value:
-                raise InvalidConfig(
+                found.append(
                     f"{CONFIG_NAME}: `{key}` is written inside [{name}], where nothing reads it — "
                     f"in TOML a key below a section header belongs to that section. Move it above "
                     f"the first `[` in the file.")
+    return tuple(found)
 
 
-def _refuse_stale_pyproject(start: Path) -> None:
+def _stale_pyproject(start: Path) -> tuple:
     """A project that declared itself the old way is told where its declaration moved.
 
     Silently ignoring ``[tool.plumb]`` would hand that project an empty config and a board reading
@@ -277,14 +283,14 @@ def _refuse_stale_pyproject(start: Path) -> None:
     """
     pyproject = start / "pyproject.toml"
     if not pyproject.is_file():
-        return
+        return ()
     try:
         table = tomllib.loads(pyproject.read_text())
     except tomllib.TOMLDecodeError:
-        return
+        return ()
     if table.get("tool", {}).get("plumb"):
-        raise InvalidConfig(
-            f"{pyproject} still declares [tool.plumb], and configuration now lives in "
-            f"{CONFIG_NAME} beside it — one file, because the core reads it for every language "
-            "and a Java project has no pyproject.toml. Move the keys across and delete the table"
-        )
+        return (f"{pyproject} still declares [tool.plumb], which is not read — configuration "
+                f"lives in {CONFIG_NAME} beside it, one file because the core reads it for every "
+                "language and a Java project has no pyproject.toml. Move the keys across and delete "
+                "the table",)
+    return ()
