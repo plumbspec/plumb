@@ -46,16 +46,69 @@ thing the citation exists to replace, and it drifts from the day it is written.
 
 ## 2. Run it in CI, and gate on the right thing
 
-    plumb board --json > board.json
+The whole recipe, as one job. It runs every step whatever the one before it said, and decides at
+the end — so a red test still gets you a board:
 
-**Gate on the exit code, never on `status`.** `0` means a board was derived, `2` that it could not be,
-`3` that the run observed nothing. A spec whose stories are all unproven on the day it is written is
-correct and exits `0`.
+    # 0. Start clean. A reused workspace must not publish an earlier run's files as this one's.
+    rm -rf artifacts && mkdir artifacts
 
-Failing the build on unproven sounds like rigour and behaves like a broken window: it goes red the
-day the spec lands, stays red while the work is done, and the team's fix is to stop running it. What
-you want red is `2` and `3` — the build could not answer, which is a real failure and one nobody can
-see any other way.
+    # 1. Your test runner, for the red/green build. Plumb does not give you this.
+    pytest && tests=0 || tests=$?             # or: mvn test, gradle test
+
+    # 2. Plumb: one run, the JSON for your tooling and the manifest it was derived from.
+    plumb board --json --emit-manifest artifacts/manifest.json > artifacts/board.json \
+        && board=0 || board=$?
+
+    # 3. Only if step 2 derived a board: a text board for the log, from the saved manifest. No
+    #    second run. --project . so it checks ids against your `specs` exactly as step 2 did.
+    if [ "$board" -eq 0 ]; then
+        plumb board --manifest artifacts/manifest.json --project .
+    fi
+
+    # 4. Only if step 2 derived a board: keep artifacts/board.json and artifacts/manifest.json
+    #    as build artifacts (your CI's upload step, conditioned on board == 0).
+
+    # 5. Now decide. Red tests fail the build; so does a board that could not be derived.
+    [ "$tests" -eq 0 ] && [ "$board" -eq 0 ]
+
+The `&& x=0 || x=$?` form records an exit code without stopping the script, including under the
+`set -e` most CI shells run with. On GitHub Actions, the same shape is two steps with
+`continue-on-error: true` and a last step that checks both outcomes; on GitLab, `after_script` or a
+final job reading both.
+
+What each step is for:
+
+- **Your runner gives the red/green.** `plumb board` exits `0` when a test fails — a failed test is
+  a complete observation whose answer is no, and it shows up on the board as `evidence.failed`. So
+  the build's pass/fail comes from your runner's own exit code, not from Plumb's.
+- **`--json` and `--emit-manifest` combine.** The JSON goes to stdout and nothing else does; the
+  runner's output, the `python: …` line and `manifest → …` go to stderr. Redirect stdout only.
+- **Gate on Plumb's exit code, never on `status`.** `0` means a board was derived, `2` that it could
+  not be — bad configuration, or a test session that never finished, such as a module that fails to
+  import — and `3` that the run observed no tests at all. Fail the build on `2` and `3`, which is
+  what step 5 does.
+- **Clear the artifacts first, and publish only on `0`.** On `2` there is no board: `board.json` is
+  empty, and Plumb removes any file at the `--emit-manifest` path before it starts, so a failed run
+  leaves no manifest rather than the last one. On `3` the JSON is a board of nothing. Neither is
+  worth uploading as this run's answer.
+- **Re-rendering is free.** `--manifest` reads the file and runs nothing, so the text board in the
+  log, and any later `--json` you need, costs no second test run. On its own it needs no
+  `plumb.toml` and no checkout; with `--project .` it reads your `plumb.toml` for `specs`, so the log
+  board names an id outside your namespaces (`spec.orphan`) exactly as the run's JSON does. Without
+  it, the two would disagree.
+- **Read `board_version` before anything else** in whatever parses `board.json`, and refuse a number
+  you do not know — see step 3.
+
+**Your suite runs twice** — once under your runner, once under Plumb's observer — and Plumb has no
+way to give you the first run's answer, because its exit code deliberately ignores test failures. If
+the second run costs more than you want on every push, run step 2 on fewer triggers (the main branch,
+or nightly) rather than dropping step 1.
+
+**Do not fail the build on unproven.** It sounds like rigour and behaves like a broken window: a
+spec whose stories are all unproven on the day it is written is correct and exits `0`, so a gate on
+status goes red the day the spec lands, stays red while the work is done, and the team's fix is to
+stop running it. What you want red is `2` and `3` — the build could not answer, which is a real
+failure and one nobody can see any other way.
 
 If you want a regression gate — *this was proven last week and is not now* — that is a question about
 history, and the board cannot answer it. See step 4.
@@ -88,7 +141,11 @@ Two fields stop a subtle class of wrong report:
 
 - **`observed_tests` may be `null`**, meaning *not reported*. It does not mean none. A consumer that
   treats it as `0` will announce that a run saw no tests when nobody counted.
-- **`mutation` may be `null`**, meaning the opt-in was off — *not asked*, not a pass.
+- **`mutation` may be `null`**, meaning *not asked* — the opt-in was off, or the story was not
+  proven and so was not mutated. Never a pass.
+- **A subject with aspects reads `status: unproven` whatever its aspects say.** It has no single
+  status, and the field is held there so a consumer reading only `status` is never shown a green
+  nobody earned. Read its `aspects` instead.
 
 ## 4. Keep a series for the questions a board cannot answer
 
@@ -97,10 +154,29 @@ anyone last look* need a history:
 
     plumb board --series history.jsonl
 
-It records what **changed**, so an unchanged run writes nothing. That is what makes it small enough to
-keep in the repository and what makes a regression gate cheap — you are reading transitions, not
-diffing snapshots. [A history beside the board](a-history-beside-the-board.md) has the shapes and what
-they mean.
+It records what **changed**, so an unchanged run appends only a one-line marker that it happened.
+That is what keeps it small and what makes a regression gate cheap — you are reading transitions,
+not diffing snapshots. `--series` is written with the text board and not with `--json`, so in the
+recipe above put it on step 3: `plumb board --manifest artifacts/manifest.json --project . --series
+history.jsonl` records the same run.
+
+**Where to keep it in CI.** A CI runner usually starts empty, and a series is a file each run
+appends to, so it needs a home that outlives the runner. The default we recommend:
+
+- **Record the history from one place only — your main branch** — not from every branch and pull
+  request. Branch runs are previews; a history fed by all of them interleaves runs of different
+  code and conflicts on every merge.
+- **If you run a holder, let it be the history.** Keep the series file *and* its `.sent` mark
+  between main-branch runs wherever your CI keeps state, and add `--push`. A CI cache is enough
+  here: losing it loses nothing the holder has, and costs one full re-send — the holder stores the
+  repeat, so `changes` on its copy reads high until it compacts. The holder is then the
+  copy that matters, and `plumb series pull` reads it back anywhere.
+- **If you do not, commit it from the main branch** — the one place the append-only file does not
+  conflict — or keep it at your desk with [sessions](command-line.md#plumb-session) and leave CI
+  without one.
+
+[A history beside the board](a-history-beside-the-board.md#keep-it-somewhere-that-survives) weighs
+every option and what each costs, and has the shapes a history takes and what they mean.
 
 ## 5. Re-run after you upgrade Plumb
 

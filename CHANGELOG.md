@@ -16,6 +16,23 @@ the credential its destination names, as it already did wherever no account was 
 `plumbspec[account]` extra is gone; nothing else needs `cryptography`. A `~/.config/plumb/account.json`
 or `root` left from before is no longer read, and is yours to delete.
 
+### An address is named where the run is
+
+`plumb.toml` never names a destination. An `endpoint` key there stops `series push` and `pull` with
+exit 2 and names the variable to set instead, rather than being read on one path and ignored on
+another. `series pull` now finds its holder exactly as `push` does, `PLUMB_SERIES_*` first, so a
+history is read back from where it was sent.
+
+**What to change.** Move an `endpoint` from `plumb.toml` to `PLUMB_ENDPOINT`, or
+`PLUMB_SERIES_ENDPOINT` for the series alone.
+
+**Fixed.** A board read with `--manifest` and `--series` no longer crashes after appending. An
+unreachable service is a message from `plumb account`, and an unreadable `plumb.toml` one from
+`series pull`, not a traceback. A copy pulled from one holder and pushed to another no longer
+carries the first holder's *fetched from* note, so the second holder's history does not read as a
+cache. `evidence.not-observed` prints its explanation and next step. `python -m plumb.series_holder`
+runs the holder. Push messages name the destination rather than a support service.
+
 ## 0.7.0 — one Python, and Java 8
 
 **One Python, not two.** Plumb needed 3.11 while your tests ran on whatever they ran on. It needs

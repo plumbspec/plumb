@@ -31,8 +31,8 @@ Every gold-spec sibling encodes status the same way, in its own runner's native 
 
 | language | build tool / runner | "built" (realized) | "unproven" (specified, unbuilt) | story citation |
 |---|---|---|---|---|
-| Python | pytest | test **passes** | `pytest.skip("UNPROVEN[…]")` → **skipped** | `@pytest.mark.proves("dev07-4-2", depth="wiring")` |
-| Java | JUnit | `@Test` **passes** | `Assumptions.abort("UNPROVEN[…]")` → **aborted** | `@Proves("dev07-4-2", depth="wiring")`, repeatable |
+| Python | pytest | test **passes** | `pytest.skip("UNPROVEN[…]")` → **skipped** | `@pytest.mark.proves("ORD-1", depth="wiring")` |
+| Java | JUnit | `@Test` **passes** | `Assumptions.abort("UNPROVEN[…]")` → **aborted** | `@Proves(value = "ORD-1", depth = "wiring")`, repeatable |
 | C#/.NET | xUnit | `[Fact]` **passes** | `[Fact(Skip="UNPROVEN[…]")]` → **skipped** | tag in name / `Skip` reason |
 
 So the **runner's own pass / skip(abort) / fail is already the status signal** in every language.
@@ -42,7 +42,7 @@ The core does not invent a status model; it *normalizes* the runner's result:
     skipped/aborted → unproven (specified, not built)
     failed        → broken (a claimed-done story regressed — a red build)
 
-Story ids stay **opaque strings** — `dev07-5-1`, `2P11`, whatever the project's scheme is. The core
+Story ids stay **opaque strings** — `ORD-1`, `2P11`, whatever the project's scheme is. The core
 never parses them; only the project's own spec and the adapter's extractor know the shape.
 
 ## What an adapter must provide
@@ -63,7 +63,7 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
    expressible — stacked markers, repeated annotations — with each story carrying its own depth
    rather than one smeared across all of them.
 
-   **`ref` is optional and belongs to the consumer, not to Plumb** (`dev07-3-1`). It carries whatever
+   **`ref` is optional and belongs to the consumer, not to Plumb.** It carries whatever
    external key the project already uses — a ticket id, a spreadsheet row — so their own systems can
    join against a citation. Plumb mints no value, enforces no uniqueness and never parses it: the
    foreign system owns that namespace and already has an identity rule. Absent is the normal case, and
@@ -72,7 +72,7 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
 
 2. **`collect_archetypes()` → [(story_id, archetype)]** where archetype ∈ {behavioral, structural},
    **defaulting to behavioral.**
-   Not read from the run. It reports what kind of claim each story makes (`dev07-4-2`), which
+   Not read from the run. It reports what kind of claim each story makes, which
    selects the gate's second check: a behavioral story must ground, a structural one must be inert.
    The project declares it in `plumb.toml` under `[archetypes]`, keyed by story id, and the
    launcher applies that table to the manifest after the run — saying so on stderr for every story
@@ -84,18 +84,18 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
    Runs the tests and reports the native result verbatim. This is what closes "a citing test ran and
    passed" — a test that is absent, skipped or aborted cannot report `passed`.
 
-   **Collapsing a multi-phase runner.** `dev07-3-1` requires the runner's own signal without translation
-   loss and is silent on runners that report a test more than once; pytest reports setup, call and
+   **Collapsing a multi-phase runner.** The runner's own signal is to be carried without translation
+   loss, and some runners report a test more than once; pytest reports setup, call and
    teardown separately, and JUnit has before/after equivalents. Two rules, both adapter-side:
 
    - **Only the phase that runs the body may report `passed`.** A green setup whose test never ran
      has proved nothing, so it normalizes to `skipped`, not `passed`. Getting this wrong is not
-     cosmetic — it manufactures exactly the fake `dev07-4-2` exists to catch, and it is easy to write
+     cosmetic — it manufactures exactly the fake the gate exists to catch — a story read as proven off a test that never ran, and it is easy to write
      by accident because the runner did emit a "passed" for that phase.
    - **Worst-wins across phases.** A test that passes its body and then errors in teardown is a
      failure. Anything else lets a story read proven off a run that did not complete.
 
-   **Run the suite the build runs, or refuse to observe it** (`dev07-1-1`). Everything this contract
+   **Run the suite the build runs, or refuse to observe it.** Everything this contract
    produces is derived from watching one execution, so a runtime you *reconstruct* is only evidence
    about the project to the extent it matches the one their build tool uses. Ask each build tool the
    question in its own terms: the JVM adapter reads a Maven reactor's `target/classes` and
@@ -110,7 +110,7 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
    than the build's manufactures failures the build does not have, and nothing in the output would
    tell the reader to doubt it.
 
-   **If your observer dies, finish the suite anyway** (`dev07-1-3`). The tests still answered; only the
+   **If your observer dies, finish the suite anyway.** The tests still answered; only the
    grounding question went unasked, and `not-checked` is what says so. Killing the run because the
    instrument failed costs the reader a whole board for a reason that is not theirs — and say which
    silence it is, because "you declared no entry points" sends a project that already did to exactly
@@ -120,7 +120,7 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
    A **language-native per-test execution trace** — the runtime's own tracing (e.g. Python's
    `sys.settrace`) yielding the test's **call tree**, **not a third-party coverage tool**. Coverage is
    their space; taking one on means tracking its versions and surface. Plumb needs only enough to answer
-   *grounding* the way chapter 3 defines it — did execution run *under* a declared entry point — with no
+   *grounding* — did execution run *under* a declared entry point — with no
    coverage dependency and no story→code map.
 
    **Degrading is not symmetric, and getting that backwards is expensive.** `inert` and
@@ -128,30 +128,29 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
    opposite things. `inert` is a *positive* proof — it is what a structural story needs — so an
    adapter that reports it on partial evidence **grants a pass nobody earned**, and must withhold
    to `dispatched` the moment it cannot account for every thread. `ungrounded` only ever
-   *withholds* status, and it is `dev07-1-4`, the orphaned-"done" check the whole tool exists for — so
+   *withholds* status, and it is the orphaned-"done" check the whole tool exists for — so
    degrading it on weak evidence trades the headline capability for a narrower correction.
 
    The rule that falls out: **withhold a positive claim on partial evidence; do not withhold a
    negative one.** Report `dispatched` in place of `ungrounded` only when you *saw* the hand-off —
    an observed `Executor.submit`, not merely a thread that happened to be alive.
 
-   The same tree answers the prior question `inert` (`dev07-1-4`): whether the test invoked **any**
+   The same tree answers the prior question `inert`: whether the test invoked **any**
    production code. It is asked first and needs no entry points, so a structural spec still gets a
    real fact rather than `not-checked`. What exactly counts as a production frame — import-time and
-   class-loading machinery are the awkward cases — is the adapter's to settle (`dev07-1-4`).
+   class-loading machinery are the awkward cases — is the adapter's to settle.
 
 5. **`entry_points() → {file: {line ranges}}`**
    The declared production surface (HTTP routes, top-level use-case functions, `main()`s). Small,
    authored per project. A story is grounded only if, in a citing test's call tree, execution runs *under*
-   one — the entry point is an ancestor of the code the test ran (chapter 3).
+   one — the entry point is an ancestor of the code the test ran.
 
 6. **`mutate(scope) → (total, killed)`** — **opt-in, default-off.**
    A **minimal in-house AST mutation** over the code a story's tests drove *under a declared entry
    point* — **no PIT / mutmut / Stryker dependency**. Each mutant runs against **every test citing
    that story**, and the result is a **score**, never a word: a story's tests routinely run far
    more code than they check, so "did any mutant survive" is `yes` almost everywhere and separates
-   nothing. It is **advisory** (equivalent mutants are false positives), never a core gate
-   (chapter 4). Expect it to cost minutes on a small project and hours on a real one — an adapter
+   nothing. It is **advisory** (equivalent mutants are false positives), never a core gate. Expect it to cost minutes on a small project and hours on a real one — an adapter
    should be able to report the mutant count *before* running, so a caller can decide.
 
    **Use the language's own parser.** Python's `ast` and Java's `com.sun.source` are both already
@@ -164,7 +163,7 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
 ## The manifest it must produce
 
 This is the whole contract. An adapter's only obligation is to emit this document; everything
-downstream — the gate, the status, the board — is the core's, and reads nothing else (`dev07-3-3`).
+downstream — the gate, the status, the board — is the core's, and reads nothing else.
 
     {
       "schema_version": "9.0",
@@ -201,15 +200,15 @@ downstream — the gate, the status, the board — is the core's, and reads noth
 
 Notes an adapter author needs and the field names do not carry:
 
-- **The story id is opaque.** `dev07-4-2`, `CM-101`, a spreadsheet row — the core never parses it and
-  needs no catalog to accept it (`dev07-3-2`).
+- **The story id is opaque.** `ORD-1`, `CM-101`, a spreadsheet row — the core never parses it and
+  needs no catalog to accept it.
 - **`archetype` is per story and comes from the spec, not the run.** It is the one field read off
   the requirement rather than the execution, and the one thing a *test* must not get to claim about
-  the story judging it (`dev07-3-2`, `dev07-4-2`). Absent means `behavioral`.
+  the story judging it. Absent means `behavioral`.
 - **`grounding` is a fact, never a verdict.** Report what the trace showed and let the gate decide.
 - **`inert` is a positive claim, and `untouched` is its opposite.** `inert`
-  means the test **read** the production artifact and ran none of it — the mirror `dev07-4-2` asks
-  for, and the only fact that proves a structural story. `untouched` means it did neither, which is
+  means the test **read** the production artifact and ran none of it — the mirror check a structural
+  story asks for, and the only fact that proves a structural story. `untouched` means it did neither, which is
   what `assert True` does. Emit `inert` only if you can actually see the read: an adapter that
   watches execution alone cannot tell the two apart, and saying `inert` anyway hands a passing
   grade to a test that touched nothing. Both shipped adapters see reads and emit the current major.
@@ -217,7 +216,7 @@ Notes an adapter author needs and the field names do not carry:
   inspecting an artifact looks like, and it is the positive proof a structural story needs.
   `not-checked` means the question could not be asked — no entry points, or no production roots.
 - **`ref` is the consumer's, not ours.** Plumb mints nothing, enforces no uniqueness and never
-  parses it (`dev07-3-1`). Absent is the ordinary case; report absence rather than inventing a value.
+  parses it. Absent is the ordinary case; report absence rather than inventing a value.
 - **One entry per (test, story) pair.** A test citing two stories produces two citations, each with
   its own depth and ref.
 
@@ -230,11 +229,11 @@ or not any of them carried a citation. It exists because every other field descr
 - a run that discovered no tests at all, because the classpath or the test path was wrong.
 
 Both have no stories, and the second is a broken run wearing the first one's clothes. With the
-count, the core can say so and `plumb board` can exit non-zero on it (`dev07-5-2`, `dev07-5-3`).
+count, the core can say so and `plumb board` can exit non-zero on it.
 
 **`null` means you could not tell, and `0` means you looked and there was nothing.** These are
 different claims and Plumb treats them differently: it raises the alarm on `0` and stays silent on
-`null`, because an adapter's silence is not evidence of an empty run (`dev07-3-3`). Report `null` if
+`null`, because an adapter's silence is not evidence of an empty run. Report `null` if
 your runner cannot tell you, and set the count only once discovery has actually happened — a run
 that died before it could look should not report that it looked and found none.
 
@@ -243,7 +242,7 @@ report zero, and put the alarm in front of exactly the people who have done noth
 
 **`survivors` is optional, and empty is not a clean sheet.** Name the mutants no test noticed —
 operator, `Class#method`, source file, line — because the reader's next move is to strengthen the
-test that missed one, and a count cannot tell twenty-seven work items apart (`dev07-2-4`). An adapter
+test that missed one, and a count cannot tell twenty-seven work items apart. An adapter
 that reports a shortfall without naming it is *older than this field*, not reporting that nothing
 survived, so `total - killed` stays the authority on how many there were. More names than shortfall
 is a contradiction and is refused.
@@ -252,33 +251,33 @@ is a contradiction and is refused.
 story's mutants include lines its tests never enter — and one of those cannot be killed however good
 the assertions are. Report `false` where you can tell the mutated expression never evaluated, `true`
 where it did, and omit the field if you cannot observe it: `null` is *not reported*, never a claim
-that the line was unreachable (`dev07-3-3`). This is not `dev07-2-4`'s equivalence, which is undecidable;
+that the line was unreachable. This is not mutant equivalence, which is undecidable;
 it is a fact a run can watch for.
 
 **`entered_through` is optional and names the entry point, where `grounding` names only that there
 was one.** `entry_points` is a single flat set for the whole project, so an entry point declared for
 one subject counts for every subject — and without the identity nothing downstream can tell a test
 that came in at the outermost entry point from one that entered at a subsystem entry point somebody
-declared for another chapter (`dev07-1-4`). Report the entry points the test entered **from outside
+declared for another part of the system. Report the entry points the test entered **from outside
 any open window**: a test that enters at the front and reaches a second declared entry point on the
 way names the first one only, so declaring another entry point never rewrites the fact for a test
 that did not change. Ordinarily one; a test driving two entrances reports both. `[]` means it
 entered by none, `null` means you cannot say.
 
 **`reached_outside_entry` is optional and reports a limit rather than a fact about depth.**
-Grounding is a property of the *test* (`dev07-1-4`), so a test that drives an entry point and then
+Grounding is a property of the *test*, so a test that drives an entry point and then
 calls unreachable code still grounds. If you can tell that a citing test also executed production
-code no entry point reached, report `true` and the board says so (`dev07-1-4`). If you cannot observe
+code no entry point reached, report `true` and the board says so (`grounding.reached-outside`). If you cannot observe
 it, report nothing. `null` is *not reported*, and is different from `false`.
 
 **A version behind is fine.** An adapter emitting an older schema than the core reads still renders
-unchanged. That asymmetry is the point of `dev07-3-2`: an adapter that cannot observe a newer field
+unchanged. That asymmetry is the point: an adapter that cannot observe a newer field
 simply omits it, rather than being locked out or inventing a value. Ask the tool which versions it
 reads rather than trusting a number written here — a refusal names the supported set, and this
 sentence would go stale the next time one is added.
 
 **Versioning, and what happens when you get it wrong.** `schema_version` is required and is the
-shape your document claims (`dev07-3-2`). The core reads the versions it knows and refuses the rest,
+shape your document claims. The core reads the versions it knows and refuses the rest,
 and the asymmetry is deliberate: a manifest *older* than the core still reads, because the core
 knows that shape; a *newer* one does not, because nothing can be inferred from a description that
 has not been written yet. Within a declared version the field set is fixed — an unrecognised key
@@ -307,7 +306,7 @@ Migration is **offered, never automatic**: a manifest is derived from a run and
 Plumb deletes any previous one before every run, so the first answer to a stale manifest is always
 *re-run your suite*. `plumb manifest migrate` is for the case where that run cannot be reproduced —
 an archived CI artifact, a decommissioned system, a handover. A migration may fill a field only
-with a value meaning *"this was not reported"* (`dev07-3-3`), so a carried-forward document can never
+with a value meaning *"this was not reported"*, so a carried-forward document can never
 gain a fact your adapter did not report.
 
 **A citation may name the aspect it is about.** A subject may declare more than one aspect
@@ -333,7 +332,7 @@ refused rather than coerced, because a time is the axis a series gets ordered on
 differently in two languages orders differently in two languages.
 
 **The instrument is on the fact.** A board may carry facts from several adapters at once, and
-`dev07-3-1` says two facts are comparable only when the same kind of observer produced them — so
+two facts are comparable only when the same kind of observer produced them — so
 each citation names its own `observer`, and there is no document-level one.
 
 Every refusal tells you what this Plumb reads. A run (`plumb board --manifest`) names the

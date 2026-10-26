@@ -44,7 +44,7 @@ drives it.
 
     @pytest.mark.proves("JIRA-4417", depth="wiring")
 
-`ORD-1`, `JIRA-4417`, `dev07-1-3`, a spreadsheet row — Plumb mints no identifiers and keeps no catalogue
+`ORD-1`, `JIRA-4417`, `REQ-3.2`, a spreadsheet row — Plumb mints no identifiers and keeps no catalogue
 of them. The id is opaque to the tool and stays whatever your organisation already calls that
 requirement.
 
@@ -99,6 +99,19 @@ doneness reading into the one place it must not go.
 **It takes no depth.** Depth is a claim the run can refute — the gate checks a claimed rung against
 what actually executed — and there is no analogue for a decision, so a depth here would be a number
 nothing could contradict. The board shows an `informs` citation no rung, rather than inventing one.
+
+**It is grounded like any other citation.** The test has to reach the code the way a request would:
+
+| the `informs` test… | grounding | the aspect reads |
+|---|---|---|
+| goes in through a declared entry point and passes | `grounded` | **holding** (a parameter: **supported**) |
+| calls the code directly and passes | `ungrounded` | `UNPROVEN` with `grounding.not-wired` |
+| asserts only on a constant or on values it built itself | `untouched` | `UNPROVEN` with `grounding.untouched` |
+| ran and failed | — | **breached** (a parameter: **refuted**) |
+
+The decision words cover only *evaluated and holding*, *fired*, *nobody is watching* and *nothing
+ran*, so the two middle rows show the plain status and the code beside it. A falsifier "checked" by a
+test that never touched the system is not holding — it is unexamined, and the board says so.
 
 ### `about` names which part you tested
 
@@ -171,32 +184,52 @@ The board shows both rungs:
 
     PROVEN   SHARED  [unit · wiring]
 
-That list is the story's **achieved vector** — the rungs it is actually proven at, derived from what
-ran. A story proven only at `unit` reads as *only* that deep, and stays visibly shallower than one
-that also reached the wired system. "Done" is a shape, not a bit.
+That list is the story's **achieved vector**: the depths claimed by its citations that **passed**
+and that the run **did not refute**. A `wiring` claim whose test never reached an entry point is
+refuted (`depth.unsupported`) and left out; a failing citation is left out. The status is a separate
+question — a behavioral story is PROVEN only when a passing citation went in through a declared entry
+point, so a story whose tests all call the code directly reads `UNPROVEN [unit]`: unit-only, and
+visibly so. "Done" is a shape, not a bit.
 
 ---
 
-## Two ways a citation quietly does nothing
+## Mistakes that pass silently
 
-Both are worth knowing because neither announces itself.
+None of these is named as a mistake. Most leave a board that looks fine; the rest are judged
+correctly and only the mistake itself goes unmentioned. If a story you expected is missing, has a
+blank or odd bracket, or reads better than you believe, check this list first.
 
-**A marker with no story id is skipped.** In Python this is silent — the test runs, nothing is
-cited, and no story appears on the board:
+- **A marker with no story id cites nothing.** `@pytest.mark.proves` on its own runs the test and
+  puts nothing on the board.
+- **A missing depth is accepted in Python.** `@pytest.mark.proves("ORD-1")` cites the story and
+  claims no rung, so a test that goes through an entry point makes it `PROVEN` with **no bracket at
+  all**. Java will not compile this, because `depth()` has no default.
+- **A misspelled depth is not named.** Nothing validates the string. The story is still judged —
+  a `depth="wirring"` test that never came in through an entry point still leaves its story
+  `UNPROVEN` with `grounding.not-wired`. What goes unsaid is the claim: `wirring` is not one of the
+  wired rungs, so it never raises `depth.unsupported`, and it appears in the bracket exactly as
+  written — `[wirring]` — whatever the test reached.
+- **A typo inside your namespace is invisible.** `specs` in `plumb.toml` catches an id outside every
+  namespace (`spec.orphan`), but `ORD-1O5` for `ORD-105` starts with `ORD` and is read as a real,
+  different story.
+- **A commented-out test cites nothing**, so its story leaves the board — absent, not unproven. A
+  **skipped** one stays, as `UNPROVEN` with `evidence.not-observed`.
+- **A test with no assertion still proves.** `main("A-1")` with nothing after it goes through the
+  entry point and passes, so the story reads `PROVEN [wiring]`. Grounding proves the code ran;
+  only mutation asks whether the test checked anything.
+- **Fixtures are not watched the way the test body is.** Setup is observed only for what it reads.
+  Production code a fixture *runs* — a collaborator it builds, a service it starts — is not seen as
+  executed. Build that collaborator in the test body without going through an entry point and the
+  story carries `grounding.reached-outside`; build the same one in a fixture and nothing is said,
+  even when the test asserts on what it produced.
 
-    @pytest.mark.proves                  # cites nothing at all
-    def test_something(): ...
-
-**A missing depth is accepted in Python.** The story is cited and rendered with no depth against it.
-Java will not compile this, because `depth()` has no default — so the two languages disagree today,
-and Python is the lenient one:
-
-    @pytest.mark.proves("ORD-1")         # cited, but claims nothing about how deep
-
-Neither is an error you will be told about. If a story you expected is missing from the board, or
-appears with a blank depth, look at the citation first.
-
----
+  **Both are legitimate when the story is about what the entry point does.** Building the
+  collaborator is arranging the world the call happens in; the claim is the call through the entry
+  point and what it returns, and that is what grounding checks. So `grounding.reached-outside` from
+  setup in the test body is a prompt to confirm the assertion is about the entry point's result, not
+  a fault — and moving the setup into a fixture is fine for the same reason, not a way around the
+  check. What is not fine, in either place, is asserting on something only the setup produced: then
+  the claim rests on code no entry point ran, and the story says more than the run showed.
 
 ## Register the marker to silence pytest
 
@@ -218,6 +251,15 @@ Java needs no equivalent — the annotation is a real type, so your compiler alr
 Plumb registers both markers itself while it is driving the run, so this matters only for the
 `pytest` you run directly — and it matters more than a warning suggests, because a project with
 `--strict-markers` on turns that warning into a failure.
+
+**Already cite requirements under another marker name?** Tell Plumb rather than renaming every
+citation:
+
+    [python]
+    marker = "requirement"
+
+`informs` is read whatever this says. A run that finds no citations under the configured name, and
+does find other markers carrying a string, names them and suggests this setting.
 
 ---
 

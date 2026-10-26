@@ -22,6 +22,7 @@ knowing which ones cancel each other out.
     plumb modules                                      what is mounted, and what it reaches
     plumb account    {open|redeem} [--endpoint URL]
     plumb series     {show|pull|push} FILE [--subject ID] [--project DIR] [--enrolment FILE] [--dry-run]
+    plumb support    …                                 only when a support module is installed
 
 `plumb registry` is a signpost rather than a command — see [below](#plumb-registry).
 
@@ -53,10 +54,9 @@ knowing which ones cancel each other out.
         watch production code    from the file
         build a manifest                |
                   |                     |
-      --mutation  |                     |   needs no project,
-      --project   |                     |   no config, no run
-      --emit-manifest apply             |
-      ONLY here   |                     |
+      --mutation  |                     |   needs no project and
+      --emit-manifest apply             |   no run; reads plumb.toml
+      ONLY here   |                     |   only with --project
                   +----------+----------+
                              |
                         the gate
@@ -81,13 +81,13 @@ Runs your tests, watches your production code, and prints what each story's stat
 |---|---|
 | `--json` | the board as JSON instead of the text board, in the format [The board, as JSON](consuming-the-board.md) documents. The text board is the default |
 | `--manifest FILE` | **skip the test run** and derive from a saved manifest. Repeatable: give it more than once to board several manifests together |
-| `--emit-manifest FILE` | save the manifest this run produced |
-| `--mutation` | also check the tests would notice if the code changed. In `--json`, each story's `mutation` carries `total`, `killed`, `survived`, `unreached` and a `survivors` list of `{operator, where, file, line, reached}`. **`unreached` counts survivors no citing test evaluated** — scope is per method, so a story gets mutants on paths its tests never enter, and those could not have been killed by any assertion. A ratio that mixes them answers neither question |
-| `--survivors` | after the board, list the mutants no test noticed — once each, with how many stories scoped them. Off by default: a survivor sits in every story that reached its method, so printing them per story repeats one work item many times and buries the verdicts |
-| `--tests` | list every test the run observed and what it grounded, instead of counting them. Off by default: on a mature suite the citing tests are a small minority, so the recital buries the verdict — the board's output should scale with the spec, not with the suite. Turn it on when a board is not what you expected and you need the per-test fact |
+| `--emit-manifest FILE` | save the manifest this run produced. Any file already at FILE is removed before the run starts, so a run that cannot board (exit `2`) leaves no manifest there rather than the previous run's |
+| `--mutation` | also check the tests would notice if the code changed. Only proven stories are mutated; the rest read `mutation: null`. **It edits your source files in place** while it runs and puts each back — see [what mutation does to your files](what-to-expect.md#what-mutation-does-to-your-files). In `--json`, each story's `mutation` carries `total`, `killed`, `survived`, `unreached` and a `survivors` list of `{operator, where, file, line, reached}`. **`unreached` counts survivors no citing test evaluated** — scope is per method, so a story gets mutants on paths its tests never enter, and those could not have been killed by any assertion. A ratio that mixes them answers neither question. **It is `null` — not reported — whenever any survivor's `reached` is `null`**, which is every Python survivor: the Python adapter does not observe reach, and `0` would claim every survivor was reached. The text board says `never reached: not reported` |
+| `--survivors` | after the board, list the mutants no test noticed — once each, as `file:line  operator · where  (ORD-1, ORD-4)`, naming the stories whose tests missed it (the first eight, then how many more). Off by default: a survivor sits in every story that reached its method, so printing them per story repeats one work item many times and buries the verdicts |
+| `--tests` | list every citing test and what it grounded, one line each on stderr — `python: grounded    tests/test_orders.py::test_wired`, and `java: …` for a JVM run — instead of counting them. Off by default: on a mature suite the citing tests are a small minority, so the recital buries the verdict — the board's output should scale with the spec, not with the suite. Turn it on when a board is not what you expected and you need the per-test fact |
 | `--scope NAMESPACE` | show only stories whose id begins with NAMESPACE |
-| `--project DIR` | read `plumb.toml` from somewhere other than here |
-| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not (`dev07-6-1`). Opt-in and never a side effect. An unchanged run appends no transitions, only a marker recording that the run happened. Written with the text board; with `--json` nothing is appended, so `--json` never mutates anything |
+| `--project DIR` | read `plumb.toml` from somewhere other than here. With `--manifest`, `plumb.toml` is read **only** when `--project` is given — see below |
+| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not. Opt-in and never a side effect. An unchanged run appends no transitions, only a marker recording that the run happened. Written with the text board, from a run or from `--manifest`; with `--json` nothing is appended, so `--json` never mutates anything |
 | `--push` | with `--series`, also send what the holder has not been given. Reports and **never fails the board** if the holder is unreachable — a board is derived from a run and complete without the network, so an outage must not turn a build red for a reason unrelated to the project. Same work as `plumb series push`, triggered here instead of separately |
 | `--enrolment FILE` | with `--push`, the enrolment file to fall back on (default `~/.config/plumb/enrolment.json`). Read only when the environment names no destination for series — see [Environment](#environment) |
 | `PATH …` | anything after the options is passed to pytest, e.g. a path to limit collection. Put `--` first to pass pytest its own flags: `plumb board -- -k orders`. Python only |
@@ -99,12 +99,24 @@ Runs your tests, watches your production code, and prints what each story's stat
 
     cd /tmp && plumb board --manifest ~/saved.json     # works
 
+**Add `--project DIR` to check the ids against that project's namespaces.** A saved manifest does not
+carry your `specs`, so without a project the board never says `spec.orphan` — and a log board
+rendered from the run's manifest would disagree with the run's own JSON. Told the project, Plumb
+reads its `plumb.toml` for `specs` and for the decision and parameter ids it declares, and the board
+matches the run's:
+
+    plumb board --manifest artifacts/manifest.json --project .
+
+Only when told. A `plumb.toml` that happens to be in the current directory is **not** read for a
+`--manifest` board: the manifest may be another project's, and checking it against your namespaces
+would name its ids as orphans.
+
 That is what makes a board reproducible: the manifest is the evidence, and rendering it twice gives
 the same answer twice.
 
-**So `--manifest` cancels the options that belong to a run.** `--mutation`, `--project`,
+**So `--manifest` cancels the options that belong to a run.** `--mutation`, `--tests`,
 `--emit-manifest` and anything passed to the runner only apply on the run path. Give `--manifest` and
-they do nothing. Use `--series` and `--push` on the run path too.
+they do nothing. `--series` and `--push` work on either path, with the text board.
 
 > **Sharp edge:** `plumb board --manifest a.json --emit-manifest b.json` writes **no file** and says
 > nothing about it. `--emit-manifest` is silently ignored when you are not running. If you wanted a
@@ -122,6 +134,10 @@ they do nothing. Use `--series` and `--push` on the run path too.
 
 That asymmetry is deliberate. A flag that could switch mutation *off* would make the board depend on
 how it was invoked, and two people running "the same" command would get different answers.
+
+**`--json` and `--emit-manifest` combine** — one run, both files:
+
+    plumb board --json --emit-manifest artifacts/manifest.json > artifacts/board.json
 
 **`--scope` is a view, never a gate.** A repository can carry more than one spec — a product spec and
 an operations spec, say — and `--scope OPS` shows one of them. Every story reads exactly what it reads
@@ -145,6 +161,10 @@ and a Python module path are not the same kind of name, so they cannot be shared
     adapter = "java"
     production = ["com.example.app.*"]
     sources = ["src/main/java"]
+
+Each block's own language table goes under it — `[adapters.java]`, `[adapters.python]`; a top-level
+`[java]` is not read once you use blocks. [Configuration](configuration.md#more-than-one-language-adapters)
+has the full shape.
 
 A Java project whose modules compile separately names every root it wants boarded:
 
@@ -199,19 +219,28 @@ is finite, and this is it:
 | `depth.unsupported` | a citation claims it reached the wired system and its execution never did |
 | `aspects.per-aspect` | it has more than one aspect, so it has no single status — read the aspects |
 | `evidence.none` | nothing cites it — an absence of evidence, and the correct reading of a fresh spec |
-| `evidence.failed` | something cites it, **ran**, and did not pass — the one unproven that is a *result* rather than a gap |
+| `evidence.failed` | a citation **ran** and did not pass — a *result* rather than a gap. Raised beside any other condition and on any status, so a failing test is never hidden behind another reason — not even when another citation proved the story |
 | `evidence.not-observed` | something cites it and **never ran** — no evidence at all, not evidence against |
-| `grounding.not-wired` | every citation **passed** and none reached the wired system — proved of the implementation alone |
+| `grounding.not-wired` | the citations that **passed** reached nothing wired — what ran was the implementation on its own |
 | `grounding.inert` | every citation **passed** without executing the implementation at all |
 | `grounding.untouched` | the citing test neither ran the production artifact nor read it — `assert True` lands here |
 | `structural.executed` | a structural subject's citing test ran production code, so it exercised the shape rather than reading it |
 | `observation.none` | no tests were observed at all, so there was nothing to derive from |
 | `observation.uncited` | tests ran and none of them cited a subject — nothing claimed yet, or citations that could not be read |
-| `spec.orphan` | a story id belongs to no declared spec — outside every namespace in `specs` |
+| `spec.orphan` | a story id belongs to no declared spec — outside every namespace in `specs`. Carried on that story, and once for the run |
 | `adapter.absent` | an adapter this project declares did not run, so a language is missing |
 | `observation.failed` | the instrument was declared and never reached your code, so grounding is `not-checked` everywhere — for the instrument's reason, not yours |
 | `unlock.grounding` | stories passed whose wiring was never checked — declaring entry points would gate them |
 | `unlock.mutation` | stories are proven and nothing has checked their tests assert anything |
+
+**On the text board each condition is printed once, followed by the stories it is about** — the
+first eight, then a count:
+
+    1 story  [grounding.not-wired]  ORD-2
+    2 stories  [spec.orphan]  PAY-1, PAY-7
+
+A condition about the run itself is headed `this run` instead. In `--json` a story's conditions are on
+the story, and the run's in the top-level `conditions`.
 
 **Every code resolves to its prose in the tool itself.** A board carries `what`, `next_step` and
 `example` beside each code, in the text board and in `--json` alike, and resolving them needs no
@@ -234,7 +263,7 @@ author who has done the most work told the least, which is why the code is print
 status.
 
 **A subject may say its status in its own words.** The status codes above never change — they are
-what a consumer keys off (`dev07-5-2`) — but a *decision* or a *parameter* is not a story, and `proven`
+what a consumer keys off — but a *decision* or a *parameter* is not a story, and `proven`
 is the wrong word for a claim about the future. Declare a `lexicon` in your feed and the board says
 the word beside the code:
 
@@ -276,7 +305,7 @@ could give you. Run it.
 `3` exists because the other two could not tell you the difference between these:
 
     $ plumb board --json        # a healthy project, nothing cited yet
-    { "observed_tests": 38, "stories": {}, "conditions": [] }
+    { "observed_tests": 38, "stories": {}, "conditions": [{"code": "observation.uncited", ...}] }
 
     $ plumb board --json        # a broken classpath, finding no tests at all
     { "observed_tests": 0, "stories": {}, "conditions": [{"code": "observation.none", ...}] }
@@ -291,7 +320,9 @@ test module, a missing `conftest` dependency, and your runner stops collecting. 
 observed either way, but only one of them looked:
 
     $ plumb board            # a test module fails to import
-    the test session did not complete (pytest exit 2), so no board can be derived from it
+    the test session did not complete (pytest exit 2), so no board can be derived from it — …
+    … your runner's own report of the error …
+    the Python adapter failed under /usr/bin/python3 (exit 2)
     $ echo $?
     2
 
@@ -302,12 +333,23 @@ completely broken suite is indistinguishable from routine incompleteness.
 A suite that *ran* and failed is a different thing entirely and still exits `0`. That is a complete
 observation whose answer happens to be no, and it belongs to your test runner.
 
-> **If you are putting this in CI:** the default is already right. `plumb board` fails the step when
+> **If you are putting this in CI:** the default is already right, and [Integrating with your
+> tooling](integrating-with-your-tooling.md#2-run-it-in-ci-and-gate-on-the-right-thing) has the
+> whole recipe. `plumb board` fails the step when
 > it could not observe — nothing collected, or a session that never finished — and passes it when it
 > observed something, whatever the board then says about proof. You do not need to grep the log.
 
 An adapter that cannot report how many tests it saw emits `observed_tests: null`, and Plumb will
 **not** exit `3` on it — silence is not evidence of an empty run. Both shipped adapters report it.
+
+**`observed_tests` counts the tests the runner collected**, before your own filters. A run narrowed
+with `-k` or `-m` until nothing is selected still collected its tests, so it exits `0`, and every
+cited story reads `evidence.not-observed` — its tests were found and not run:
+
+    $ plumb board -- -k nomatch      # exits 0; each story: unproven, evidence.not-observed
+
+Exit `3` is for a runner that found nothing at all — a test path or classpath pointing somewhere
+the tests are not.
 
 ### Putting them together
 
@@ -316,6 +358,7 @@ An adapter that cannot report how many tests it saw emits `observed_tests: null`
     plumb board --emit-manifest run.json          # run, and keep the evidence
     plumb board --manifest run.json               # re-render that evidence, anywhere, instantly
     plumb board --manifest run.json --json        # …as JSON, for a tool
+    plumb board --json --emit-manifest run.json   # JSON now, and the evidence kept
     plumb board --project ../other-repo           # run against a different project
 
 **A useful pairing:** emit once, render many times.
@@ -333,6 +376,10 @@ any language.
 | Option | What it does |
 |---|---|
 | `--project DIR` | set up a project other than this directory |
+
+It ends by printing what is still to do — on a fresh project, naming your `entry_points` — and how
+to cite a first story. It writes no `specs`. Every key it can write, and the ones it leaves to you,
+are in [Configuration](configuration.md).
 
 **It never overwrites.** Run it twice and the second run reports what it kept. A file it wrote once
 belongs to your project from the moment it lands.
@@ -429,16 +476,17 @@ What lands is a series like any other, so `plumb series show` reads it.
 
 | Option | What it does |
 |---|---|
-| `--subject ID` | which series to ask for. Without it: the subject the enrolment carries, else `subject` in `plumb.toml` |
-| `--project DIR` | the project whose `plumb.toml` names the subject |
-| `--enrolment FILE` | the enrolment file to ask under (default `~/.config/plumb/enrolment.json`) |
+| `--subject ID` | which series to ask for. Without it: the subject the destination carries, else `subject` in `plumb.toml` |
+| `--project DIR` | the project whose `plumb.toml` names the subject. Without it, the project that owns the directory you are writing to — the nearest `plumb.toml` at or above it — so `plumb series pull ../copy.jsonl` from inside a project reads the *parent's* `plumb.toml`. Pass `--project .` to be explicit |
+| `--enrolment FILE` | the enrolment file to fall back to (default `~/.config/plumb/enrolment.json`) |
 
-**Where `pull` asks** is resolved differently from `push`: it reads `PLUMB_CREDENTIAL` with
-`PLUMB_ENDPOINT`, or the enrolment file, and does not read the `PLUMB_SERIES_*` variables.
+**Where `pull` asks** is resolved exactly as `push` resolves where to send: `PLUMB_SERIES_*`, then
+the machine-wide pair, then the enrolment file. The endpoint is the holder's **base URL**; the client
+asks `<endpoint>/series/<subject>`.
 
 Exits `1` when the holder has nothing for that subject, cannot be reached, or nothing names where to
-ask — and writes no file — an empty one would read
-as *nothing happened*, which is the answer this whole chapter exists to keep apart from *we no
+ask, and `2` when the project's `plumb.toml` cannot be read — and writes no file — an empty one would read
+as *nothing happened*, which is the answer a history exists to keep apart from *we no
 longer hold it*.
 
 **Retrieval is not a read-only convenience.** It is the signal eviction ranks on, so
@@ -454,13 +502,16 @@ Sends what the holder has not been given yet, to the destination named for serie
 
 | Option | What it does |
 |---|---|
-| `--dry-run` | print exactly the records a push would send, and send nothing |
-| `--project DIR` | the project whose `plumb.toml` names the subject (default: the project the series file lives in) |
+| `--dry-run` | print the number of records a push would send and each one as JSON — the origin stamp, every transition with its subject, test, result and grounding, and the run markers — and send nothing. Needs no destination and no subject |
+| `--project DIR` | the project whose `plumb.toml` names the subject (default: the project the series file lives in — the nearest `plumb.toml` at or above it) |
 | `--enrolment FILE` | the enrolment file to fall back on when the environment names no destination (default `~/.config/plumb/enrolment.json`) |
 
-**It needs a subject** — which series, inside the store the credential owns. It is taken from the
-destination (`PLUMB_SERIES_SUBJECT`, `PLUMB_SUBJECT`, or the enrolment's `subject`), else from
-`subject = "…"` in the project's `plumb.toml`. With none, it says so rather than guessing one:
+**It needs a subject, so set one before the first push** — which series, inside the store the
+credential owns. It is taken from the destination (`PLUMB_SERIES_SUBJECT`, `PLUMB_SUBJECT`, or the
+enrolment's `subject`), else from `subject = "…"` in the project's `plumb.toml`. A holder you run
+yourself accepts lowercase letters, digits and hyphens. The records go to
+`<endpoint>/series/<subject>`, where the endpoint is the holder's base URL. With no subject, it says
+so rather than guessing one:
 
     $ plumb series push series.jsonl
     series: not pushed — no subject to push under: name one with `subject = "…"` in plumb.toml. ...
@@ -481,10 +532,15 @@ order and the mark moves after each one, so a push interrupted halfway leaves ex
 did not arrive.
 
     $ plumb series push series.jsonl
-    series: not pushed — support service unreachable: <urlopen error [Errno 111] Connection refused>
+    series: not pushed — destination unreachable: <urlopen error [Errno 111] Connection refused> — sending to https://holder.example/series/acme-api, named by PLUMB_SERIES_ENDPOINT and PLUMB_SERIES_CREDENTIAL
+
+The address and where it was named come with it — the capability's variables, the machine-wide
+`PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL`, or the enrolment file's path — so a wrong address reads
+differently from a holder that is down. `pull` says the same when it cannot reach the holder.
 
 Exits `0` whenever the series file exists, including when the holder was down or nothing was
-named, and `1` when there is no series at that path. A board is derived
+named, `1` when there is no series at that path, and `2` when the project's `plumb.toml` cannot be
+read. A board is derived
 from a run and is complete without the network, so an outage must never turn a build red for a
 reason that has nothing to do with the project.
 
@@ -493,8 +549,7 @@ reason that has nothing to do with the project.
 ## `plumb modules`
 
 What is mounted, what each module adds, what surfaces it speaks and whether it reaches the network
-— the list `dev08-1-2` exists to make readable, so trusting a module is a decision over what it declares
-rather than a hope.
+— so trusting a module is a decision over what it declares rather than a hope.
 
     $ plumb modules
       series 1.0.0  verbs: series (push|show|pull)  speaks: series 1  network: yes
@@ -603,8 +658,10 @@ collected by an artifact upload, a cache action or a debug step that archives th
 variable cannot. The file is the right primitive where secrets genuinely arrive as files —
 Kubernetes mounts, Vault templating.
 
-`plumb account` reads `PLUMB_ENDPOINT` when `--endpoint` is not given. `plumb series pull` reads the
-machine-wide pair or the enrolment file, not the `PLUMB_SERIES_*` variables.
+`plumb account` reads `PLUMB_ENDPOINT` when `--endpoint` is not given. `plumb series pull` finds its
+holder exactly as push does, so a history is read back from where it was sent. `plumb.toml` never
+names an address: an `endpoint` key there stops `series push` and `pull` with exit `2`, naming the
+variable to set instead.
 
 ---
 
@@ -614,14 +671,14 @@ So you can decide what to back up and what to carry to a new machine. One thing 
 irreplaceable — your series; everything else is either in your repository already, a credential you
 can be issued again, or rebuilt on demand.
 
-**In your project** — your version control already carries all of it.
+**In your project.**
 
 | Path | What it is |
 |---|---|
-| `plumb.toml` | your declaration — the whole of what `plumb init` may write |
-| the `cursor` file | the handoff between two sessions (default `.plumb/next-session.txt`) |
-| the `series` store | **irreplaceable** — every transition, losslessly. A run that was not recorded cannot be recovered from a later one |
-| `<series>.sent` | how far that history has been transmitted |
+| `plumb.toml` | your declaration — the whole of what `plumb init` may write. Commit it |
+| the `cursor` file | the handoff between two sessions (default `.plumb/next-session.txt`). Commit it |
+| the `series` store | **irreplaceable** — every transition, losslessly. A run that was not recorded cannot be recovered from a later one. Commit it, or push it to a holder — see [Committing the history](a-history-beside-the-board.md#committing-the-history) |
+| `<series>.sent` | how far that history has been handed to a holder, as a sequence number in the series file's own numbering. **Keep it with the series** — commit it if you commit the series, and let it survive wherever the series survives. Losing it loses no record, but the next push re-sends the whole history and a holder stores the repeat, so `changes` on the holder's copy reads high until the holder compacts |
 
 **Outside your project** — the half a repository does not carry.
 
@@ -629,7 +686,7 @@ can be issued again, or rebuilt on demand.
 |---|---|---|
 | `~/.config/plumb/enrolment.json` | an enrolment, file form — written by `plumb account redeem`, or issued by a holder's operator. **This one carries a credential** | yes; marked `SECRET`, and **shared** across every project pushing to that holder |
 | `~/.local/state/plumb/` | a session's opening reading, keyed by project path | no — scratch; a session that loses it is simply told its delta cannot be computed |
-| `~/.cache/plumb/` | a per-version cache, and under `runs/` each project's latest run file and manifest | no — rebuilt when missing |
+| `~/.cache/plumb/` | a per-version cache, and under `runs/` each project's latest run file and manifest, in a directory named from a hash of the project's path — `plumb footprint` prints this project's | no — rebuilt when missing |
 
 Each honours its `XDG_*` variable.
 
@@ -638,7 +695,9 @@ Each honours its `XDG_*` variable.
     $ plumb footprint
 
 prints the same list with **your** paths filled in, which this page cannot: every location honours
-its `XDG_*` variable, so where your enrolment actually sits is a property of your machine.
+its `XDG_*` variable, so where your enrolment actually sits is a property of your machine. Each
+entry is marked `present` or `absent` — whether it is on this machine now — and the cache entry
+names this project's own directory under `runs/`.
 
 | Option | What it does |
 |---|---|
@@ -670,7 +729,7 @@ One thing nothing else holds, so it is the one to point your backup at:
 
 | | |
 |---|---|
-| your **series** | every transition, losslessly. A run that is not recorded cannot be recovered from a later one — and it commonly sits inside the project *and* is git-ignored, so a rule about tracked files will miss it |
+| your **series** | every transition, losslessly. A run that is not recorded cannot be recovered from a later one. Committed, your repository carries it; if you git-ignore it instead, a backup rule about tracked files will miss it |
 
 ## `plumb session`
 
@@ -685,14 +744,17 @@ What the last session left, whether the ground is sound, and a reading to measur
 
     $ plumb session start
       cursor    .plumb/next-session.txt
-      next      a pulled copy names the holder it came from
-      ref       dev07-6-3
-                the holder's half is in; the client still writes an unlabelled file.
+      next      refunds reach the ledger
+      ref       ORD-14
+                the handler is in; the ledger client still swallows the error.
       ground    clean
       board     117 unproven of 190
-      target    dev07-6-3 is unproven
+      target    ORD-14 is unproven
 
       When you are done:  plumb session wrap-up --next '…' --ref … --context '…'
+
+`board` counts stories only: a subject read per aspect has no single status, so it is in neither
+number, and the session delta never counts one as proven or lost.
 
 It refuses nothing. A dirty tree, a missing cursor and a reference that resolves to nothing are all
 *reported* — the cost of a wrong open lands on you, who can see it. There is no cursor on a first
@@ -703,12 +765,12 @@ session that never wrapped leave identical evidence, so the tool names both inst
 
 The delta since the open, and the gate.
 
-    $ plumb session wrap-up --next 'settle dev00-1-2' --ref dev00-1-2 --context 'the JVM adapter needs it first'
+    $ plumb session wrap-up --next 'partial refunds' --ref ORD-15 --context 'the ledger needs a split entry first'
       board     115 unproven of 199
       session   +2 proven since 2026-08-05T09:14:00+00:00
-                + dev07-6-3
-                + dev03
-      cursor    set → dev00-1-2
+                + ORD-14
+                + ORD-9
+      cursor    set → ORD-15
 
       OK — commit .plumb/next-session.txt; the next session runs: plumb session start
 
@@ -778,7 +840,7 @@ kept beside it as `enrolment.json.replaced`. The link is spent by the answer.
 | `--endpoint URL` | the service to send to. Without it, `PLUMB_ENDPOINT` |
 
 Exits `0` on success, `1` when neither `--endpoint` nor `PLUMB_ENDPOINT` names a service, and `2`
-when the service refuses, with its answer printed.
+when the service refuses, with its answer printed, or cannot be reached.
 
 ### Running a holder
 
@@ -797,8 +859,9 @@ backlog, no board turns red, and nothing already held is discarded. Filling a sh
 exceeding a quota, it is taking out the neighbours; and paying for our shortage by deleting
 somebody's history would spend the custody the store exists to provide.
 
-`--pool` is the total it may hold. `--compact-above` is how much churn a series may carry before it
-is collapsed into a fresh base. See [Running a holder](running-a-series-holder.md) for what each
+`--pool` is the total it may hold. `--compact-above` (default `2`) compacts a series once it holds
+more than that many records per fact it currently says; a compacted series keeps, for each fact,
+when it last changed, and the last run marker, and drops the changes in between. See [Running a holder](running-a-series-holder.md) for what each
 refusal means.
 
 ---
@@ -836,6 +899,7 @@ the ambiguity you saved.
 ## See also
 
 - [Getting started](getting-started.md) — install to first proven story
+- [Configuration](configuration.md) — every `plumb.toml` key
 - [What to expect the first time](what-to-expect.md) — the surprises, with reasons
 - [Running a holder](running-a-series-holder.md) — the operator's side: disk limits, refusals
 - [Testing depth](testing-depth.md) — what `depth` claims mean

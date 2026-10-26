@@ -155,7 +155,9 @@ def render(found: Detected) -> str:
         "",
         "# What counts as production code, in your language's own spelling.",
         f"production   = {_toml_list(found.production)}",
-        "# Where that code's source lives — mutation needs the files, not the compiled form.",
+        ("# Where that code's source lives — mutation needs the files, not the compiled form."
+         if found.adapter == JAVA else
+         "# Where that code's source lives. Read only by Java mutation; a Python run ignores it."),
         f"sources      = {_toml_list(found.sources)}",
         "",
         "# Where the wired system begins: the handful of places a real request enters.",

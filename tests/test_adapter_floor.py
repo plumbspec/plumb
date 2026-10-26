@@ -124,6 +124,37 @@ def test_everything_the_artifact_carries_parses_at_the_tool_floor():
     assert not refused, f"syntax newer than the declared floor {floor}: {refused}"
 
 
+def test_the_tool_postpones_annotations_wherever_its_floor_predates_them():
+    """`X | None` in an annotation is evaluated when the function is defined, so below 3.10 a module
+    that writes one without postponing annotations fails to import — on the floor alone, and never
+    on the interpreter the suite usually runs under. Held over everything the artifact carries,
+    not only what the adapter loads."""
+    floor = tool_floor()
+    if floor >= (3, 10):
+        pytest.skip(f"floor {floor} evaluates `X | None` natively")
+
+    def unions(tree) -> bool:
+        annotations = []
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                args = node.args
+                annotations += [a.annotation for a in
+                                args.posonlyargs + args.args + args.kwonlyargs
+                                + [args.vararg, args.kwarg] if a is not None and a.annotation]
+                annotations.append(node.returns)
+            elif isinstance(node, ast.AnnAssign):
+                annotations.append(node.annotation)
+        return any(isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr)
+                   for a in annotations if a is not None for n in ast.walk(a))
+
+    missing = []
+    for name, path in sorted(shipped().items()):
+        text = path.read_text(encoding="utf-8")
+        if "from __future__ import annotations" not in text and unions(ast.parse(text)):
+            missing.append(name)
+    assert not missing, f"`X | Y` annotations without postponing them below {floor}: {missing}"
+
+
 def test_nothing_the_artifact_carries_uses_an_api_newer_than_the_tool_floor():
     """The vendored parser is in scope. It is carried rather than installed, so it ships."""
     floor = tool_floor()

@@ -88,7 +88,8 @@ def _run_adapter(config: Config, pytest_args: list, mutation: bool,
     if config.adapter == JAVA:
         return _java(config, mutation=mutation or config.mutation, report=report, tests=tests)
     if config.adapter == PYTHON:
-        return _python(config, pytest_args, mutation=mutation or config.mutation, report=report), False
+        return _python(config, pytest_args, mutation=mutation or config.mutation, report=report,
+                       tests=tests), False
     raise LaunchFailed(f"no adapter named {config.adapter!r}")
 
 
@@ -134,7 +135,7 @@ def _scope(config: Config, manifest: Manifest, report: Callable[[str], None] | N
 
 
 def _python(config: Config, pytest_args: list[str], *, mutation: bool,
-            report: Callable[[str], None] | None) -> Manifest:
+            report: Callable[[str], None] | None, tests: bool = False) -> Manifest:
     """Always the project's own interpreter, over a run file, out to a manifest.
 
     The adapter imports the project's code and its test framework, so it has to run where those
@@ -180,7 +181,17 @@ def _python(config: Config, pytest_args: list[str], *, mutation: bool,
     if child.returncode != 0 or not manifest_path.is_file():
         raise LaunchFailed(
             f"the Python adapter failed under {interpreter} (exit {child.returncode})")
-    return Manifest.read(manifest_path)
+    manifest = Manifest.read(manifest_path)
+    if tests:
+        # The per-test fact, named — what a reader needs when a board is not what they expected
+        # (`dev07-3-2`), the same as the Java path gives.
+        seen = {}
+        for story in manifest.stories.values():
+            for cited in story.citations:
+                seen.setdefault(cited.test, cited.grounding)
+        for test, grounding in sorted(seen.items()):
+            say(f"python: {grounding:<11} {test}")
+    return manifest
 
 
 def _scratch(config: Config) -> Path:

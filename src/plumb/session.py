@@ -179,6 +179,15 @@ def difference(before: Reading, after: Reading) -> Delta:
     return Delta(tuple(sorted(now - was)), tuple(sorted(lost)), before.proven, after.proven)
 
 
+def statuses(board) -> dict[str, str]:
+    """Each story's status, as a reading records it (`dev10-2-ur3`).
+
+    A subject read per aspect has no status of its own, so it is not a story that is unproven and
+    is left out rather than counted as one.
+    """
+    return {sid: verdict.status for sid, verdict in board.verdicts.items() if not verdict.aspects}
+
+
 def take_reading(config, project: Path):
     """Run the project's own board and record what it found (``dev03-2``, ``dev03-3``).
 
@@ -194,9 +203,9 @@ def take_reading(config, project: Path):
 
     with contextlib.redirect_stdout(sys.stderr):
         manifest, absent, blind = produce(config, report=lambda line: None)
-    board = Board.render(manifest, config.specs, absent, blind, rendered_by=__version__)
-    statuses = {sid: verdict.status for sid, verdict in board.verdicts.items()}
-    return Reading(statuses, datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    board = Board.render(manifest, config.specs, absent, blind, rendered_by=__version__,
+                         declared=config.declared)
+    return Reading(statuses(board), datetime.now(timezone.utc).isoformat(timespec="seconds"),
                    __version__, _series_seq(config, project)), manifest
 
 
@@ -214,13 +223,24 @@ def _series_seq(config, project: Path) -> int:
 
 
 def since(config, project: Path, seq: int) -> list:
-    """The transitions a history recorded after ``seq`` — exactly this session's (``dev10-3``)."""
+    """The transitions a history recorded after ``seq`` — exactly this session's (``dev10-3``).
+
+    Only `Entry` records: a store also holds run markers, its origin stamp and discarded ranges, and
+    none of those is a fact changing. ``seq`` of -1 is a session that opened before the store
+    existed, so everything in it is this session's.
+    """
     from plumb.core import series
 
     path = _series_path(config, project)
-    if path is None or not path.exists() or seq < 0:
+    if path is None or not path.exists():
         return []
-    return [entry for entry in series.read(path) if getattr(entry, "seq", 0) > seq]
+    return [entry for entry in series.read(path)
+            if isinstance(entry, series.Entry) and entry.seq > seq]
+
+
+def transitions(config, project: Path) -> int:
+    """How many transitions a history holds — facts changing, not run markers (``dev10-3``)."""
+    return len(since(config, project, -1))
 
 
 def volatile(config, project: Path, limit: int = 3) -> list:

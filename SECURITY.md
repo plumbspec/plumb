@@ -158,8 +158,10 @@ Worth knowing before pointing it at anything you care about:
 - **Mutation edits your source in place**, one file at a time, and restores it. It is off by
   default. Before each edit the original is written to `.plumb-mutation-rescue`, and a run killed
   mid-mutant is repaired by the next run *before its tests execute*. On Java each mutant is also
-  compiled into your build output, and the original is recompiled when it is put back. Run it on a
-  clean working tree anyway; that is what version control is for.
+  compiled into your build output, and the original is recompiled when it is put back. While it
+  runs, do not edit those files, stop file watchers and hot reloaders pointed at the project — they
+  see every mutant — and never run two mutation passes in one working tree. Run it on a clean
+  working tree anyway; that is what version control is for.
 - **Nothing is transmitted** unless a destination is named for the capability doing the sending —
   in the environment of the run, or in an enrolment file — and the core sends a run history only
   when asked: `plumb board --series FILE --push`, or `plumb series push`. `plumb series push

@@ -43,7 +43,7 @@ from typing import Callable
 
 from plumb.adapters.python.mutants import Mutant, mutants, site_count
 from plumb.adapters.python.surface import ProductionSurface
-from plumb.core.manifest import Manifest, Mutation
+from plumb.core.manifest import Manifest, Mutation, Survivor
 
 #: A mutant can make a loop never terminate — negating a ``while`` condition is one of three
 #: operators — so every run is bounded. A timeout counts as **killed**: the tests did not complete
@@ -158,13 +158,27 @@ def run(one: Plan, root: Path | str | None = None) -> Mutation | None:
     if not one.runnable:
         return None
     at = Path(root) if root is not None else Path.cwd()
-    killed = sum(
-        _noticed(mutant, target.path, one.tests, at)
-        for target in one.targets
+    killed, survivors = 0, []
+    for target in one.targets:
         for mutant in mutants(target.path.read_text(), module=target.module,
-                              scope=target.qualnames)
-    )
-    return Mutation(total=one.mutants, killed=killed)
+                              scope=target.qualnames):
+            if _noticed(mutant, target.path, one.tests, at):
+                killed += 1
+            else:
+                # Named, because the reader's next move differs per survivor (`dev07-2-4-ur3`).
+                # `reached` stays unreported: this pass does not probe whether the mutated
+                # expression was evaluated, and saying nothing is not a claim it was.
+                survivors.append(Survivor(operator=mutant.operator, where=mutant.where,
+                                          file=_relative(target.path, at), line=mutant.line))
+    return Mutation(total=one.mutants, killed=killed, survivors=tuple(survivors))
+
+
+def _relative(path: Path, root: Path) -> str:
+    """The source file as the board names it: relative to the project where it can be."""
+    try:
+        return str(Path(path).resolve().relative_to(Path(root).resolve()))
+    except ValueError:
+        return str(path)
 
 
 def fill(manifest: Manifest, wired_by_test: dict[str, tuple[str, ...]],
@@ -188,13 +202,18 @@ def fill(manifest: Manifest, wired_by_test: dict[str, tuple[str, ...]],
     # one end-to-end test commonly cites five — and at one test run per mutant the saving is the
     # difference between a pass somebody starts and one they abandon.
     scored, seen, started = {}, {}, time.perf_counter()
-    for i, (sid, one) in enumerate(sorted(plans.items()), 1):
+    # Counted over the stories that will be mutated, not every story cited: one whose tests drove
+    # nothing wired is never run, and a counter that stops short of its denominator reads as a run
+    # that died part-way.
+    mutated = [sid for sid, one in sorted(plans.items()) if one.runnable]
+    for sid, one in sorted(plans.items()):
         shape = (one.tests, one.targets)
         if shape not in seen:
             seen[shape] = run(one, root)
         scored[sid] = seen[shape]
         if report and one.runnable:
-            report(f"  [{i}/{len(plans)}] {sid}: {scored[sid].killed}/{scored[sid].total} killed "
+            report(f"  [{mutated.index(sid) + 1}/{len(mutated)}] {sid}: "
+                   f"{scored[sid].killed}/{scored[sid].total} killed "
                    f"({time.perf_counter() - started:.0f}s elapsed)")
     return replace(manifest, stories={
         sid: replace(story, mutation=scored[sid]) for sid, story in manifest.stories.items()

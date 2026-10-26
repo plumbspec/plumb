@@ -250,7 +250,9 @@ def unsent(path: Path) -> tuple[int, list]:
     """
     mark = sent_mark(path)
     through = int(mark.read_text().strip() or 0) if mark.is_file() else 0
-    return through, [r for r in read(path) if r.seq > through]
+    # A fetched copy's note is about this file and stays with it (`dev07-6-3-ur5`): handed over,
+    # it would make the receiver's history read as a cache of wherever this copy came from.
+    return through, [r for r in read(path) if r.seq > through and not isinstance(r, Retrieved)]
 
 
 def mark_sent(path: Path, through: int) -> None:
@@ -402,11 +404,11 @@ def state(entries: list) -> dict[tuple[str, str, str | None], tuple]:
 
 
 def append(path: Path, manifest: Manifest) -> list[Entry]:
-    """Record what this run changed, and return it. Nothing changed means nothing written.
+    """Record what this run changed, and return it, with a run marker either way.
 
-    An empty append is the ordinary case on a healthy project and writes no line at all — not a
-    marker, not an empty record. A run that changed nothing is not an event, and a store that noted
-    every one of them would be a snapshot store wearing a log's clothes.
+    An unchanged run writes no transition — a store that noted every unchanged fact would be a
+    snapshot store wearing a log's clothes — but it does write its marker, so *nothing moved* and
+    *nobody looked* stay different answers (`dev07-6-1-ur2`).
     """
     existing = read(path)
     was, now = state(existing), facts(manifest)
@@ -500,12 +502,25 @@ def compact(path: Path, through: int, reason: str, when: str | None = None) -> D
                      discarded_through=through, when=when, reason=reason)
     seq += 1
     lines.append(note)
+    # **When survives the churn** (`dev07-6-2-2-2-sr6`). Each fact is written back carrying the time
+    # of the change that set it, and the last run marker in the span is kept, so a compacted
+    # history still answers *when did this change* and *when did anybody look*. What is reclaimed
+    # is the changes in between, which is the churn compaction exists to drop.
+    changed_at, looked = {}, None
+    for record in dropped:
+        if isinstance(record, Entry):
+            changed_at[(record.subject, record.test, record.about)] = record.when
+        elif isinstance(record, Run):
+            looked = record
     for key in sorted(base, key=_ordering):
         seq += 1
         subject, test, about = key
         result, grounding = base[key]
         lines.append(Entry(seq=seq, subject=subject, test=test, about=about,
-                           result=result, grounding=grounding, when=None))
+                           result=result, grounding=grounding, when=changed_at.get(key)))
+    if looked is not None:
+        seq += 1
+        lines.append(replace(looked, seq=seq))
     # Renumbered from one: the sequence says *where in this store*, and a store that kept the old
     # numbers would claim to hold records it released. Dense either way, so a jump still means a
     # record was lost rather than let go.

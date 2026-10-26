@@ -32,12 +32,12 @@ VERSION_HEADER = "Plumb-Support-Version"
 #: trying" are different facts and collapsing them is how a refused record got reported as sent.
 ACCEPTED, RETRY, REFUSED = "accepted", "retry", "refused"
 
-#: The support service positively identified the *content* as unusable, and no retry changes that.
-#: Everything else non-2xx is retried: a version the support service does not know yet becomes
+#: The receiver positively identified the *content* as unusable, and no retry changes that.
+#: Everything else non-2xx is retried: a version the receiver does not know yet becomes
 #: deliverable when it is upgraded, and discarding is irreversible where a retry costs a request
-#: (``dev07-6-2-ur3``). Until a support service speaks the versioned protocol, drift arrives as a bare 400 and
+#: (``dev07-6-2-ur3``). Until a receiver speaks the versioned protocol, drift arrives as a bare 400 and
 #: is indistinguishable from bad content — so 400 is retried, and 422 is what a versioned
-#: support service uses to say the content itself is wrong.
+#: receiver uses to say the content itself is wrong.
 TERMINAL = frozenset({413, 422})
 
 
@@ -58,7 +58,7 @@ class Outcome:
 
 
 #: How much of a series goes in one request (`dev07-6-2`). Deliberately **below** any holder's
-#: limit rather than equal to it: this is the producer's own policy, the support service publishes its
+#: limit rather than equal to it: this is the producer's own policy, the receiver publishes its
 #: cap at `/spec` as `series.max_body_bytes`, and the two are versioned separately and will drift
 #: (`dev07-3-2`). Sizing to the cap exactly would mean every future tightening of it lands as a
 #: terminal refusal on a live client. A test holds the invariant that this stays under it.
@@ -74,11 +74,11 @@ def _batches(records: list, budget: int) -> list[list]:
     """Split into requests that fit, keeping order. Never returns an empty batch.
 
     Order is preserved and batches are sent in order, because a sequence says *where in the log*
-    and the support service renumbers onto its own — records arriving out of order would be held in an
+    and the receiver renumbers onto its own — records arriving out of order would be held in an
     order the producer never had.
 
     A single record over budget gets a batch to itself rather than being dropped or silently
-    joined to another. It is the one thing splitting cannot help, so it is handed to the support service
+    joined to another. It is the one thing splitting cannot help, so it is handed to the receiver
     to answer for: whatever it says is a fact about that record, where a client-side refusal would
     be a guess.
     """
@@ -151,10 +151,10 @@ def _configured_subject(store: Path, project: str | None = None) -> str:
 
 def push_series(store: Path, enrolment_path: Path | None = None,
                 project: str | None = None) -> Outcome:
-    """Send what the support service has not been given yet (`dev07-6-2`), in batches that fit (`dev07-6-2`),
+    """Send what the receiver has not been given yet (`dev07-6-2`), in batches that fit (`dev07-6-2`),
     and never raise into a caller.
 
-    A board is derived from a run and is **complete without the network**, so a support service being down
+    A board is derived from a run and is **complete without the network**, so a receiver being down
     must defer rather than fail the thing that produced the data — otherwise an outage turns every
     board red for a reason that has nothing to do with the project. That is `dev07-6-2-1-4-ur3`.
 
@@ -207,7 +207,7 @@ def push_series(store: Path, enrolment_path: Path | None = None,
             sent.extend(str(record.seq) for record in batch)
             continue
         # Stop at the first failure rather than trying the rest. The batches are ordered and the
-        # support service appends in the order it receives, so skipping past a failed one would hand it a
+        # receiver appends in the order it receives, so skipping past a failed one would hand it a
         # history with a hole that later arrivals would be numbered in front of.
         if verdict == REFUSED:
             return Outcome(sent=tuple(sent), refused=(str(store),), reason=detail)
@@ -232,6 +232,12 @@ def wire_form(store: Path, enrolment_path: Path | None = None,
     return records, "sent under a credential"
 
 
+def where(url: str, destination) -> str:
+    """Which address a send went to and where that address was named (`dev07-6-2-1-4-ur4`)."""
+    named = getattr(destination, "source", "")
+    return f"sending to {url}" + (f", named by {named}" if named else "")
+
+
 def _deliver_batch(url: str, batch: list, sending_as) -> tuple[str, str]:
     """One request. Same three verdicts as :func:`deliver`, and never raises for a network
     condition — see the module docstring."""
@@ -250,10 +256,10 @@ def _deliver_batch(url: str, batch: list, sending_as) -> tuple[str, str]:
             # Positively identified as unusable, and no retry changes it. The mark still does not
             # move — a refused batch is not a sent one, and treating "stop trying" as "arrived" is
             # what `dev07-6-2-ur3` refuses.
-            return REFUSED, f"support service refused ({refused.code}) at seq {batch[0].seq}"
-        return RETRY, f"support service said {refused.code}"
+            return REFUSED, f"destination refused ({refused.code}) at seq {batch[0].seq}"
+        return RETRY, f"destination said {refused.code}"
     except (urllib.error.URLError, OSError, TimeoutError) as unreachable:
-        return RETRY, f"support service unreachable: {unreachable}"
+        return RETRY, f"destination unreachable: {unreachable} — {where(url, sending_as)}"
 
 
 

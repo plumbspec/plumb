@@ -103,6 +103,9 @@ class Board:
     #: The story-id namespaces this project declared (`dev07-3-2`), so an id belonging to none can be
     #: named rather than left looking authoritative (`dev07-4-1`).
     namespaces: tuple = ()
+    #: The ids the project named in its own configuration, which no namespace check calls orphans
+    #: (`dev07-4-1-ur5`).
+    declared: tuple = ()
     #: Adapters this project declares that did not run (`dev07-3-3`). A board missing a language is
     #: part of an answer, and saying so is what stops it reading as the whole one.
     absent_adapters: tuple = ()
@@ -120,7 +123,8 @@ class Board:
     @classmethod
     def render(cls, manifest: Manifest, namespaces=(), absent_adapters=(),
                blind_adapters=(), scope: str | None = None,
-               rendered_by: str | None = None, rendered_at: str | None = None) -> "Board":
+               rendered_by: str | None = None, rendered_at: str | None = None,
+               declared=()) -> "Board":
         """Derive, and show the part asked for.
 
         **Scope narrows the verdicts and never the manifest** (`dev07-5-1`). The caller used to filter
@@ -132,8 +136,18 @@ class Board:
         shown = manifest if scope is None else replace(
             manifest, stories={sid: story for sid, story in manifest.stories.items()
                                if sid.startswith(scope)})
-        return cls(verdicts=derive_all(shown), manifest=manifest,
-                   namespaces=tuple(namespaces), absent_adapters=tuple(absent_adapters),
+        verdicts = derive_all(shown)
+        if namespaces:
+            # Named on the subject itself, not only as a fact about the run (`dev07-4-1-ur4`): a
+            # board of fifty stories that says *some id is outside your namespaces* has not told
+            # the reader which.
+            from plumb.core.gate import ORPHAN_STORY, orphaned
+            verdicts = {sid: (replace(v, conditions=v.conditions + (ORPHAN_STORY,))
+                              if orphaned(sid, namespaces, declared) else v)
+                        for sid, v in verdicts.items()}
+        return cls(verdicts=verdicts, manifest=manifest,
+                   namespaces=tuple(namespaces), declared=tuple(sorted(declared)),
+                   absent_adapters=tuple(absent_adapters),
                    blind_adapters=tuple(blind_adapters),
                    rendered_by=rendered_by, rendered_at=rendered_at or _rendered_at())
 
@@ -165,7 +179,8 @@ class Board:
             # live — there is no story to hang it on (`dev07-5-2`).
             "conditions": [_signal(c) for c in
                            run_conditions(self.manifest, self.namespaces,
-                                          self.absent_adapters, self.blind_adapters)],
+                                          self.absent_adapters, self.blind_adapters,
+                                          self.declared)],
             "stories": {
                 sid: {
                     "status": v.status,
@@ -208,6 +223,9 @@ class Board:
                             # otherwise answer. `null` is *not reported*, never *entered by none*.
                             "entered_through": (list(c.entered_through)
                                                 if c.entered_through is not None else None),
+                            # Whether this test also reached production code outside every entry
+                            # point — which test raised `grounding.reached-outside` (`dev07-5-2-ur12`).
+                            "reached_outside_entry": c.reached_outside_entry,
                             # When this fact was measured, which is not when the board was
                             # rendered (`dev07-5-3`). Recorded by the adapter and dropped here until
                             # major 3. `null` is *not reported* and is never read as now.
@@ -238,8 +256,13 @@ class Board:
         return json.dumps(self.as_dict(), indent=indent)
 
     def summary(self) -> dict[str, int]:
-        """Counts per status — an aggregate that asserts nothing the source does not."""
+        """Counts per status — an aggregate that asserts nothing the source does not.
+
+        A subject read per aspect has no status of its own, so it is counted apart rather than as
+        an unproven story (`dev07-5-1-ur9`).
+        """
         counts: dict[str, int] = {}
         for v in self.verdicts.values():
-            counts[v.status] = counts.get(v.status, 0) + 1
+            key = "read per aspect" if v.aspects else v.status
+            counts[key] = counts.get(key, 0) + 1
         return counts

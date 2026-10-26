@@ -229,14 +229,23 @@ RUN_CONDITIONS = {
     ),
     EVIDENCE_FAILED: Condition(
         code=EVIDENCE_FAILED,
-        what="something cites this and it did not pass — every citation either failed, was "
-             "skipped, or never ran",
+        what="something cites this, ran, and did not pass — a failing test is evidence against, "
+             "whatever the other citations show",
         next_step="read the failure itself; this is the one unproven that is a *result* rather "
                   "than an absence, and it is the only one that changed",
         # The distinction is worth a code because the two are indistinguishable on a board and
         # need opposite responses: one is work not started, the other is work that broke.
         example="a story that read proven yesterday and unproven today did not lose its test — "
                 "its test started failing",
+    ),
+    NOT_OBSERVED: Condition(
+        code=NOT_OBSERVED,
+        what="something cites this and none of its citations ran, so nothing was observed either "
+             "way — not evidence against, and not evidence for",
+        next_step="find why the citing tests did not run — skipped, deselected, or a check that "
+                  "runs against the world and could not reach it — and run them",
+        example="a check that reaches a keyserver reads unobserved while the keyserver is down, "
+                "rather than failed",
     ),
     NOTHING_OBSERVED: Condition(
         code=NOTHING_OBSERVED,
@@ -328,8 +337,8 @@ CONDITIONS = {
     ),
     NOT_WIRED: Condition(
         code=NOT_WIRED,
-        what="every citation passed, and none of them reached the wired system — what ran was the "
-             "implementation on its own, which is not evidence the story holds where it is used",
+        what="the citations that passed reached nothing wired — what ran was the implementation "
+             "on its own, which is not evidence the story holds where it is used",
         next_step="drive it through a declared entry point, or leave it at the depth it reaches "
                   "and let the board say so",
         example="a test calling the class directly proves the class; the story is about the "
@@ -418,8 +427,18 @@ def prose(code: str) -> Condition | None:
     return PROSE.get(code)
 
 
+def orphaned(sid: str, namespaces=(), declared=()) -> bool:
+    """Whether an id lies outside every declared namespace and was named nowhere else (``dev07-4-1``).
+
+    ``declared`` is the ids the project named in its own configuration — a decision or a parameter
+    in the tables that say how a subject is judged. The project has already named those, which is
+    the whole of what the check asks (``dev07-4-1-ur5``), so they are never orphans.
+    """
+    return bool(namespaces) and sid not in declared and not sid.startswith(tuple(namespaces))
+
+
 def run_conditions(manifest: Manifest, namespaces=(), absent_adapters=(),
-                   blind_adapters=()) -> tuple[str, ...]:
+                   blind_adapters=(), declared=()) -> tuple[str, ...]:
     """What this run has to say about *itself*, before any story is derived (``dev07-5-2``).
 
     Only one thing so far, and it is the one the rest of the gate structurally cannot notice: a run
@@ -447,7 +466,7 @@ def run_conditions(manifest: Manifest, namespaces=(), absent_adapters=(),
     if namespaces:
         # An id outside every declared namespace (`dev07-4-1`). Only asked when the project declared
         # namespaces at all — silence means it carries one spec and the question does not arise.
-        if any(not sid.startswith(tuple(namespaces)) for sid in manifest.stories):
+        if any(orphaned(sid, namespaces, declared) for sid in manifest.stories):
             codes.append(ORPHAN_STORY)
     if absent_adapters:
         codes.append(ADAPTER_ABSENT)
@@ -576,7 +595,10 @@ def derive(story_id: str, story: Story) -> Verdict:
 
     # The achieved vector is the rungs a story is *actually* proven at (`dev07-4-3`) — derived and
     # shown, so unit-only reads as unit-only.
-    achieved = tuple(sorted({c.depth for c in passing if c.depth}))
+    # A rung the run refuted is surfaced below as `depth.unsupported` and is not also reached
+    # (`dev07-4-3-ur04`).
+    achieved = tuple(sorted({c.depth for c in passing
+                             if c.depth and not contradicts_claimed_depth(c.depth, c.grounding)}))
     conditions = ()
     # dev07-4-2: a claimed rung the execution refutes is surfaced whatever the status — a story can be
     # proven by one citation while another lies about how deep it reached.
@@ -618,6 +640,11 @@ def derive(story_id: str, story: Story) -> Verdict:
                 ({CITATION_UNTOUCHED} if UNTOUCHED in refused else set())
                 | ({STRUCTURAL_EXECUTED} if refused - {UNTOUCHED} else set())
             ))
+    if any(c.result == FAILED for c in story.citations):
+        # A red test is never hidden behind the reason another citation fell short
+        # (`dev07-4-3-ur12`): told only that nothing reached the wired system, a reader goes
+        # looking for an entry point while a test is failing.
+        conditions = (EVIDENCE_FAILED,) + conditions
     return Verdict(story_id, status, achieved, conditions)
 
 

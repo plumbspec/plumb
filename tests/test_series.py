@@ -1,6 +1,7 @@
 """``dev07-6`` — the history a manifest deliberately is not."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -154,6 +155,25 @@ def test_compaction_says_what_it_dropped_and_still_replays(tmp_path):
     assert isinstance(after[0], Origin), "and the stamp still leads, so the copy can prove it began"
     assert note.reason == "compacted", "and says why in the store's own words, not a judgement"
     assert [r.seq for r in after] == list(range(1, len(after) + 1)), "dense after renumbering"
+
+
+@pytest.mark.proves("dev07-6-2-2-2", depth="component")
+def test_a_compacted_history_still_answers_when(tmp_path):
+    """`dev07-6-2-2-2-sr6` — compaction reclaims the changes in between and keeps when each fact last
+    changed and when the history was last looked at. A holder that answered *when unknown* for a
+    history it had just been handed would hold the facts and lose the reason anyone keeps them."""
+    from plumb.core.series import compact, last_seq, overview
+
+    store = tmp_path / "series.jsonl"
+    append(store, run(cited("t::a", "2026-08-01T09:00:00Z")))
+    append(store, run(cited("t::a", "2026-08-02T09:00:00Z", result="failed")))
+    append(store, run(cited("t::a", "2026-08-03T09:00:00Z", result="failed")))
+    before = {row.subject: (row.changed, row.checked) for row in overview(read(store))}
+    assert before["S-1"][0] == "2026-08-02T09:00:00Z", before
+
+    compact(store, through=last_seq(store), reason="compacted", when="2026-08-04T00:00:00Z")
+    after = {row.subject: (row.changed, row.checked) for row in overview(read(store))}
+    assert after["S-1"] == before["S-1"], (before, after)
 
 
 # ── reading it back (dev07-6-3) ──────────────────────────────────────────────────
@@ -420,7 +440,7 @@ def test_the_command_pushes_under_the_subject_of_the_project_it_was_given(tmp_pa
     owner = tmp_path / "acme"
     (owner / "build" / "plumb").mkdir(parents=True)
     (owner / "plumb.toml").write_text(
-        'adapter = "python"\nsubject = "acme-api"\nendpoint = "https://example.invalid"\n')
+        'adapter = "python"\nsubject = "acme-api"\n')
     log = owner / "build" / "plumb" / "series.jsonl"
     log.write_text(json.dumps({"seq": 1, "subject": "acme-api", "test": "t", "about": None,
                                "result": "passed", "grounding": "grounded", "when": None}) + "\n")
@@ -690,3 +710,31 @@ def test_a_pulled_copy_names_the_holder_it_came_from(tmp_path, capsys):
 
     assert "cache of https://holder.invalid/series/acme" in said
     assert "UNKNOWN EXTENT" not in said, "it carries the holder's stamp, so its extent is known"
+
+
+@pytest.mark.proves("dev07-6-3", depth="wiring")
+def test_a_pull_with_no_subject_says_where_it_looked_and_how_to_name_one(tmp_path, monkeypatch,
+                                                                         capsys):
+    """"No subject to ask for" sent a newcomer looking for a plumb.toml without saying which one
+    was read — the owner of the file being written, which is not the directory they stood in."""
+    from plumb import cli
+
+    for name in [k for k in os.environ if k.startswith("PLUMB_")]:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", "http://127.0.0.1:1")
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "c")
+
+    owner = tmp_path / "acme"
+    (owner / "build").mkdir(parents=True)
+    (owner / "plumb.toml").write_text('adapter = "python"\n')
+    cli.main(["series", "pull", str(owner / "build" / "copy.jsonl")])
+    said = capsys.readouterr().err
+    assert "no subject" in said and str(owner / "plumb.toml") in said, said
+    assert "--project ." in said and "--subject" in said, said
+
+    stray = tmp_path / "stray"
+    stray.mkdir()
+    cli.main(["series", "pull", str(stray / "copy.jsonl")])
+    said = capsys.readouterr().err
+    assert "no plumb.toml" in said and str(stray) in said, said
+    assert "--project ." in said and "--subject" in said, said

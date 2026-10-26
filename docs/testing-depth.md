@@ -8,8 +8,7 @@ summary: What a depth claim means, and which role each rung serves.
 
 **For QA, engineers and programmers** deciding what depth to claim.
 
-"Done" in Plumb is a **vector over testing depth**, not a single green bit (see Plumb's own gold spec,
-`spec/diagrams/dev07-4-decide-whether-it-is-proven.md` → `dev07-4-3`). Each **rung** proves a different thing, **assumes** the rung
+"Done" in Plumb is a **vector over testing depth**, not a single green bit. Each **rung** proves a different thing, **assumes** the rung
 below it, and hands its assumption up to be **discharged** by a rung above — so a run stays fast and
 non-redundant, and a story proven only at the bottom reads as *only* that deep. The same rungs map to
 who does the work in an organization: each is written by a role and assures another.
@@ -62,7 +61,14 @@ Two things worth knowing before you read the table:
   have moved the claim to where nothing checks it.
 - **Spell the value exactly as the table spells it.** Nothing validates the string. A misspelled
   `wiring` is accepted as written and silently stops being a wired rung: on a test that never
-  reached an entry point, `wiring` raises `depth.unsupported` and `wirring` does not.
+  reached an entry point, `wiring` raises `depth.unsupported` and `wirring` does not — and because
+  it is not refuted, `wirring` is listed in the story's bracket exactly as you typed it.
+
+**What the bracket and the status each say.** The bracket after a story — `[unit · wiring]` — lists
+the depths claimed by citations that passed and that the run did not refute. The status is decided
+separately: a behavioral story is PROVEN only when a passing citation went in through a declared
+entry point. So a story whose tests all call the code directly reads `UNPROVEN [unit]` — never
+PROVEN, whatever depth those tests claim.
 
 ## Choosing a depth honestly
 
@@ -98,9 +104,9 @@ So the discipline lives in one place:
   same honesty question.
 
 And the pressure releases entirely once one thing is accepted: **UNPROVEN is not a failing grade.** A
-story proven at `unit` is proven at `unit`, and the achieved vector says so precisely. A board full
-of honest `unit` is worth more than a board of `wiring` bought by widening a list, because only one
-of them still tells you something the day it goes red.
+story with honest `unit` tests reads `UNPROVEN [unit]`, and the bracket says precisely how far it
+has been taken. A board full of honest `unit` is worth more than a board of `wiring` bought by
+widening a list, because only one of them still tells you something the day it goes red.
 
 ## The rungs
 
@@ -120,8 +126,9 @@ method. A test claiming a wired rung whose execution never grounds is a lie the 
 **These rungs are the pyramid for *behavioral* proof.** A **structural** story — dependency
 direction, containment, format — is proved by inspecting the artifact rather than running it, so its
 test executes no production code at all and grounding is the wrong question to ask of it; the gate
-asks the mirror question instead (Plumb's own gold spec, `dev07-4-2`). Which rung such a test sits on is
-genuinely unsettled — see `dev07-4-3`.
+asks the mirror question instead — the test must have read the artifact and run none of it. Which
+rung such a test should claim is an open question, because none of the five above fits it well.
+Claim `unit`: a wired rung on a test that ran nothing is refuted like any other.
 
 > **Read the artifact; do not import it.** A structural test must reach its subject *as data* — open
 > the file, parse the bytecode, walk the tree. Importing the module to inspect it does not work, and

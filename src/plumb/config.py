@@ -54,11 +54,6 @@ class Config:
     sources: tuple[str, ...] = ()
     #: ``dev07-2-2`` — off unless asked for.
     mutation: bool = False
-    #: The series holder this project hands its history to. **Configuration, not a secret** — the
-    #: address is the field worth seeing in a diff, and holding it here is what lets a wrong
-    #: address fail as a wrong address. Anything secret never appears in this file
-    #: and never in any file the working tree can sweep into a build artifact.
-    endpoint: str = ""
     #: What this project calls its series. A name *inside* the store that holds it, never an
     #: access boundary (``dev07-6-2-ur7``) — so it is the project's to choose, is configuration
     #: rather than a secret, and is not something an operator has to issue.
@@ -116,6 +111,12 @@ class Config:
     #: caller's working directory.
     root: Path = field(default_factory=Path)
 
+    @property
+    def declared(self) -> frozenset:
+        """The ids this project named in its own tables — its decisions and parameters, which a
+        namespace check never calls orphans (`dev07-4-1-ur5`)."""
+        return frozenset(self.aspects) | frozenset(self.reduce) | frozenset(self.lexicon)
+
     @classmethod
     def find(cls, start: Path | str = ".") -> "Config":
         """Read ``plumb.toml`` from ``start``, or return an empty config.
@@ -157,6 +158,14 @@ class Config:
                 f"{CONFIG_NAME}: adapter {adapter!r} is not one of {list(ADAPTERS)}"
             )
         production = _strings(table, "production")
+        if "endpoint" in table:
+            # Refused rather than ignored (`dev07-6-2-1-1-sr4`): a destination is named in the
+            # environment of the run, and a key that was once read and is now skipped would leave a
+            # project believing it sends somewhere it does not.
+            raise InvalidConfig(
+                f"{CONFIG_NAME}: `endpoint` names an address, and an address is named in the "
+                f"environment of the run — set PLUMB_ENDPOINT, or PLUMB_SERIES_ENDPOINT for the "
+                f"series alone, and remove the key")
         return cls(
             adapter=adapter,
             entry_points=_strings(table, "entry_points"),
@@ -165,7 +174,6 @@ class Config:
             # convenient elsewhere — an adapter that needs them apart says so.
             sources=_strings(table, "sources") or production,
             mutation=bool(table.get("mutation", False)),
-            endpoint=str(table.get("endpoint", "")),
             subject=str(table.get("subject", "")),
             specs=_strings(table, "specs"),
             cursor=str(table.get("cursor", ".plumb/next-session.txt")),
@@ -233,7 +241,7 @@ def _strings(table: dict, key: str) -> tuple[str, ...]:
 #: from the dataclass, because a table may legitimately carry a key of its own with the same
 #: spelling, and refusing that would be worse than the silence this replaces.
 TOP_LEVEL_ONLY = ("specs", "production", "sources", "entry_points", "mutation",
-                  "endpoint", "subject", "adapter")
+                  "subject", "adapter")
 
 
 def _refuse_misplaced_keys(table: dict) -> None:

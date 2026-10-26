@@ -183,3 +183,88 @@ def test_a_series_is_pushed_to_the_address_its_own_capability_names(monkeypatch,
         f"the history went somewhere the series capability did not name: {reached['urls']}")
     assert reached["auth"] == "Bearer held-by-us", (
         "it went with the machine-wide credential rather than this capability's")
+
+
+@pytest.mark.proves("dev07-6-2-1-1", depth="wiring")
+def test_an_address_in_the_project_file_is_refused_by_name(tmp_path, monkeypatch, capsys):
+    """`dev07-6-2-1-1-sr4` — a destination is named in the environment of the run. An `endpoint`
+    left in plumb.toml is neither read nor ignored: the run names it and says where it goes."""
+    import json
+
+    from plumb import cli
+
+    _env(monkeypatch, PLUMB_CREDENTIAL="tok")
+    project = tmp_path / "p"
+    (project / "build").mkdir(parents=True)
+    (project / "plumb.toml").write_text(
+        'adapter = "python"\nsubject = "s"\nendpoint = "https://example.invalid"\n')
+    log = project / "build" / "series.jsonl"
+    log.write_text(json.dumps({"seq": 1, "subject": "s", "test": "t", "about": None,
+                               "result": "passed", "grounding": "grounded", "when": None}) + "\n")
+
+    code = cli.main(["series", "push", str(log), "--project", str(project)])
+    said = capsys.readouterr().err
+    assert code != 0, said
+    assert "endpoint" in said and "PLUMB_ENDPOINT" in said and "Traceback" not in said, said
+
+
+def _a_store(tmp_path):
+    from plumb.core.manifest import Citation, Manifest, Story
+    from plumb.core.series import append
+
+    store = tmp_path / "history.jsonl"
+    append(store, Manifest(stories={"S-1": Story(citations=(
+        Citation(test="t::a", depth="unit", result="passed", grounding="inert",
+                 when="2026-08-01T09:00:00Z"),))}))
+    return store
+
+
+#: A real closed port: nothing listens on 1, so what an unreachable host does is not mocked.
+CLOSED = "http://127.0.0.1:1"
+
+
+@pytest.mark.proves("dev07-6-2-1-4", depth="wiring")
+def test_an_unreachable_push_names_the_address_and_the_variables_that_named_it(
+        monkeypatch, tmp_path, capsys):
+    """`dev07-6-2-1-4-ur4` — a wrong address and a down one read differently only if the run says
+    which address it was, and where it came from."""
+    from plumb import cli
+
+    _env(monkeypatch, PLUMB_ENDPOINT="https://somewhere-else.example",
+         PLUMB_CREDENTIAL="machine", PLUMB_SERIES_ENDPOINT=CLOSED,
+         PLUMB_SERIES_CREDENTIAL="ours", PLUMB_SERIES_SUBJECT="s")
+
+    assert cli.main(["series", "push", str(_a_store(tmp_path))]) == 0, "an outage is not a fault"
+    said = capsys.readouterr().out
+    assert "unreachable" in said and CLOSED in said, said
+    assert "PLUMB_SERIES_ENDPOINT" in said, f"and which setting named it: {said}"
+
+
+@pytest.mark.proves("dev07-6-2-1-4", depth="wiring")
+def test_an_unreachable_push_names_the_enrolment_file_it_read(monkeypatch, tmp_path, capsys):
+    import json
+
+    from plumb import cli
+
+    _env(monkeypatch)
+    enrolled = tmp_path / "enrolment.json"
+    enrolled.write_text(json.dumps({"relationship": "self", "credential": "c",
+                                    "endpoint": CLOSED, "subject": "s"}))
+
+    assert cli.main(["series", "push", str(_a_store(tmp_path)), "--enrolment",
+                     str(enrolled)]) == 0
+    said = capsys.readouterr().out
+    assert CLOSED in said and str(enrolled) in said, said
+
+
+@pytest.mark.proves("dev07-6-2-1-4", depth="wiring")
+def test_an_unreachable_pull_names_the_address_and_the_machine_wide_pair(
+        monkeypatch, tmp_path, capsys):
+    from plumb import cli
+
+    _env(monkeypatch, PLUMB_ENDPOINT=CLOSED, PLUMB_CREDENTIAL="machine")
+
+    cli.main(["series", "pull", str(tmp_path / "copy.jsonl"), "--subject", "s"])
+    said = capsys.readouterr().err
+    assert "unreachable" in said and CLOSED in said, said
+    assert "PLUMB_ENDPOINT" in said, f"and which setting named it: {said}"

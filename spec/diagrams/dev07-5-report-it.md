@@ -1,6 +1,6 @@
 # dev07-5 · report it
 
-**Last updated** 2026-10-26 v3
+**Last updated** 2026-10-26 v5
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the verdicts and the
 citations behind them. Exits with the board, for any tool to consume and a person to read.
@@ -57,6 +57,8 @@ flowchart TD
     same in every scope containing it, and run-level facts survive every scope
   * dev07-5-1-ur8 - the board is derived from however much the project has declared, and says
     what is missing — a project that declares nothing gets a partial answer, never an error
+  * dev07-5-1-ur9 - the board's totals count stories by status, and a subject read per aspect is
+    counted apart and never as unproven
 
 #### System Requirements
   * dev07-5-1-sr1 - rows sort by the natural order of the story ids
@@ -112,6 +114,8 @@ flowchart TD
   * dev07-5-2-ur10 - an internal error of the runner is never reported as the project's fault
   * dev07-5-2-ur11 - an unlock is counted from the run's own output and withdrawn once the
     source already carries the fact; an empty run advertises nothing
+  * dev07-5-2-ur12 - a condition names the subjects it is about, and the evidence names the test
+    that raised it, so a reader with fifty stories is never left to find which one
 
 #### System Requirements
   * dev07-5-2-sr1 - every code a build can emit resolves to its prose; what is guaranteed is that
@@ -158,6 +162,8 @@ flowchart TD
     runner's exit to give
   * dev07-5-3-ur6 - an aborted run cannot board — a run that never finished is not a run that
     observed nothing
+  * dev07-5-3-ur7 - nothing a run finds fails or halts it: every finding is on the board, the way a
+    test report reports, so a pipeline decides what to do about it
 
 #### System Requirements
   * dev07-5-3-sr1 - the page a person reads is what a run gives by default; the machine-readable

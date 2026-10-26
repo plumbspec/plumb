@@ -33,6 +33,11 @@ a decision does and reads differently:
 | **refuted** | it was tested and lost |
 | **unmeasured** | cited, and no measurement ran — every citing test was skipped |
 
+Its evidence is grounded exactly as a decision's is: a measurement that calls the code directly
+reads `UNPROVEN` with `grounding.not-wired` rather than **supported**. And like a decision with
+aspects it has no overall status — its JSON `status` is held at `unproven` and the answer is per
+aspect, under `aspects`.
+
 As with a decision, a parameter nothing cites at all is absent from the board; **unvalidated**
 appears on a declared aspect that nothing cites yet. Aspect names are yours. The core never reads them, so name them after what your evidence actually
 distinguishes.

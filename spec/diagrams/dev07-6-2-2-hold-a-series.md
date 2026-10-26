@@ -1,6 +1,6 @@
 # dev07-6-2-2 · hold a series
 
-**Last updated** 2026-10-26 v2
+**Last updated** 2026-10-26 v3
 
 What an IT professional does to host their team's run histories: stand a holder up on a box the
 team already runs, and bound what it may spend of that box. The projects that push to it are in
@@ -100,6 +100,9 @@ flowchart TD
   * dev07-6-2-2-2-sr4 - compaction fires on a write once a log stores more than the ratio of what it
     says, and never fails a held record
   * dev07-6-2-2-2-sr5 - a free-space figure that cannot be read refuses nothing
+  * dev07-6-2-2-2-sr6 - compaction keeps when each fact last changed and when the history was last
+    looked at, and reclaims only the changes in between, so a compacted history still answers
+    *when*
 
 #### Non-Functional Requirements
   * dev07-6-2-2-2-nfr1 - the compaction policy lives in one place, and the numbers it needs are asked of

@@ -38,7 +38,19 @@ and says it in words that fit a claim about the future instead of borrowing *pro
 
 A subject with several aspects gets **one line per aspect and no overall status**. That is
 deliberate: the three close at different times for different reasons, and a single word for all of
-them loses exactly what you asked for.
+them loses exactly what you asked for. On the text board it looks like this:
+
+                                   D27
+                          BREACHED · levers
+                          UNPROVEN · outcome  (grounding.not-wired)
+                           HOLDING · falsifier
+
+and the footer counts it apart from stories — `proven: 2 · read per aspect: 1 · unproven: 1`.
+
+**In `--json`, read `aspects`, not `status`.** The subject's own `status` is held at `unproven`, with
+`aspects.per-aspect` beside it, so a consumer that reads only that field is never shown a green
+no aspect earned. Each aspect's answer is under `aspects`, with its own `status`, `label` and
+`conditions`.
 
 ## What you need first
 
@@ -66,6 +78,10 @@ only what differs.
 | `lexicon` | picks the vocabulary above. The default, `story`, would say *proven* |
 | `reduce` | `worst` — one fired condition breaches the decision whatever else holds. Stories reduce `best`, where one qualifying citation is enough, and that is the wrong way round here |
 | `aspects` | a decision makes several claims and each gets its own verdict. One list per subject |
+
+**Declaring it here also keeps it out of `spec.orphan`.** A decision's id rarely starts with one of
+your story namespaces in `specs`, and an id named in any of these three tables is one the project
+has declared, so it is not reported as an orphan. That holds for a parameter declared the same way.
 
 **Put these tables below everything else in `plumb.toml`.** In TOML a key written after a `[header]`
 belongs to that section, so `production` and `entry_points` sitting underneath `[lexicon]` are read
@@ -97,6 +113,12 @@ In Java:
 `about` names which aspect the test bears on. There is **no depth** on an `informs` citation:
 depth is a claim your run can refute, and a depth claim about a decision would be authored and
 uncheckable.
+
+**The test is grounded like a story's.** A falsifier test that goes in through a declared entry point
+and passes reads **holding**. One that calls the code directly reads `UNPROVEN` with
+`grounding.not-wired`, and one that asserts only on a constant — `assert LIMIT == 3` — reads
+`UNPROVEN` with `grounding.untouched`. The decision words have nothing to say about those two, so
+the board shows the plain status and the code: the condition was never really evaluated.
 
 ## What it will not do
 

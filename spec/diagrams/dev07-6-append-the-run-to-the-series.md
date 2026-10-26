@@ -1,6 +1,6 @@
 # dev07-6 · append the run to the series
 
-**Last updated** 2026-10-26 v6
+**Last updated** 2026-10-26 v7
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered where the project keeps a series,
 carrying the run's verdicts. Exits with the run in the history and the history readable: closing
@@ -206,10 +206,14 @@ flowchart TD
   * dev07-6-3-ur3 - no store answers a question about a range it does not hold as though it
     held it — the extent is stated on every read
   * dev07-6-3-ur4 - a copy fetched from a holder says what it is and names the holder
+  * dev07-6-3-ur5 - the note that a copy was fetched belongs to that copy and is never handed
+    over with it, so a holder never reads as a cache of another
 
 #### System Requirements
   * dev07-6-3-sr1 - handing over, reading and fetching a history are the same three asks wherever
     it is held, and give the same answers
+  * dev07-6-3-sr2 - fetching a history finds its holder the way handing it over does, so it is
+    read back from where it was sent
 
 #### Non-Functional Requirements
 

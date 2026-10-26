@@ -232,8 +232,9 @@ class PlumbAdapter:
     def pytest_collection_modifyitems(self, items) -> None:
         # Counted here rather than at report, because the question is what the run *discovered* —
         # a suite that collects nothing never reaches a report hook at all, which is exactly the
-        # run this is meant to catch (`dev07-3-2`). Post-filter, so `-k` narrowing an empty selection
-        # to zero is reported as the zero it is.
+        # run this is meant to catch (`dev07-3-2`). Before `-k`/`-m` deselection, as measured: a run
+        # filtered down to nothing still counts what it collected, and its cited stories read
+        # `evidence.not-observed` rather than the run reading as one that found no tests.
         self.observed = len(items)
         for item in items:
             for name in (self.marker, INFORMS):
@@ -423,4 +424,8 @@ def collect(args: list[str] | None = None,
         # every run, and empty when nothing joined (`dev07-1-3`).
         Path(edges_to).write_text(
             "".join(f"{caller}\t{callee}\n" for caller, callee in sorted(adapter.edges)))
+    # The runner's own summary is still in stdout's buffer when this returns, while what mutation
+    # reports goes straight out on stderr — so without this its first line lands on the end of the
+    # runner's `[100%]` and the summary arrives after the mutation pass it preceded.
+    sys.stdout.flush()
     return fill(manifest, adapter.wired, adapter.surface, mutation or OptIn(), report=report)

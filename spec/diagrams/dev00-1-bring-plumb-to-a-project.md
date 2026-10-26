@@ -1,6 +1,6 @@
 # dev00-1 · bring plumb to a project
 
-**Last updated** 2026-10-26 v11
+**Last updated** 2026-10-26 v12
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -167,6 +167,8 @@ flowchart TD
     this project's alone, or carries a credential
   * dev00-1-4-ur3 - the list names which entries nothing else holds, so somebody can decide what to
     protect without reading the source
+  * dev00-1-4-ur4 - each entry says whether it is on this machine now, and an entry kept per project
+    names this project's own path, so the list describes this machine rather than the manual
 
 #### System Requirements
   * dev00-1-4-sr1 - the footprint the tool reports and the one its documentation shows are one list,

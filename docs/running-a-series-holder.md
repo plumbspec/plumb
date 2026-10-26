@@ -25,7 +25,7 @@ If you read one thing here, read [When the disk gets tight](#when-the-disk-gets-
 | `--store` | where series are written. **Must be durable** — see below |
 | `--reserve` | MiB to leave free for everything else on this volume — writes refuse below it |
 | `--pool` | MiB this holder may hold in total |
-| `--compact-above` | how much churn a series may carry before it is collapsed into a fresh base |
+| `--compact-above` | how many records per current fact a series may hold before it is compacted — see [below](#when-the-disk-gets-tight) |
 | `--host`, `--port` | where it listens — `127.0.0.1` and `8081` unless you say otherwise |
 
 `--store` is required. `--reserve` defaults to 256 MiB, `--pool` to 2048 MiB and `--compact-above`
@@ -72,6 +72,17 @@ set at or above the whole filesystem is named at startup as no bound at all.
 Compaction is the third mechanism and reclaims nothing across subjects: once a log stores more
 than `--compact-above` times what it says, it is collapsed into a fresh base of the same facts,
 after the reply and without ever failing a record already held.
+
+**What `--compact-above 2` means in practice.** A *fact* is one test's current result and grounding
+for one subject, so a project with 300 citations says 300 facts. Its series is compacted once it
+holds more than 600 records. Every run adds at least one record — the marker that it ran — so a
+project whose results never change compacts about once every 300 runs, and one with churn sooner.
+A compacted series keeps, for each fact, **when it last changed**, and keeps the **last run marker**,
+so it still answers *when did this last change* and *when did anyone look*. It drops the changes in
+between: a subject that flipped five times reads fewer `changes` afterwards, and `plumb series show
+--subject` shows where each test ended up rather than every step. The dropped range is recorded and
+printed first by `show`. Raise the ratio to keep more of that intermediate history, at the cost of
+disk; nothing else depends on it.
 
 ## A small shared host, worked through
 

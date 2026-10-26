@@ -86,7 +86,7 @@ DECLARATION = Declaration(
               "from a later one", keep=True, irreplaceable=True),
         Wrote("its `.sent` mark, beside it",
               "how far that history has been handed over; a lost mark re-sends what already "
-              "arrived, which the receiver recognises", keep=True),
+              "arrived, and the holder stores the repeat", keep=True),
     ),
     network=True,
 )

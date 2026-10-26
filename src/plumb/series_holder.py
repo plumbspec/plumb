@@ -9,9 +9,11 @@ status. Nothing it accepts can become evidence.
 
 **It authenticates nobody, and that is the design rather than an omission.** This holder is one
 an adopter runs for themselves, so there is no second party to be told apart from — no credential,
-no account, no grant, no quota per holder. What it protects is a disk, and the only bound it
-enforces is the one that keeps the disk from filling (`dev07-6-2`).
+no account, no grant, no quota per holder. What it protects is a disk: it keeps a reserve free on
+the volume, holds a bounded pool in total, and compacts a series that has grown past what it says
+(`dev07-6-2`).
 """
+
 
 from __future__ import annotations
 
@@ -27,6 +29,21 @@ from plumb.holder import FileHolder
 
 MAX_BODY_BYTES = 256 * 1024
 SAFE_ID = re.compile(r"\A[0-9a-z][0-9a-z-]{0,120}\Z")
+
+#: What `--help` says the holder is. The docstring above is for whoever maintains this file; this is
+#: for whoever runs it, and cites nothing they would have to go and read.
+DESCRIPTION = """Hold the run histories your projects push to it, and hand each one back on request.
+
+It authenticates nobody: it is the holder you run for yourself, bound to localhost by default, with
+a reverse proxy in front for TLS. It keeps three bounds, all of them yours to set:
+
+  - a reserve left free on the volume: below it, new histories are refused as retryable and
+    nothing already held is discarded;
+  - a pool it may hold in total: past it, whole histories are evicted, least recently fetched
+    first, and each one evicted leaves a record that it was;
+  - a compaction ratio: a history storing more records than this many per fact it says is
+    compacted, and the range it no longer holds is recorded as discarded.
+"""
 
 
 from plumb.holder import FileHolder
@@ -389,19 +406,25 @@ def build_parser():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(prog="plumb-series-holder", description=__doc__)
-    parser.add_argument("--store", help="directory series are written to")
+    parser = argparse.ArgumentParser(prog="plumb-series-holder", description=DESCRIPTION,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--store", metavar="DIR", help="the directory histories are written to "
+                                                       "(required to serve)")
     parser.add_argument("--reserve", type=int, default=DISK_HEADROOM_BYTES // (1024 * 1024),
                         metavar="MIB",
                         help="MiB to leave free for whatever else is on this volume; below it, "
-                             "transmissions are refused as retryable and nothing held is discarded")
-    parser.add_argument("--pool", type=int, metavar="MIB",
-                        help=f"MiB this holder may hold in total "
-                             f"(default: {POOL_BYTES // (1024 * 1024)})")
-    parser.add_argument("--compact-above", type=int, metavar="RATIO",
-                        help="compact a series once it stores this many records per fact it says")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8081)
+                             "new histories are refused as retryable and nothing held is "
+                             "discarded (default: %(default)s)")
+    parser.add_argument("--pool", type=int, metavar="MIB", default=POOL_BYTES // (1024 * 1024),
+                        help="MiB this holder may hold in total; past it, the histories fetched "
+                             "least recently are evicted (default: %(default)s)")
+    parser.add_argument("--compact-above", type=int, metavar="RATIO", default=COMPACT_ABOVE,
+                        help="compact a history once it stores more than this many records per "
+                             "fact it says (default: %(default)s)")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="the address to listen on (default: %(default)s)")
+    parser.add_argument("--port", type=int, default=8081,
+                        help="the port to listen on (default: %(default)s)")
     return parser
 
 
@@ -427,5 +450,5 @@ def main(argv=None) -> int:
     return 0
 
 
-
-
+if __name__ == "__main__":
+    raise SystemExit(main())

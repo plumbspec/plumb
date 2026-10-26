@@ -49,6 +49,10 @@ class Destination:
     #: Which store at that address this credential owns. Issued with the credential, because a
     #: credential owns exactly one store and the pairing is decided at issuance.
     subject: str = ""
+    #: Where this destination was named, in words a reader can go and change: the variables, or
+    #: the enrolment file's path. Said when a send fails, so a wrong address reads differently from
+    #: a down one (`dev07-6-2-1-4-ur4`).
+    source: str = ""
 
     def __post_init__(self):
         if not self.capability.strip():
@@ -90,16 +94,18 @@ def for_capability(capability: str, *, enrolment_path: Path | None = None,
     leaves (`dev07-6-2-1-2-ur1`).
     """
     endpoint, credential, subject = variables(capability)
-    found = _from_env(capability, (endpoint, credential, subject))
+    found = _from_env(capability, (endpoint, credential, subject),
+                      f"{endpoint} and {credential}")
     if found is not None:
         return found
-    found = _from_env(capability, _MACHINE_WIDE)
+    found = _from_env(capability, _MACHINE_WIDE,
+                      f"the machine-wide {_MACHINE_WIDE[0]} and {_MACHINE_WIDE[1]}")
     if found is not None:
         return found
     return _from_enrolment(capability, enrolment_path, root)
 
 
-def _from_env(capability: str, names: tuple) -> Destination | None:
+def _from_env(capability: str, names: tuple, source: str) -> Destination | None:
     """A destination from three variables, or ``None`` where the pair is not both set.
 
     Both halves or neither: an endpoint with no credential is somebody half-way through configuring
@@ -109,7 +115,7 @@ def _from_env(capability: str, names: tuple) -> Destination | None:
     url, credential, subject = (os.environ.get(name, "") for name in names)
     if not url.strip() or not credential.strip():
         return None
-    return Destination(capability, url.strip(), credential.strip(), subject.strip())
+    return Destination(capability, url.strip(), credential.strip(), subject.strip(), source)
 
 
 def _from_enrolment(capability: str, path: Path | None, root: Path | str) -> Destination | None:
@@ -118,7 +124,8 @@ def _from_enrolment(capability: str, path: Path | None, root: Path | str) -> Des
     Imported here rather than at module scope: `enrolment` is the older shape and this is the
     newer one, so the dependency points backwards on purpose and is worth being able to see.
     """
-    from plumb.enrolment import NotEnrolled, load
+    from plumb.enrolment import (CREDENTIAL_ENV, DEFAULT_ENROLMENT, ENDPOINT_ENV, NotEnrolled,
+                                 load)
 
     # Which file, resolved when asked rather than when imported. `enrolment.DEFAULT_ENROLMENT` is a
     # module-level constant, so a `PLUMB_ENROLMENT` set after import is not seen — which is every
@@ -130,4 +137,9 @@ def _from_enrolment(capability: str, path: Path | None, root: Path | str) -> Des
         enrolled = load(path, root=root)
     except (NotEnrolled, OSError, ValueError):
         return None
-    return Destination(capability, enrolled.endpoint, enrolled.credential, enrolled.subject)
+    if path is None and os.environ.get(CREDENTIAL_ENV, "").strip():
+        source = f"{CREDENTIAL_ENV} and {ENDPOINT_ENV}"
+    else:
+        source = f"the enrolment file {path or DEFAULT_ENROLMENT}"
+    return Destination(capability, enrolled.endpoint, enrolled.credential, enrolled.subject,
+                       source)

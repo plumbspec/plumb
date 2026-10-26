@@ -36,8 +36,15 @@ by what you are trying to do, and says who each page is for.
 **Already installed?** [CHANGELOG.md](CHANGELOG.md) says what each release changed and whether
 taking it asks anything of you.
 
-One file, both language adapters inside it, no package index and no account. Needs **Python 3.9+**
-on the machine — the same one your tests run under, so a Python project needs one interpreter and
+**Putting it in CI?** [Integrating with your tooling](docs/integrating-with-your-tooling.md#2-run-it-in-ci-and-gate-on-the-right-thing)
+has the whole recipe, and [Configuration](docs/configuration.md) lists every `plumb.toml` key.
+
+The installer gives you one file with both language adapters inside it — no package index, no
+account. It mounts no modules, so `plumb series show|push|pull` is absent from it, though
+`plumb board --series FILE --push` still records a history and sends it. `pip install plumbspec`
+has the `series` commands and the `plumb-series-holder`, and not the Java adapter. A Java project
+wants the installer; a Python project that will read its history back wants pip. Needs
+**Python 3.9+** on the machine — the same one your tests run under, so a Python project needs one interpreter and
 not two. A Java project needs **Java 8+** for its own tests and a Python anywhere for Plumb, where
 nothing else about the build changes. The whole of it is a table in
 [installing](docs/installing.md#what-you-need). Releases are signed by
@@ -58,9 +65,11 @@ the link **mechanical** — a story is proven by **two checks**:
 Pass both and the story is proven; fail either and it isn't. Beyond the gate, two things that never
 fail the build:
 
-- **Does the test *check* the code?** — a free, opt-in mutation pass mutates the code the
-  story grounded into and expects a citing test to *fail*; a survivor is *advisory*, not a red build.
-  Turn it on with `plumb board --mutation`, or `mutation = true` in `plumb.toml`.
+- **Does the test *check* the code?** — an opt-in mutation pass mutates the code a proven
+  story's tests drove and expects a citing test to *fail*; a survivor is *advisory*, not a red build.
+  Turn it on with `plumb board --mutation`, or `mutation = true` in `plumb.toml`. It costs nothing to
+  buy and a lot of time to run — one run of the citing tests per mutant, so minutes on a small project
+  and hours on a large one: [what mutation costs](docs/what-to-expect.md#what-mutation-costs).
 - **Residue, named not hidden** — execution proves the code ran, not that an *assertion* is
   meaningful. That last sliver is human review.
 
@@ -106,7 +115,11 @@ once at the floor, assume it everywhere above).
 | standards-integration | works against the real resource — embedded, fresh, standards-only | standard conformance; the platform is ops' choice | smoke / e2e |
 | smoke / e2e | everything real, assembled artifact, end to end | nothing | — (the floor) |
 
-A story proven only at the unit rung is shown as unit-only — never silently "done".
+The board shows a story's rungs in brackets — `PROVEN  ORD-1  [unit · wiring]` — and they are the
+depths claimed by citations that passed and that the run did not refute. Status is separate: a
+behavioral story is PROVEN only when a passing citation went in through a declared entry point. A
+story cited only by tests that call the code directly reads `UNPROVEN [unit]` once entry points are
+declared — shown as unit-only, never silently "done".
 
 *Rung*, never *layer*: a layer is a spec's architectural strata, which is a different axis.
 

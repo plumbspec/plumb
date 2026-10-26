@@ -10,9 +10,14 @@ summary: Install Plumb, verify what you installed, pin a version or a channel, o
 
     curl -fsSL https://plumbspec.org/install.sh | sh
 
-Then, in a project that has a `plumb.toml`:
+Then, in your project:
 
     plumb board
+
+That works with no `plumb.toml` at all — a Python project gets a board from its tests' citations,
+with nothing checked for wiring and the board saying so. `plumb init` writes the `plumb.toml` that
+tells Plumb where your code is and where requests enter it; [Getting started](getting-started.md)
+walks through it.
 
 That is the whole installation. Everything below is for when you want more control over it.
 
@@ -50,6 +55,19 @@ This installs the `plumb` command with its `series` module mounted, and the `plu
 command for running a holder of your own. It does **not** carry the Java adapter, which ships only
 inside the zipapp: for a Java project, use the installer above, or set `PLUMB_JAVA_CLASSPATH` to a
 `plumb-java.jar` you already have.
+
+### Which to choose
+
+| | installer | pip |
+|---|---|---|
+| `plumb board`, `init`, `session`, `footprint` | yes | yes |
+| the Java adapter | yes | no |
+| `plumb board --series FILE --push` — record a history and send it | yes | yes |
+| `plumb series show`, `pull`, `push` — read a history back | no | yes |
+| `plumb-series-holder` | no | yes |
+
+A Java project wants the installer. A Python project wants either, and pip if it will read its
+history back or run a holder. `plumb modules` says what the one you have mounts.
 
 ---
 
@@ -170,6 +188,27 @@ Every one of these is an environment variable read by the installer:
 ---
 
 ## Removing it
+
+### From a project
+
+Plumb puts very little into a project, and all of it is yours to delete:
+
+- **`plumb.toml`** — the declaration `plumb init` wrote.
+- **`.plumb/`** — the session cursor, if you used `plumb session` (or wherever `cursor` points).
+- **Your series files and their `.sent` marks**, if you kept a history — `series` in `plumb.toml`, or
+  whatever you passed to `--series`. Back them up first if you want the history: nothing else holds it.
+- **Citations** — `@pytest.mark.proves`, `@pytest.mark.informs`, `@Proves`, `@Informs`. They do
+  nothing without Plumb, so leaving them in place is harmless; removing them is a search. If you
+  registered the markers in `pytest.ini` or `pyproject.toml`, take those lines out with them, and on
+  Java remove the `plumb-annotations` test dependency once nothing imports it.
+- **`.plumb-mutation-rescue`** — only present if a Python mutation run was killed partway; run
+  `plumb board` once first, and it puts your source file back and deletes this.
+
+Outside the project, Plumb keeps a per-project directory under `~/.cache/plumb/runs/` and a
+session reading under `~/.local/state/plumb/`. Both are disposable. Run `plumb footprint` in the
+project **before** deleting `plumb.toml` to see where they are on your machine.
+
+### From your machine
 
 Delete what the installer wrote:
 

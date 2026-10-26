@@ -702,3 +702,24 @@ def test_init_reports_against_the_file_it_kept_and_not_against_a_fresh_project(t
     from plumb.scaffold import next_steps
     assert "Name where your wired system begins" not in next_steps(again.detected), (
         "the numbered steps still open with a step this project has taken")
+
+
+@pytest.mark.proves("dev00-1-2", depth="standards-integration")
+def test_the_sources_comment_says_which_language_reads_it(tmp_path, capsys):
+    """A Python project was told mutation needs `sources`; Python mutation never reads it, and an
+    adopter who believed the comment went looking for a setting that changes nothing."""
+    from plumb import cli
+
+    python = tmp_path / "py"
+    (python / "src" / "shop").mkdir(parents=True)
+    (python / "src" / "shop" / "__init__.py").write_text("")
+    assert cli.main(["init", "--project", str(python)]) == 0
+    written = (python / "plumb.toml").read_text()
+    comment = written.splitlines()[written.splitlines().index(
+        next(l for l in written.splitlines() if l.startswith("sources"))) - 1]
+    assert "Java" in comment and "mutation needs the files" not in comment, comment
+
+    assert cli.main(["init", "--project", str(maven(tmp_path / "java"))]) == 0
+    written = (tmp_path / "java" / "plumb.toml").read_text()
+    assert "mutation" in written[:written.index("\nsources")].splitlines()[-1], \
+        "Java mutation does read it, and is still told so"

@@ -1,6 +1,6 @@
 # dev07-4 · decide whether it is proven
 
-**Last updated** 2026-10-26 v5
+**Last updated** 2026-10-26 v8
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the manifest, carrying the
 stories' facts. Exits to `dev07-5 · report it`, carrying a verdict per story that nobody could
@@ -11,20 +11,16 @@ flowchart TD
     IN([<b>START</b> · the manifest, and the stories<br/>its citations name]):::terminal
 
     NAMES[<b>dev07-4-1</b> · check the citation's id lands<br/>in a declared namespace]:::process
-    REFUSED[/<b>REFUSED</b> · an id outside every declared namespace<br/>fails the run, named/]:::bad
     GATE[<b>dev07-4-2</b> · hold the gate — ran and passed,<br/>then the archetype's own check]:::process
     VERDICT[<b>dev07-4-3</b> · derive the verdict live]:::process
 
     OUT([<b>END</b> · a status nobody could have typed]):::good
 
-    IN --> NAMES
-    NAMES -->|"an id outside every declared namespace"| REFUSED
-    NAMES -->|"every id lands in a declared namespace"| GATE
+    IN --> NAMES --> GATE
     GATE --> VERDICT --> OUT
 
     classDef terminal fill:#eef0ee,stroke:#52514e,color:#0b0b0b;
     classDef process fill:#e9eef5,stroke:#2a78d6,color:#0b0b0b;
-    classDef bad fill:#f7e4e4,stroke:#b02a2a,color:#0b0b0b;
     classDef good fill:#e2f2e2,stroke:#0ca30c,color:#0b0b0b;
 ```
 
@@ -32,8 +28,8 @@ flowchart TD
 
 ### dev07-4-1 · check the citation's id lands in a declared namespace
 
-> **As a reader of a board I want an id outside every namespace the project declared to fail the
-> run, so that a mistyped id never lands beside a real story looking just as real.**
+> **As a reader of a board I want an id outside every namespace the project declared to be named as
+> one, so that a mistyped id never lands beside a real story looking just as real.**
 
 #### Information
 
@@ -42,13 +38,19 @@ flowchart TD
 | dev07-4-1-inf1 | In | `manifest` | yes | parent |
 | dev07-4-1-inf2 | In | `story.id` | yes | parent |
 | dev07-4-1-inf3 | In | `namespace` | optional | authored |
+| dev07-4-1-inf4 | In | `declared.subject` | optional | authored |
 
 #### User Requirements
-  * dev07-4-1-ur1 - a citation whose id lies in none of the declared namespaces fails the run,
-    named, rather than landing beside a real story
+  * dev07-4-1-ur1 - a citation whose id lies in none of the declared namespaces is reported, named,
+    and the run carries on — a finding is reported and never fails or halts a run
   * dev07-4-1-ur2 - the question is asked only where the project declared namespaces at all
   * dev07-4-1-ur3 - the check reads the shape of the id, never whether a document exists behind
     the namespace
+  * dev07-4-1-ur4 - an id outside every declared namespace is named on its own subject, not only
+    as a fact about the run
+  * dev07-4-1-ur5 - an id the project declares in its own configuration — a decision or a parameter
+    named where the project says how its subjects are judged — is not an orphan: the project has
+    already named it, which is the whole of what the check asks
 
 #### System Requirements
 
@@ -158,8 +160,8 @@ flowchart TD
   * dev07-4-3-ur02 - a proof that later fails un-proves its story
   * dev07-4-3-ur03 - the status is computed live each run and never stored — a stored status is a
     claim about a past run read as a claim about this one
-  * dev07-4-3-ur04 - the achieved vector reports the rungs that actually passed; required depth is
-    the team's policy, kept outside the core, and never gates
+  * dev07-4-3-ur04 - the achieved vector reports the rungs that actually passed, and never one the
+    run refuted; required depth is the team's policy, kept outside the core, and never gates
   * dev07-4-3-ur05 - a subject with declared aspects gets a verdict per aspect and no aggregate,
     so no reader is shown a green no aspect earned
   * dev07-4-3-ur06 - the conditions say why the verdict reads as it does, in codes a reader's
@@ -177,6 +179,8 @@ flowchart TD
   * dev07-4-3-ur11 - a parameter is derived as a decision is and read in its own words —
     supported, unvalidated, refuted or unmeasured — and never as held or breached, because a value
     is not held and an estimate that loses to its own placebo is refuted
+  * dev07-4-3-ur12 - a citation that ran and failed is surfaced whatever the subject's other
+    citations show, so a failure is never hidden behind the reason another one fell short
 
 #### System Requirements
   * dev07-4-3-sr1 - the achieved vector is the depths of the story's passing citations,

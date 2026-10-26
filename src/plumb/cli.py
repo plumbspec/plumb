@@ -67,6 +67,26 @@ def _push_series(store: Path, enrolment: str | None, project: str | None = None)
     return f"series: pushed {len(outcome.sent)} record(s)"
 
 
+def _unreadable_project(store: Path, project) -> str | None:
+    """Why the project a series belongs to cannot be read, or ``None`` when it can.
+
+    Read before anything is sent or fetched, so a configuration the run refuses — an address in
+    plumb.toml among them (`dev07-6-2-1-1-sr4`) — is a sentence and an exit code, not a traceback
+    from wherever the file happened to be read first.
+    """
+    from plumb.config import Config, InvalidConfig
+    from plumb.transmit import _owning_project
+
+    root = Path(project) if project else _owning_project(Path(store).resolve().parent)
+    if root is None:
+        return None
+    try:
+        Config.find(root)
+    except InvalidConfig as bad:
+        return str(bad)
+    return None
+
+
 def cmd_series_push(args) -> int:
     """``dev07-6-3-sr1`` — push a series on its own, whenever the operator chooses.
 
@@ -79,6 +99,10 @@ def cmd_series_push(args) -> int:
     if not store.is_file():
         print(f"no series at {store} — run `plumb board --series {store}` first", file=sys.stderr)
         return 1
+    unreadable = _unreadable_project(store, getattr(args, "project", None))
+    if unreadable:
+        print(f"series: not pushed — {unreadable}", file=sys.stderr)
+        return 2
     if getattr(args, "dry_run", False):
         from plumb.transmit import wire_form
 
@@ -164,6 +188,25 @@ def cmd_series_show(args) -> int:
     return 0
 
 
+def _where_subject_was_looked_for(file, project) -> str:
+    """Which plumb.toml a subject was read from, said so the reader edits the right one.
+
+    The owner of the file being written, which is not necessarily the directory the command was run
+    from — so naming it is the difference between a fix and a search.
+    """
+    from plumb.config import CONFIG_NAME
+    from plumb.transmit import _owning_project
+
+    looked = [Path(project).resolve() / CONFIG_NAME] if project else []
+    owner = _owning_project(Path(file).resolve().parent)
+    if owner is not None:
+        looked.append(owner / CONFIG_NAME)
+    if not looked:
+        return (f"{Path(file).resolve().parent} has no plumb.toml above it, so the file belongs to "
+                f"no project")
+    return "no `subject` in " + " or ".join(str(p) for p in dict.fromkeys(looked))
+
+
 def cmd_series_pull(args) -> int:
     """``dev07-6-3`` — fetch the history the holder keeps for this subject, and write it down.
 
@@ -171,20 +214,31 @@ def cmd_series_pull(args) -> int:
    , and until this existed the only way to see it was a hand-written `curl`. Retrieval is
     also the signal eviction ranks on, so reading your history is what keeps it.
     """
-    from plumb.enrolment import NotEnrolled, load
     from plumb.transmit import _configured_subject
+    from plumb.transport import for_capability, variables
 
-    try:
-        enrolment = load(Path(args.enrolment) if args.enrolment else None)
-    except NotEnrolled as why:
-        print(f"series: not pulled — {why}", file=sys.stderr)
+    project = getattr(args, "project", None)
+    unreadable = _unreadable_project(Path(args.file), project)
+    if unreadable:
+        print(f"series: not pulled — {unreadable}", file=sys.stderr)
+        return 2
+    # Found the way a push finds it (`dev07-6-3-sr2`), so a history is read back from where it
+    # was sent rather than from wherever an enrolment file happens to point.
+    destination = for_capability("series",
+                                 enrolment_path=Path(args.enrolment) if args.enrolment else None,
+                                 root=project or Path(args.file).resolve().parent)
+    if destination is None:
+        endpoint_var, credential_var, _ = variables("series")
+        print(f"series: not pulled — no destination named for series: set {endpoint_var} and "
+              f"{credential_var}, or enrol", file=sys.stderr)
         return 1
-    subject = args.subject or enrolment.subject or \
-        _configured_subject(Path(args.file), getattr(args, "project", None))
+    subject = args.subject or destination.subject or _configured_subject(Path(args.file), project)
     if not subject:
-        print("series: no subject to ask for. Name one with `subject = \"…\"` in plumb.toml — it "
-              "names a series inside the store you own, so it is yours to choose — or pass "
-              "--subject", file=sys.stderr)
+        looked = _where_subject_was_looked_for(args.file, project)
+        print(f"series: no subject to ask for — {looked}\n"
+              "  Name one with `subject = \"…\"` in the project's plumb.toml — it names a series "
+              "inside the store you own, so it is yours to choose — or pass --subject NAME, or "
+              "--project . to read this directory's plumb.toml instead", file=sys.stderr)
         return 1
 
     import json
@@ -193,8 +247,8 @@ def cmd_series_pull(args) -> int:
 
     from plumb.transmit import TIMEOUT_SECONDS
 
-    headers = {"Authorization": f"Bearer {enrolment.credential}"}
-    endpoint = enrolment.endpoint
+    headers = {"Authorization": f"Bearer {destination.credential}"}
+    endpoint = destination.url
     request = urllib.request.Request(f"{endpoint.rstrip('/')}/series/{subject}", headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as answer:
@@ -215,7 +269,10 @@ def cmd_series_pull(args) -> int:
               + (f" — {note}" if note else ""), file=sys.stderr)
         return 1
     except (urllib.error.URLError, OSError, TimeoutError) as unreachable:
-        print(f"series: holder unreachable: {unreachable}", file=sys.stderr)
+        from plumb.transmit import where
+
+        print(f"series: holder unreachable: {unreachable} — "
+              f"{where(request.full_url, destination)}", file=sys.stderr)
         return 1
 
     # The copy says it is a copy (`dev07-6-3`). Written into the file rather than worked out later
@@ -328,6 +385,10 @@ def cmd_account(args) -> int:
     except urllib.error.HTTPError as refused:
         print(refused.read().decode(), file=sys.stderr)
         return 2
+    except (urllib.error.URLError, OSError, TimeoutError) as unreachable:
+        print(f"account: {endpoint} unreachable — {getattr(unreachable, 'reason', unreachable)}",
+              file=sys.stderr)
+        return 2
 
     if args.command == "open":
         print(f"account opened: {said.get('state', '?')}, expires {said.get('expires_at', '?')}")
@@ -362,14 +423,15 @@ def _say_cursor(cursor, config) -> None:
         print(f"            {line}")
 
 
-def _say_history(config, project, seq: int) -> None:
+def _say_history(config, project) -> None:
     """Where a history stands, for the projects that keep one (`dev10-3`)."""
     from plumb import session
 
     if not config.series:
         return
     moved = session.volatile(config, project)
-    print(f"  history   {config.series} · {seq + 1} transition(s) recorded")
+    print(f"  history   {config.series} · {session.transitions(config, project)} "
+          f"transition(s) recorded")
     for row in moved:
         print(f"            {row.subject} has moved in {row.changes} runs — "
               f"today's move is not its first")
@@ -413,7 +475,7 @@ def cmd_session(args) -> int:
             print("            the last session did not wrap, so the cursor may not describe "
                   "what is here")
         print(f"  board     {reading.total - reading.proven} unproven of {reading.total}")
-        _say_history(config, project, reading.series_seq)
+        _say_history(config, project)
         statefile.replace(reading_path, reading.to_json())
 
         if cursor is not None and cursor.get("REF"):
@@ -520,8 +582,15 @@ def cmd_session(args) -> int:
 
         series.append(project / config.series, manifest)
         wrote.append(config.series)
-        moved = session.since(config, project, before.series_seq if before else -1)
-        print(f"  history   {len(moved)} transition(s) recorded this session → {config.series}")
+        if before is None:
+            # With no opening reading there is no mark to count from, and a count from the start of
+            # the store would claim earlier sessions' transitions as this one's.
+            print(f"  history   appended → {config.series} (no opening reading, so this "
+                  f"session's transitions are not counted)")
+        else:
+            moved = session.since(config, project, before.series_seq)
+            print(f"  history   {len(moved)} transition(s) recorded this session → "
+                  f"{config.series}")
 
     if sets_cursor:
         session.write_cursor(cursor_path, intended)
@@ -547,6 +616,7 @@ def cmd_footprint(args) -> int:
     """
     from plumb import footprint
     from plumb.config import Config, InvalidConfig
+    from plumb.launch import _scratch
 
     try:
         config = Config.find(args.project)
@@ -554,16 +624,26 @@ def cmd_footprint(args) -> int:
         print(f"{bad}", file=sys.stderr)
         return EXIT_CANNOT_BOARD
 
+    def here(wrote) -> str:
+        """Whether this place exists on this machine now (`dev00-1-4-ur4`). A module names its
+        places in words rather than paths, so for those there is nothing to look at."""
+        if wrote in modules:
+            return ""
+        place = Path(wrote.where)
+        return "present" if (place if place.is_absolute()
+                             else Path(args.project) / place).exists() else "absent"
+
+    modules = footprint.from_modules()
+
     sections = (("in this project — your repository already carries these",
                  footprint.in_project(config, Path(args.project))),
                 ("outside it — the half a repository does not carry",
-                 footprint.user_level()),
+                 footprint.user_level(_scratch(config))),
                 # Last, and named as theirs. A module's state is invisible to whoever is deciding
                 # what to protect otherwise, and the core stops being able to answer for it the
                 # moment a capability moves out (`dev08-1-2-ur2`). Omitted entirely where no module
                 # declares anything, because a module with no state is ordinary, not a finding.
-                ("added by modules — the core does not own these",
-                 footprint.from_modules()))
+                ("added by modules — the core does not own these", modules))
     for heading, places in (s for s in sections if s[1]):
         print(f"\n{heading}\n")
         for wrote in places:
@@ -571,12 +651,15 @@ def cmd_footprint(args) -> int:
             # they already run at it. That is what the archive this tool used to offer was for, and
             # saying it costs a word where taking custody cost three policies core cannot own.
             marks = " ".join(filter(None, [
+                here(wrote),
                 "" if wrote.keep else "disposable",
                 "IRREPLACEABLE" if wrote.irreplaceable else "",
                 "shared" if wrote.shared else "",
                 "SECRET" if wrote.secret else ""]))
             print(f"  {wrote.where}" + (f"   [{marks}]" if marks else ""))
-            for line in textwrap.wrap(wrote.what, 72):
+            # A path is never broken across lines: the reader copies it.
+            for line in textwrap.wrap(wrote.what, 72, break_on_hyphens=False,
+                                      break_long_words=False):
                 print(f"      {line}")
     # Facts, and then nothing. What to do about a secret depends on a threat model, an
     # infrastructure and a set of obligations this tool cannot see, and `dev00-1-4-nfr3` is the whole
@@ -652,7 +735,16 @@ def _board(args) -> int:
     from plumb.core.gate import label, NOTHING_OBSERVED, prose, run_conditions
     from plumb.core.manifest import InvalidManifest, Manifest
 
-    namespaces, absent, blind = (), (), ()
+    namespaces, absent, blind, declared = (), (), (), ()
+    told_project = args.project is not None
+    if not told_project:
+        args.project = "."
+    if args.emit_manifest and not args.manifest:
+        # Before anything can fail: a run that cannot board must leave no manifest at this path,
+        # or a reused workspace publishes the last run's as this one's.
+        Path(args.emit_manifest).unlink(missing_ok=True)
+    # Progress and the series lines go to stderr on every path, a manifest read as much as a run.
+    say = lambda line: print(line, file=sys.stderr, flush=True)
     if args.manifest:
         # Repeatable, because several adapters produce several manifests and the board derives
         # from their union (`dev07-3-3`). One file is the same code path with one element.
@@ -663,6 +755,17 @@ def _board(args) -> int:
         except (OSError, InvalidManifest, ValueError) as bad:
             print(f"--manifest: {bad}", file=sys.stderr)
             return EXIT_CANNOT_BOARD
+        if told_project:
+            # Only when told (`dev07-3-3-ur7`). A saved manifest may be any project's, and the
+            # plumb.toml beside wherever the command was typed is not evidence of which.
+            from plumb.config import Config, InvalidConfig
+
+            try:
+                config = Config.find(args.project)
+            except InvalidConfig as bad:
+                print(f"{bad}", file=sys.stderr)
+                return EXIT_CANNOT_BOARD
+            namespaces, declared = config.specs, config.declared
     else:
         from plumb.config import Config, InvalidConfig
         from plumb.launch import LaunchFailed, produce
@@ -676,7 +779,6 @@ def _board(args) -> int:
         # The runner writes its own progress to stdout, which would corrupt the neutral format
         # on the way to a consumer (`dev07-5-3`). Its chatter goes to stderr; stdout carries only
         # the board.
-        say = lambda line: print(line, file=sys.stderr, flush=True)
         try:
             with contextlib.redirect_stdout(sys.stderr):
                 # No flag defers to what the project declared, which defaults to off (`dev07-2-2`).
@@ -686,7 +788,7 @@ def _board(args) -> int:
                 manifest, absent, blind = produce(config, pytest_args=args.pytest_args,
                                                   mutation=args.mutation, report=say,
                                                   tests=getattr(args, "tests", False))
-                namespaces = config.specs
+                namespaces, declared = config.specs, config.declared
         except (LaunchFailed, InvalidConfig) as bad:
             print(f"{bad}", file=sys.stderr)
             return EXIT_CANNOT_BOARD
@@ -699,10 +801,11 @@ def _board(args) -> int:
     # are derived rather than to the document — the run observed what it observed whatever you
     # asked to see, so run-level facts read the whole manifest.
     board = Board.render(manifest, namespaces, absent, blind, scope=args.scope,
-                         rendered_by=__version__)
+                         rendered_by=__version__, declared=declared)
     # Derived once and used twice — printed for a person, returned for a machine — so the two can
     # never disagree about what this run was (`dev07-5-2`, `dev07-5-3`).
-    nothing_observed = NOTHING_OBSERVED in run_conditions(manifest, namespaces, absent, blind)
+    nothing_observed = NOTHING_OBSERVED in run_conditions(manifest, namespaces, absent, blind,
+                                                          declared)
     exit_code = EXIT_NOTHING_OBSERVED if nothing_observed else EXIT_OK
 
     if args.json:
@@ -743,6 +846,10 @@ def _board(args) -> int:
         score = f"  {fact.killed}/{fact.total} checked" if fact else ""
         if fact and fact.unreached:
             score += f" · {fact.unreached} never reached"
+        elif fact and fact.unreached is None:
+            # Not measured, so not a number (`dev07-2-4-ur7`): a 0 here would say every survivor
+            # was reached, and the run did not look.
+            score += " · never reached: not reported"
         if verdict.aspects:
             # One line per aspect and no line pretending to be the subject (`dev07-4-3-ur05`). A
             # decision's aspects close at different times, so a row summarising them would be the
@@ -792,25 +899,30 @@ def _board(args) -> int:
             print(said)
             for key, stories in sorted(distinct.items()):
                 file, line, where, operator = key
-                shared = f"  ({len(stories)} stories)" if len(stories) > 1 else ""
+                # Named rather than counted: `(2 stories)` leaves the reader to work out which
+                # two, and the stories are where they go to read the tests that missed it.
+                named = sorted(stories, key=natural_key)
+                shared = f"  ({', '.join(named[:8])}" + (
+                    f" and {len(named) - 8} more)" if len(named) > 8 else ")")
                 # The distinction the reader acts on. Never reached means no citing test evaluates
                 # this line, so no assertion could have caught it; the rest are tests that ran the
                 # code and did not check it.
                 why = "" if anywhere[key] else "  — never reached"
                 print(f"    {file}:{line}  {operator} · {where}{shared}{why}")
 
-    for code, count in sorted(_conditions(board).items()):
+    for code, sids in sorted(_conditions(board).items()):
         # Nothing is silently skipped: say what could not run, what to do, and what that looks
         # like (`dev07-1-4`, `dev07-5-1`). Each part is labelled so the reader can tell the diagnosis
         # from the instruction rather than parsing one long sentence.
         condition = prose(code)
-        print(f"\n  {count} stories  [{code}]")
+        named = ", ".join(sids[:8]) + (f" and {len(sids) - 8} more" if len(sids) > 8 else "")
+        print(f"\n  {len(sids)} {'story' if len(sids) == 1 else 'stories'}  [{code}]  {named}")
         if condition:
             print(f"       what · {condition.what}")
             print(f"       next · {condition.next_step}")
             if condition.example:
                 print(f"    example · {condition.example}")
-    for code in run_conditions(manifest, namespaces, absent):
+    for code in run_conditions(manifest, namespaces, absent, blind, declared=declared):
         # On the board itself, not only on stderr above: what a reader keeps, pastes into a
         # ticket or scrolls back to is the board, and a run-level fact that lives only in the
         # chatter is one the board still fails to state (`dev07-5-2`).
@@ -882,12 +994,13 @@ def _nothing_observed() -> str:
     )
 
 
-def _conditions(board) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for verdict in board.verdicts.values():
+def _conditions(board) -> dict[str, list[str]]:
+    """Each condition, and the subjects it is about (`dev07-5-2-ur12`)."""
+    about: dict[str, list[str]] = {}
+    for sid, verdict in sorted(board.verdicts.items()):
         for code in verdict.conditions:
-            counts[code] = counts.get(code, 0) + 1
-    return counts
+            about.setdefault(code, []).append(sid)
+    return about
 
 
 def _channel() -> str:
@@ -944,14 +1057,19 @@ def build_parser() -> argparse.ArgumentParser:
                             "exactly what it reads unscoped")
     board.add_argument("--emit-manifest", metavar="FILE",
                        help="write the manifest the runner produced, to inspect or replay")
-    board.add_argument("--project", metavar="DIR", default=".",
-                       help="the project to read plumb.toml from (default: this directory)")
+    # No default here, so a board can tell "told this project" from "standing in a directory":
+    # with --manifest only the first is a reason to read a plumb.toml (`dev07-3-3-ur7`).
+    board.add_argument("--project", metavar="DIR", default=None,
+                       help="the project to read plumb.toml from (default: this directory). With "
+                            "--manifest, read only when given: that project's `specs` and "
+                            "declared ids are then checked as on a run")
     board.add_argument("pytest_args", nargs="*",
                        help="passed to the runner, e.g. a path to limit collection. Put `--` "
                             "first to pass the runner its own flags: plumb board -- -k orders")
     board.add_argument(
         "--series", metavar="FILE",
-        help="also append what this run changed to a series (`dev07-6-1`); opt-in, never a side effect")
+        help="also append what this run changed to the history kept in FILE; only when asked, "
+             "never as a side effect")
     board.add_argument(
         "--push", action="store_true",
         help="with --series, also send what the service has not been given. A failure to reach it "
@@ -972,7 +1090,7 @@ def build_parser() -> argparse.ArgumentParser:
     redeem = acc.add_parser("redeem", help="redeem a credential link; the answer comes once")
     redeem.add_argument("token", help="the token from the link")
     for taking in (opened, redeem):
-        taking.add_argument("--endpoint", help="the support service (or set PLUMB_ENDPOINT)")
+        taking.add_argument("--endpoint", help="the service to open the account with (or set PLUMB_ENDPOINT)")
     account.set_defaults(func=cmd_account)
     prints = groups.add_parser(
         "footprint", help="what Plumb has written, where, and what losing each place would cost")

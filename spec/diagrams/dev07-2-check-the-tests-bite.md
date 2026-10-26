@@ -1,6 +1,6 @@
 # dev07-2 · check the tests bite
 
-**Last updated** 2026-10-26 v5
+**Last updated** 2026-10-26 v6
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered when the project asks for
 mutation, carrying the trace, the annotations and the story. Exits to
@@ -177,6 +177,9 @@ flowchart TD
     blocks is the opting team's policy, never the core's
   * dev07-2-4-ur6 - a survivor cannot move a story's status — the gate is the wiring fact, and
     mutation sits beside it
+  * dev07-2-4-ur7 - a count nobody measured is reported as not reported, never as 0: where the run
+    did not say whether a survivor was reached, how many went unreached is not reported, because a
+    0 there claims every survivor was reached
 
 #### System Requirements
   * dev07-2-4-sr1 - the proportion is checked at the manifest's edge: more killed than run is

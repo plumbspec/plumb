@@ -1,6 +1,6 @@
 # dev07-3 · collect what the run did
 
-**Last updated** 2026-10-26 v8
+**Last updated** 2026-10-26 v9
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered from the observed run, carrying the
 run, the traces, the wiring facts and — where mutation ran — the scores. Exits to
@@ -170,6 +170,9 @@ flowchart TD
   * dev07-3-3-ur6 - an older shape inside the window is migrated and then read, and a field it
     could not express is filled only with *not reported* — never a substantive default; where it
     cannot be carried honestly it is read as its own version or refused
+  * dev07-3-3-ur7 - a board rendered from a saved manifest answers the namespace question when it
+    is told which project the manifest belongs to, and reads no declaration it was not told about:
+    a configuration that happens to sit where the command was typed may be another project's
 
 #### System Requirements
   * dev07-3-3-sr1 - the manifest is the sole hand-off between language-specific and

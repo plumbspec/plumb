@@ -511,3 +511,73 @@ def test_a_refused_close_takes_no_reading_and_appends_no_history(monkeypatch, ca
                      "--ref", "APP-1", "--context", "y"]) == 0
     assert took == [1], "and the run that does close takes exactly one reading"
     assert (root / "history.jsonl").exists(), "which is the run the history records"
+
+
+@pytest.mark.proves("dev10-3", depth="standards-integration")
+def test_the_count_of_transitions_counts_transitions_and_not_run_markers(monkeypatch, capsys,
+                                                                         tmp_path):
+    """A history also holds run markers and its origin stamp; neither is a transition, and a count
+    that included them would report movement on a session where nothing moved."""
+    from plumb import cli
+
+    root = _wired(tmp_path, monkeypatch, extra='series = "history.jsonl"\n', body=TOGGLEABLE)
+    start = ["session", "--project", str(root), "start"]
+    close = ["session", "--project", str(root), "wrap-up", "--next", "on", "--ref", "APP-1",
+             "--context", "why"]
+
+    assert cli.main(start) == 0
+    assert "0 transition(s) recorded" in capsys.readouterr().out, "nothing is kept yet"
+    assert cli.main(close) == 0
+    assert "1 transition(s) recorded this session" in capsys.readouterr().out, \
+        "APP-1's one fact appeared — the origin and the run marker are not transitions"
+
+    assert cli.main(start) == 0
+    assert "1 transition(s) recorded" in capsys.readouterr().out
+    assert cli.main(close) == 0
+    assert "0 transition(s) recorded this session" in capsys.readouterr().out, \
+        "a session where nothing moved recorded a run and no transition"
+
+    monkeypatch.setenv("PLUMB_BREAK_IT", "1")
+    assert cli.main(start) == 0
+    capsys.readouterr()
+    assert cli.main(close) == 0
+    assert "1 transition(s) recorded this session" in capsys.readouterr().out
+
+
+@pytest.mark.proves("dev00-1-4", depth="standards-integration")
+def test_the_footprint_says_which_places_exist_and_names_this_project_s_cache(monkeypatch, capsys,
+                                                                            tmp_path):
+    """`dev00-1-4-ur4` — a list of paths that may or may not be there, and a cache "keyed by its
+    path" with no path, sent a reader to work out both by hand."""
+    from plumb import cli
+    from plumb.config import Config
+    from plumb.launch import _scratch
+
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    root = _wired(tmp_path, monkeypatch, extra='series = "history.jsonl"\n')
+
+    assert cli.main(["footprint", "--project", str(root)]) == 0
+    shown = capsys.readouterr().out
+    entry = lambda where: next(l for l in shown.splitlines() if l.strip().startswith(where))
+    assert "present" in entry("plumb.toml"), shown
+    assert "absent" in entry("history.jsonl"), "nothing has been recorded yet"
+    assert "absent" in entry(str(tmp_path / "config")), shown
+    assert str(_scratch(Config.find(root))) in shown, "this project's own cache directory, named"
+
+
+@pytest.mark.proves("dev00-1-4", depth="component")
+def test_the_sent_mark_says_what_losing_it_costs_without_claiming_the_holder_dedupes(tmp_path):
+    """The inventory said a lost mark re-sends what *the receiver recognises*. The holder appends
+    what it is sent, so a re-send is stored twice and over-counts `changes` until compaction — a
+    reader deciding whether to keep the mark was told it cost nothing."""
+    from plumb import footprint
+    from plumb.config import Config
+    from plumb_series import DECLARATION
+
+    mark = next(w for w in footprint.in_project(Config(series="hist.jsonl", root=tmp_path), tmp_path)
+                if w.where.endswith(".sent"))
+    declared = next(w for w in DECLARATION.writes if ".sent" in w.where)
+    for said in (mark, declared):
+        assert said.keep, said
+        assert "re-sends" in said.what and "recognises" not in said.what, said.what

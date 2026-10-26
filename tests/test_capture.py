@@ -793,3 +793,84 @@ def _delete(endpoint, record_id, credential):
         return refused.code, json.loads(refused.read() or b"{}")
 
 
+
+
+# ── a fetch reads back from where the push sent (dev07-6-3) ─────────────────────────────────
+
+
+@pytest.mark.proves("dev07-6-3", depth="wiring")
+def test_a_pull_finds_its_holder_the_way_a_push_does(tmp_path, server, monkeypatch, capsys):
+    """`dev07-6-3-sr2` — a history named for the series capability in the environment is read
+    back from that same place. A pull that consulted only the enrolment could not find a history
+    the push had just put somewhere else."""
+    endpoint, _ = server
+    pushed = _a_store_with(tmp_path, _a_run("t::a"))
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", endpoint)
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "tester-secret-token")
+    monkeypatch.setenv("PLUMB_SERIES_SUBJECT", "named-by-the-run")
+    monkeypatch.setenv("PLUMB_ENROLMENT", str(tmp_path / "no-enrolment-here.json"))
+    assert transmit.push_series(pushed).sent
+
+    fetched = tmp_path / "pulled.jsonl"
+    code = cli.main(["series", "pull", str(fetched)])
+    assert code == 0, capsys.readouterr().err
+    assert "named-by-the-run" in capsys.readouterr().out
+
+
+@pytest.mark.proves("dev07-6-3", depth="wiring")
+def test_a_fetched_copy_does_not_hand_its_note_to_the_next_holder(tmp_path, server, capsys):
+    """`dev07-6-3-ur5` — a copy pulled from one holder and pushed to another leaves its *fetched
+    from* note behind, so the second holder holds a history and not a cache of the first."""
+    endpoint, _ = server
+    store = _a_store_with(tmp_path, _a_run("t::a"))
+    first = _enrolled_for(tmp_path, endpoint, "first-home", name="first.json")
+    transmit.push_series(store, first)
+    fetched = tmp_path / "pulled.jsonl"
+    assert cli.main(["series", "pull", str(fetched), "--enrolment", str(first)]) == 0
+    assert "retrieved_from" in fetched.read_text(), "the copy says what it is"
+
+    second = _enrolled_for(tmp_path, endpoint, "second-home", name="second.json")
+    assert transmit.push_series(fetched, second).sent
+    again = tmp_path / "again.jsonl"
+    assert cli.main(["series", "pull", str(again), "--enrolment", str(second)]) == 0
+    capsys.readouterr()
+    assert again.read_text().count("retrieved_from") == 1, \
+        "only the note this pull wrote — the first holder's never travelled"
+
+
+@pytest.mark.proves("dev07-6-3", depth="wiring")
+def test_a_pull_under_an_unreadable_configuration_says_so(tmp_path, monkeypatch, capsys):
+    """A project file that cannot be read is named, never a traceback."""
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", "http://127.0.0.1:9")
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "tok")
+    project = tmp_path / "p"
+    project.mkdir()
+    (project / "plumb.toml").write_text("this is = = not toml\n")
+    code = cli.main(["series", "pull", str(project / "out.jsonl"), "--project", str(project)])
+    said = capsys.readouterr().err
+    assert code != 0 and "Traceback" not in said and "plumb.toml" in said, said
+
+
+@pytest.mark.proves("dev07-6-2-1-4", depth="wiring")
+def test_an_unreachable_holder_is_named_as_the_destination_it_is(tmp_path, monkeypatch, capsys):
+    """What a push could not reach is the destination the run named — a series holder here, and
+    never "the support service"."""
+    store = _a_store_with(tmp_path, _a_run("t::a"))
+    monkeypatch.setenv("PLUMB_SERIES_ENDPOINT", "http://127.0.0.1:9")
+    monkeypatch.setenv("PLUMB_SERIES_CREDENTIAL", "tok")
+    monkeypatch.setenv("PLUMB_SERIES_SUBJECT", "s")
+    assert cli.main(["series", "push", str(store)]) == 0, "an outage never fails the run"
+    said = capsys.readouterr().out + capsys.readouterr().err
+    assert "destination unreachable" in said and "support service" not in said, said
+
+
+def test_the_holder_runs_as_a_module(tmp_path):
+    """`python -m plumb.series_holder` is the holder, not a silent no-op."""
+    import subprocess
+    import sys
+
+    done = subprocess.run([sys.executable, "-m", "plumb.series_holder", "--help"],
+                          capture_output=True, text=True,
+                          env={**__import__("os").environ,
+                               "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")})
+    assert done.returncode == 0 and "--port" in done.stdout, done.stdout + done.stderr

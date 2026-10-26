@@ -298,12 +298,19 @@ class Mutation:
         return self.total - self.killed
 
     @property
-    def unreached(self) -> int:
+    def unreached(self) -> int | None:
         """Survivors no citing test ever evaluated — mutants this story could not have killed.
 
-        Zero where the adapter does not report reach, which reads as *none known* rather than
-        *none*: the count is only as strong as what was observed (``dev07-3-3``).
+        ``None`` — *not reported* — where any survivor's reach was not reported, never 0
+        (``dev07-2-4-ur7``). Zero there read as *every survivor was reached*, which is the one claim
+        an adapter that does not observe reach cannot make; and a count over the survivors that
+        were observed is a lower bound wearing the count's name. With no survivors there is
+        nothing unmeasured, and none went unreached. A shortfall the adapter did not name is as
+        unmeasured as one it named without reach.
         """
+        if len(self.survivors) < self.survived or any(one.reached is None
+                                                      for one in self.survivors):
+            return None
         return sum(1 for one in self.survivors if one.reached is False)
 
 

@@ -30,7 +30,8 @@ Run this in your project:
     plumb init
 
 It writes one file, `plumb.toml`, and guesses what it can from your layout. Nothing else in your
-project is touched.
+project is touched. It asks you nothing: it ends by printing what is still to do — on a fresh project,
+that `entry_points` is empty — and how to cite a first story.
 
 **Read what it guessed.** The guesses are usually close and occasionally wrong, and a wrong guess
 is much easier to fix now than to debug later.
@@ -65,10 +66,30 @@ pattern**, and Maven puts tests in the same package tree as the code they test �
 `com.acme.orders.*` will also match `com.acme.orders.OrdersTest`. Plumb knows to skip test classes,
 but keep the pattern as narrow as the truth allows.
 
-**`sources`** — where that code's source files live. Only used by mutation, which is off by default.
+**`sources`** — where that code's source files live. Only Java mutation reads it, and mutation is
+off by default.
 
-**`entry_points`** — *this is the one that matters.* Leave it for Step 4; it is easier to
-understand once you have seen the board complain about it.
+**`entry_points`** — *this is the one that matters.* `plumb init` leaves it empty and names it among
+what is still to do; if you already know where requests enter your system you can fill it in now. This page leaves it empty until
+Step 4, because it is easier to understand once you have seen what the board says without it.
+
+`init` does not write `specs`, the list of your story-id prefixes; it is optional, and
+[Configuration](configuration.md) has it with every other key.
+
+### Python: make your code importable the way your tests import it
+
+Plumb runs your suite under pytest, in your interpreter, so **it imports what pytest imports** —
+your code is found the way your tests find it. Get plain `pytest` green first; a suite pytest cannot
+collect gives Plumb no board either. For a `src` layout that usually means telling pytest where the
+package lives, in `pytest.ini` (or the `[tool.pytest.ini_options]` table of `pyproject.toml`):
+
+    [pytest]
+    pythonpath = src
+
+— or an editable install (`pip install -e .`). Name entry points by the same module name your tests
+import (`orders.api:handle`, not `src.orders.api:handle`). Plumb also puts the parent of each
+`production` package on the path for its own run, so it can collect a suite plain `pytest` cannot;
+if the two disagree, that is the difference to look at.
 
 ### One extra step for Java
 
@@ -174,11 +195,15 @@ a chapter in a document. Plumb never invents ids and keeps no list of them. If y
 
 | depth | means |
 |---|---|
-| `unit` | it exercised a piece in isolation |
-| `component` | it exercised a few pieces together |
-| `wiring` | it went through the real system, the way a request would |
-| `standards-integration` | it crossed a boundary you do not own |
-| `smoke` | it touched the deployed thing |
+| `unit` | one unit's input and output, in isolation |
+| `component` | how the unit behaves — its branches, loops and error paths — with its collaborators doubled |
+| `wiring` | the code is actually integrated: the test came in through an entry point, the way a request would |
+| `standards-integration` | it works against a **real** resource — a real database, broker or filesystem, embedded and fresh — through a standard interface |
+| `smoke`, `smoke/e2e` or `e2e` | everything real: the assembled artifact, end to end |
+
+`wiring` and everything below it in this table are **wired** rungs — the run checks the test really
+went through an entry point. `unit` and `component` claim isolation, which no trace can refute, so
+they are taken at your word. [Testing depth](testing-depth.md) has the full ladder.
 
 Claiming `wiring` when the test only called a function directly does **not** quietly downgrade to
 `unit`. The story stays UNPROVEN and the board says why. That is the point: the claim has to survive
@@ -193,12 +218,15 @@ Start with one citation. Not ten.
     plumb board
 
 Plumb runs your test suite, watches what your production code actually does, and prints what it
-found. The first run says something like:
+found. On a Python project its first line says which Python is running your tests — `python: /path/to/python`. That is
+the `[python] interpreter` you declared, else an active virtualenv, else `.venv` or `venv` in your
+project, else the Python running Plumb; if it is the wrong one, declare it. Then your runner's own
+output, then the board:
 
     ══════ BOARD ══════
       PASSED-WIRING-NOT-VERIFIED   ORD-1  [wiring]
 
-      1 stories  [grounding.not-checked]
+      1 story  [grounding.not-checked]  ORD-1
            what · grounding did not run — no production entry points are declared
            next · declare where the wired system begins, to catch orphaned code
         example · in plumb.toml — Python:  entry_points = ["myapp.cli:main"]   ·  Java:  entry_points = ["com.acme.Api#handle"]
@@ -214,7 +242,8 @@ found. The first run says something like:
 This is not a failure. Your test passed. Plumb is telling you it could not *check* the part you
 claimed, because you have not told it where your system begins yet.
 
-Every condition has the same three lines, and they are worth learning:
+Each condition is printed once, with the stories it is about after its code, and has the same three
+lines. They are worth learning:
 
 - **what** — what Plumb found
 - **next** — the one thing to do about it
@@ -269,9 +298,9 @@ The usual first cause looks like this:
 
     ══════ BOARD ══════
       PROVEN                       ORD-1  [wiring]
-      UNPROVEN                     ORD-2  [wiring]
+      UNPROVEN                     ORD-2
 
-      1 stories  [depth.unsupported]
+      1 story  [depth.unsupported]  ORD-2
            what · a citation claims it reached the wired system, and its execution never did
            next · drive the story through a declared entry point, which is what a wired claim needs
                   to hold — or lower the claimed depth, which ends this complaint and moves the
@@ -279,25 +308,27 @@ The usual first cause looks like this:
         example · at depth="unit" the claim is one the execution supports; the status stays
                   whatever the grounding already earned, and the board says why separately
 
-      1 stories  [grounding.not-wired]
-           what · every citation passed, and none of them reached the wired system — what ran was
-                  the implementation on its own, which is not evidence the story holds where it is used
+      1 story  [grounding.not-wired]  ORD-2
+           what · the citations that passed reached nothing wired — what ran was the implementation
+                  on its own, which is not evidence the story holds where it is used
            next · drive it through a declared entry point, or leave it at the depth it reaches and
                   let the board say so
         example · a test calling the class directly proves the class; the story is about the system
                   that calls it
 
 `ORD-2` claimed `wiring`, but the test called the function directly instead of going in through the
-front door. Plumb watched, saw it never pass an entry point, and refused the claim.
+front door. Plumb watched, saw it never pass an entry point, and refused the claim — which is why
+`ORD-2` has no bracket. **The bracket lists the depths claimed by citations that passed and that the
+run did not refute**; a refuted `wiring` is not one of them.
 
 (The board prints each line unwrapped; it is wrapped here to fit the page.)
 
 You have two honest moves. They are not interchangeable:
 
 1. **Lower the claim.** Change `depth="wiring"` to `depth="unit"`. This makes the claim true, and
-   the `depth.unsupported` message goes away. **It does not make the story proven.** A test that
-   never enters through a declared entry point leaves the story UNPROVEN, and `grounding.not-wired`
-   stays on the board to say so.
+   the `depth.unsupported` message goes away; the row now reads `UNPROVEN  ORD-2  [unit]`. **It does
+   not make the story proven.** A test that never enters through a declared entry point leaves the
+   story UNPROVEN, and `grounding.not-wired` stays on the board to say so.
 2. **Raise the test.** Rewrite it to go in through an entry point, so it really does exercise the
    wired system. **This is the only one of the two that reaches PROVEN.**
 
@@ -316,8 +347,9 @@ cannot.
 
 - **Cite a second test.** The loop is the same, and it is one line.
 - **Learn what else a citation can say.** [Writing a citation](writing-a-citation.md) covers one
-  test proving several stories, several tests proving one, and the two ways a citation silently
-  does nothing.
+  test proving several stories, several tests proving one, and the mistakes that pass silently.
+- **Put it in CI.** [Integrating with your tooling](integrating-with-your-tooling.md#2-run-it-in-ci-and-gate-on-the-right-thing)
+  is the whole recipe.
 - **Read the messages.** Every condition code has a `what`, a `next` and an `example`. They are the
   documentation for the situation you are actually in.
 - **Leave mutation off** until the basics are steady. It is a deeper check and it is slow —

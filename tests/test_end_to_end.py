@@ -254,6 +254,20 @@ def test_mutation_separates_a_test_that_checks_from_one_that_merely_runs(
         "same code, same mutants — the difference is entirely in what the test asserts"
 
 
+@pytest.mark.proves("dev07-2-4", depth="smoke")
+def test_every_python_survivor_is_named(monkeypatch, capsys, tmp_path):
+    """`dev07-2-4-ur3` — each survivor is named, because the reader's next move differs per
+    survivor. A score with an empty list is a count with nothing to act on."""
+    root = project(tmp_path, ONE_CHECKS_AND_ONE_DOES_NOT, config=OPTS_INTO_MUTATION)
+    payload = board_from(monkeypatch, capsys, root, "--mutation")
+
+    checked, blind = (payload["stories"][s]["mutation"] for s in ("APP-1", "APP-2"))
+    assert checked["survivors"] == [], "nothing survived a test that checks"
+    assert len(blind["survivors"]) == blind["survived"] > 0, blind
+    for one in blind["survivors"]:
+        assert one["operator"] and one["where"] and one["file"].endswith("core.py") and one["line"] > 0
+
+
 @pytest.mark.proves("dev07-2-3", depth="smoke")
 def test_a_run_killed_mid_mutant_is_put_back_by_the_next_one(monkeypatch, capsys, tmp_path):
     """The recovery has to happen *before* anything reads a source file, so driving it through the
@@ -928,3 +942,221 @@ def test_a_blind_run_still_boards_and_the_board_says_the_instrument_failed(
     assert OBSERVATION_FAILED in codes, "the board reports a run it was told was blind"
     assert board["stories"]["APP-1"]["status"] == "passed-wiring-not-verified", \
         "and the story degrades rather than failing — the tests still answered"
+
+
+@pytest.mark.proves("dev07-6-1", depth="smoke")
+def test_a_board_read_from_a_manifest_appends_to_the_series(capsys, tmp_path):
+    """`--manifest` and `--series` together: the run's mark lands in the history and the board
+    renders — not a crash after the append."""
+    path = tmp_path / "junit.json"
+    path.write_text(FOREIGN_MANIFEST)
+    store = tmp_path / "series.jsonl"
+
+    assert cli.main(["board", "--manifest", str(path), "--series", str(store)]) == 0
+    assert "series:" in capsys.readouterr().err
+    assert store.read_text().strip(), "the run left its mark"
+
+
+@pytest.mark.proves("dev07-3-2", depth="smoke")
+def test_a_python_run_names_every_citing_test_when_asked(monkeypatch, capsys, tmp_path):
+    """`--tests` lists each citing test and what it grounded, for Python as for Java — the per-test
+    fact a reader needs when a board is not what they expected."""
+    root = project(tmp_path, CITES_PASSING)
+    monkeypatch.syspath_prepend(root + "/src")
+    monkeypatch.chdir(root)
+    assert cli.main(["board", "--tests", root]) == 0
+    said = capsys.readouterr().err
+    assert "python: not-checked" in said and "::test_one" in said, said
+
+
+@pytest.mark.proves("dev07-4-1", depth="smoke")
+@pytest.mark.proves("dev07-5-2", depth="smoke")
+def test_a_condition_names_what_it_is_about(monkeypatch, capsys, tmp_path):
+    """`dev07-4-1-ur4`, `dev07-5-2-ur12` — an id outside the declared namespaces is named on its own
+    subject, the text board names the stories each condition is about, and each piece of evidence
+    says whether its test reached outside the entry point."""
+    body = (CITES_PASSING.replace('"APP-1"', '"APX-9"')
+            + '\n\n@pytest.mark.proves("APP-1", depth="unit")\n'
+              'def test_two():\n    from {pkg}.core import double\n    assert double(2) == 4\n')
+    root = project(tmp_path, body, config='specs = ["APP"]\n')
+    payload = board_from(monkeypatch, capsys, root)
+    codes = {sid: [c["code"] for c in s["conditions"]] for sid, s in payload["stories"].items()}
+    assert "spec.orphan" in codes["APX-9"] and "spec.orphan" not in codes["APP-1"], codes
+    evidence = payload["stories"]["APP-1"]["evidence"][0]
+    assert "reached_outside_entry" in evidence, evidence
+
+    assert cli.main(["board", root]) == 0
+    text = capsys.readouterr().out
+    assert any("[spec.orphan]" in line and "APX-9" in line for line in text.splitlines()), text
+
+
+@pytest.mark.proves("dev07-4-1", depth="smoke")
+def test_an_id_the_project_declared_in_its_own_tables_is_not_an_orphan(monkeypatch, capsys,
+                                                                       tmp_path):
+    """`dev07-4-1-ur5` — a decision or parameter the project names in `[aspects]`, `[lexicon]` or
+    `[reduce]` is already declared, so it is no typo; an id named nowhere still is one."""
+    body = (CITES_PASSING
+            + '\n\n@pytest.mark.informs("D27", about="falsifier")\n'
+              'def test_decision():\n    assert True\n'
+            + '\n\n@pytest.mark.informs("RETRIES", about="value")\n'
+              'def test_parameter():\n    assert True\n'
+            + '\n\n@pytest.mark.informs("D99")\n'
+              'def test_typo():\n    assert True\n')
+    config = ('specs = ["APP"]\n\n[lexicon]\nD27 = "decision"\nRETRIES = "parameter"\n\n'
+              '[reduce]\nD27 = "worst"\n\n[aspects]\nD27 = ["falsifier"]\n')
+    root = project(tmp_path, body, config=config)
+    payload = board_from(monkeypatch, capsys, root)
+    codes = {sid: [c["code"] for c in s["conditions"]] for sid, s in payload["stories"].items()}
+    assert "spec.orphan" not in codes["D27"], codes
+    assert "spec.orphan" not in codes["RETRIES"], codes
+    assert "spec.orphan" in codes["D99"], "an id declared nowhere is still named"
+    assert "spec.orphan" in [c["code"] for c in payload["conditions"]], "D99 is outside, so the run says so"
+
+    only_declared = body.split("\n\n@pytest.mark.informs(\"D99\")")[0]
+    root = project(tmp_path / "again", only_declared, config=config)
+    payload = board_from(monkeypatch, capsys, root)
+    assert "spec.orphan" not in [c["code"] for c in payload["conditions"]], \
+        "and with every outside id declared, the run has nothing to say about namespaces"
+    assert cli.main(["board", root]) == 0
+    assert "spec.orphan" not in capsys.readouterr().out, "and the text board agrees with the JSON"
+
+
+#: Two stories the same test drives unchecked, one that checks, and one that never reaches an entry
+#: point — so it is cited, unproven, and never mutated.
+SURVIVORS_SHARED = ONE_CHECKS_AND_ONE_DOES_NOT + '''
+@pytest.mark.proves("APP-2", depth="wiring")
+@pytest.mark.proves("APP-3", depth="wiring")
+def test_also_runs():
+    from {pkg}.core import entry
+    entry(3)
+
+@pytest.mark.proves("APP-4", depth="unit")
+def test_not_wired():
+    assert True
+'''
+
+
+def _mutated(monkeypatch, capsys, tmp_path, *flags):
+    root = project(tmp_path, SURVIVORS_SHARED, config=OPTS_INTO_MUTATION)
+    monkeypatch.syspath_prepend(root + "/src")
+    monkeypatch.chdir(root)
+    assert cli.main(["board", "--mutation", *flags, root]) == 0
+    return capsys.readouterr()
+
+
+@pytest.mark.proves("dev07-2-2", depth="smoke")
+def test_mutation_progress_counts_what_it_mutates_and_starts_on_its_own_line(
+        monkeypatch, capsys, tmp_path):
+    """A counter that stopped at [3/4] read as a run that died; APP-4 is never mutated, so it is
+    not one of the things being counted. And the cost line was glued to the runner's `[100%]`."""
+    said = _mutated(monkeypatch, capsys, tmp_path).err
+    progress = [line.strip() for line in said.splitlines() if line.strip().startswith("[")]
+    assert [line.split("]")[0] + "]" for line in progress] == ["[1/3]", "[2/3]", "[3/3]"], said
+    assert not any("APP-4" in line for line in progress), said
+    assert any(line.startswith("mutation: ") for line in said.splitlines()), (
+        f"the cost is said on a line of its own: {said}")
+
+
+@pytest.mark.proves("dev07-2-4", depth="smoke")
+def test_each_survivor_names_the_stories_it_sits_in(monkeypatch, capsys, tmp_path):
+    """`dev07-2-4-ur3` — `(2 stories)` left the reader to work out which two."""
+    said = _mutated(monkeypatch, capsys, tmp_path, "--survivors").out
+    sites = [line for line in said.splitlines() if "swap-return" in line]
+    assert sites, said
+    for line in sites:
+        assert "APP-2" in line and "APP-3" in line and "stories)" not in line, line
+
+
+@pytest.mark.proves("dev07-2-4", depth="smoke")
+def test_a_reach_nobody_measured_is_not_reported_rather_than_zero(monkeypatch, capsys, tmp_path):
+    """`dev07-2-4-ur7` — the Python pass does not observe reach, so `unreached: 0` claimed every
+    survivor was reached."""
+    root = project(tmp_path, SURVIVORS_SHARED, config=OPTS_INTO_MUTATION)
+    payload = board_from(monkeypatch, capsys, root, "--mutation")
+    blind = payload["stories"]["APP-2"]["mutation"]
+    assert blind["survivors"] and all(s["reached"] is None for s in blind["survivors"]), blind
+    assert blind["unreached"] is None, blind
+    assert payload["stories"]["APP-1"]["mutation"]["unreached"] == 0, \
+        "with no survivors there is nothing unmeasured, and none went unreached"
+
+    assert cli.main(["board", "--mutation", root]) == 0
+    board = capsys.readouterr().out
+    line = next(l for l in board.splitlines() if "APP-2" in l)
+    assert "not reported" in line, line
+
+
+@pytest.mark.proves("dev07-3-3", depth="smoke")
+def test_a_board_from_a_saved_manifest_asks_the_namespace_question_of_the_project_named(
+        monkeypatch, capsys, tmp_path):
+    """`dev07-3-3-ur7` — the CI recipe renders its log board from the run's saved manifest, and
+    that board never carried `spec.orphan`, so the log and the run's own JSON disagreed. Told the
+    project, it reads that project's `specs`; not told, it reads nobody's — least of all whatever
+    plumb.toml sits where the command was typed."""
+    body = (CITES_PASSING.replace('"APP-1"', '"APX-9"')
+            + '\n\n@pytest.mark.proves("APP-1", depth="unit")\n'
+              'def test_two():\n    from {pkg}.core import double\n    assert double(2) == 4\n'
+            + '\n\n@pytest.mark.informs("D27")\ndef test_d():\n    assert True\n')
+    root = project(tmp_path, body, config='specs = ["APP"]\n\n[lexicon]\nD27 = "decision"\n')
+    saved = tmp_path / "artifacts" / "manifest.json"
+    saved.parent.mkdir()
+
+    monkeypatch.syspath_prepend(root + "/src")
+    monkeypatch.chdir(root)
+    assert cli.main(["board", "--json", "--emit-manifest", str(saved), root]) == 0
+    direct = json.loads(capsys.readouterr().out)
+
+    elsewhere = tmp_path / "someone-else"
+    elsewhere.mkdir()
+    (elsewhere / "plumb.toml").write_text('specs = ["ZZZ"]\n')
+    monkeypatch.chdir(elsewhere)
+
+    assert cli.main(["board", "--json", "--manifest", str(saved)]) == 0
+    untold = json.loads(capsys.readouterr().out)
+    assert "spec.orphan" not in json.dumps(untold), "the plumb.toml it stood beside is not read"
+
+    assert cli.main(["board", "--json", "--manifest", str(saved), "--project", root]) == 0
+    told = json.loads(capsys.readouterr().out)
+    codes = {sid: [c["code"] for c in s["conditions"]] for sid, s in told["stories"].items()}
+    assert "spec.orphan" in codes["APX-9"] and "spec.orphan" not in codes["APP-1"], codes
+    assert "spec.orphan" not in codes["D27"], "and what the project declared is still declared"
+    assert {k: v for k, v in told.items() if k != "rendered_at"} == \
+           {k: v for k, v in direct.items() if k != "rendered_at"}, \
+        "told the project, the saved manifest renders the board the run rendered"
+
+    assert cli.main(["board", "--manifest", str(saved), "--project", root]) == 0
+    assert "[spec.orphan]" in capsys.readouterr().out, "the text board too"
+
+
+@pytest.mark.proves("dev07-3-3", depth="smoke")
+def test_a_run_that_cannot_board_leaves_no_manifest_from_an_earlier_one(monkeypatch, capsys,
+                                                                       tmp_path):
+    """A reused CI workspace published last run's manifest as this run's, because a run that could
+    not board left the file at `--emit-manifest` untouched."""
+    broken = CITES_PASSING + "\ndef this is not python\n"
+    root = project(tmp_path, broken)
+    saved = tmp_path / "manifest.json"
+    saved.write_text('{"schema_version": 9, "stories": {}}')
+
+    monkeypatch.syspath_prepend(root + "/src")
+    monkeypatch.chdir(root)
+    assert cli.main(["board", "--json", "--emit-manifest", str(saved), root]) == 2
+    capsys.readouterr()
+    assert not saved.exists(), "the earlier run's manifest is gone, not passed off as this one's"
+
+
+@pytest.mark.proves("dev07-5-2", depth="smoke")
+def test_the_text_board_says_an_adapter_ran_blind_as_the_json_does(monkeypatch, capsys, tmp_path):
+    """The text board and the JSON say the same run-level things: an adapter that ran blind is
+    `observation.failed` on both, never on one alone."""
+    import plumb.launch
+    from plumb.core.manifest import Manifest
+
+    monkeypatch.setattr(plumb.launch, "produce",
+                        lambda config, **kw: (Manifest(stories={}, observed_tests=3), (), ("java",)))
+    root = project(tmp_path, CITES_PASSING)
+    monkeypatch.chdir(root)
+    cli.main(["board", "--json", root])
+    in_json = [c["code"] for c in json.loads(capsys.readouterr().out)["conditions"]]
+    assert "observation.failed" in in_json, in_json
+    cli.main(["board", root])
+    assert "observation.failed" in capsys.readouterr().out

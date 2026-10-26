@@ -4,6 +4,8 @@ import json
 
 import pytest
 
+from dataclasses import replace
+
 from plumb.adapters.python.adapter import PlumbAdapter
 from plumb.core.board import BOARD_VERSION, Board
 from plumb.core.gate import (
@@ -178,7 +180,7 @@ def test_the_board_carries_the_mutation_score_as_a_proportion_not_a_word():
     # should not have to length-check a list, and an adapter that reports the shortfall without
     # naming it leaves the names empty while the count still answers (`dev07-5-1`).
     assert Board.render(checked).as_dict()["stories"]["a"]["mutation"] == {
-        "total": 40, "killed": 39, "survived": 1, "unreached": 0, "survivors": []}
+        "total": 40, "killed": 39, "survived": 1, "unreached": None, "survivors": []}
 
     named = Manifest(stories={"a": Story(
         citations=(Citation(test="t::a", depth="wiring", result=PASSED, grounding=GROUNDED),),
@@ -204,9 +206,17 @@ def test_the_board_carries_the_mutation_score_as_a_proportion_not_a_word():
                      line=14),
         )),
     )})
-    assert Board.render(unreachable).as_dict()["stories"]["a"]["mutation"]["unreached"] == 1, (
-        "only the survivor observed NOT to have been reached counts — one nobody could observe is "
-        "not reported, and reading it as unreachable would excuse a mutant on no evidence")
+    assert Board.render(unreachable).as_dict()["stories"]["a"]["mutation"]["unreached"] is None, (
+        "one survivor's reach was never observed, so how many went unreached is not reported "
+        "(`dev07-2-4-ur7`) — 1 would be a lower bound wearing the count's name, and 0 a claim "
+        "that every survivor was reached")
+
+    observed = replace(unreachable, stories={"a": replace(
+        unreachable.stories["a"], mutation=Mutation(
+            total=40, killed=38,
+            survivors=unreachable.stories["a"].mutation.survivors[:2]))})
+    assert Board.render(observed).as_dict()["stories"]["a"]["mutation"]["unreached"] == 1, (
+        "where every survivor's reach was observed, only the one observed NOT reached counts")
 
 
 @pytest.mark.proves("dev07-5-2", depth="unit")
@@ -867,3 +877,29 @@ def test_the_board_says_what_rendered_it_and_when_and_keeps_measurement_on_the_f
 def test_the_core_is_told_what_rendered_the_board_rather_than_reading_it():
     """A core that reaches for a version of its own stops being language-blind (`dev07-3-3`)."""
     assert json.loads(Board.render(Manifest()).to_json())["rendered_by"] is None
+
+
+def test_every_condition_the_gate_attaches_has_its_three_parts():
+    """`dev07-5-2` — a code on the board always comes with its diagnosis, instruction and example,
+    so none prints bare. `evidence.not-observed` was attached and had none."""
+    from plumb.core import gate
+
+    for code in (gate.NOT_CITED, gate.EVIDENCE_FAILED, gate.NOT_OBSERVED):
+        said = gate.PROSE[code]
+        assert said.what and said.next_step and said.example, code
+    assert gate.NOT_OBSERVED in gate.ALL_CODES
+
+
+@pytest.mark.proves("dev07-5-1", depth="unit")
+def test_a_subject_read_per_aspect_is_counted_apart_from_stories():
+    """`dev07-5-1-ur9`, `dev10-2-ur3` — a decision or parameter is read per aspect and has no status
+    of its own, so neither the board's totals nor a session reading count it as an unproven story."""
+    from plumb.core.manifest import Manifest, Story
+    from plumb.session import statuses
+
+    board = Board.render(Manifest(stories={
+        "S-1": Story(),
+        "D1": Story(aspects=("levers", "outcome")),
+    }))
+    assert board.summary() == {"unproven": 1, "read per aspect": 1}, board.summary()
+    assert statuses(board) == {"S-1": "unproven"}

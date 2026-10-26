@@ -13,7 +13,7 @@ first run is the tool refusing to claim something it has not established. This p
 each surprise is, so you can tell *working correctly* from *broken*.
 
 The single rule underneath all of it: **Plumb runs at whatever input level you have, degrades,
-and says what it could not do** (`dev07-5-1`). It never fails for missing input, and it never
+and says what it could not do**. It never fails for missing input, and it never
 quietly skips a check either.
 
 ---
@@ -29,13 +29,14 @@ debt on day one.
 > **What the board is, and is not.** It is built from what you have **given** Plumb — your
 > citations. So a story you have written down somewhere and not yet cited is **absent** from the
 > board, not UNPROVEN: with two stories declared and none cited, `plumb board` prints an empty
-> board and exits 0.
+> board, says `observation.uncited` — tests ran and none cited anything — and exits 0.
 >
 > **Plumb is not your backlog.** It is the done-ness check over the part of your backlog you have
 > handed it. That is a boundary rather than a gap: your requirements live in your project, and the
 > ones nobody has written down are exactly the ones no tool can find — a backlog guessed at would
-> read authoritative while missing things, which is worse than not offering one. Chapter 10 states
-> the boundary; `dev07-4-3` states the matching one about proof.
+> read authoritative while missing things, which is worse than not offering one. The matching
+> boundary holds for proof: Plumb says whether a cited story is proven, never which stories you
+> still owe.
 >
 > The practical consequence on day one: an empty board means *you have cited nothing yet*, which is
 > the correct answer and a green one.
@@ -54,8 +55,8 @@ out, Plumb checks that your test's execution actually ran **under a declared pro
 point**: a CLI command, an HTTP route, a handler, a job.
 
 Until you declare those entry points, that check has nothing to run against. So the grounding
-fact is `not-checked` (`dev07-1-4`), and a story that ran and passed lands on the middle status
-rather than the top one (`dev07-4-3`):
+fact is `not-checked`, and a story that ran and passed lands on the middle status rather than the
+top one:
 
 | what happened | status |
 |---|---|
@@ -80,7 +81,7 @@ reads the middle status, and the run exits 0:
       PASSED-WIRING-NOT-VERIFIED   APP-1  [e2e]
       PASSED-WIRING-NOT-VERIFIED   APP-2  [unit]
 
-      2 stories  [grounding.not-checked]
+      2 stories  [grounding.not-checked]  APP-1, APP-2
            what · grounding did not run — no production entry points are declared
            next · declare where the wired system begins, to catch orphaned code
         example · in plumb.toml — Python:  entry_points = ["myapp.cli:main"]   ·  Java:  entry_points = ["com.acme.Api#handle"]
@@ -108,7 +109,7 @@ So the board splits your suite into two kinds of test you probably never disting
 
 - tests that drive the wired system, which now read **PROVEN**;
 - tests that exercise a unit in isolation, which now read **UNPROVEN** — because a behavioral
-  story is not proven by proving its parts (`dev07-4-2`).
+  story is not proven by proving its parts.
 
 Plumb's own board did exactly this the first time: **5 proven, 41 unproven**. The five were the
 tests that go through its CLI. Everything else tests the library directly, and no amount of
@@ -120,8 +121,8 @@ it, and it is the exact fake the whole tool exists to catch. The honest readings
 test that drives the real path, accept that the story is not yet proven at depth, or conclude the
 code really is unreachable — which is itself the finding.
 
-Your achieved vector still shows the rungs you *did* reach, so unit-only reads as unit-only
-rather than as nothing.
+The bracket still shows the depths those passing tests claimed, so unit-only reads as
+`UNPROVEN [unit]` rather than as nothing.
 
 ## "One story has five tests. Which one decides?"
 
@@ -131,9 +132,15 @@ All of them, in two different ways, and they do not fight.
 and grounds. A second test that passes but does not ground takes nothing away — it simply proves
 less, and proving less is not evidence against.
 
-**The achieved vector** is the union: every rung any passing citation reached. So a story with a unit
-test and a wiring test reads `[unit · wiring]`, and one with three unit tests still reads `[unit]`.
-Three tests at the same rung are three tests, not more depth.
+**The achieved vector** — the bracket — is the union of the depths claimed by passing citations the
+run did not refute. So a story with a unit test and a wiring test reads `[unit · wiring]`, and one
+with three unit tests still reads `[unit]`. Three tests at the same rung are three tests, not more
+depth. A `wiring` claim whose test never reached an entry point is refuted (`depth.unsupported`) and
+is not in the bracket, and neither is a citation that failed.
+
+**A failing test is never hidden.** If any citing test ran and failed, the story carries
+`evidence.failed` beside whatever else it carries — even when another citation proved it, and even
+beside `grounding.not-wired` when the only passing test called the code directly.
 
 The consequence worth internalising: **adding tests at a rung you already have moves nothing on the
 board.** That is deliberate. The board answers "how deep is this proven", and the honest way to move
@@ -144,13 +151,14 @@ it is to prove it somewhere new.
 Some. How much depends on something less obvious than the size of your codebase.
 
 Tracing is scoped to each test's **body** — setup is watched only for what it reads, and teardown
-and collection are outside the window. So the cost tracks **what your tests do**, not how much code you have. A test doing
+and collection are outside the window. (That is also why production code a fixture runs is not seen
+as executed — [Writing a citation](writing-a-citation.md#mistakes-that-pass-silently) has what that
+means for a story.) So the cost tracks **what your tests do**, not how much code you have. A test doing
 arithmetic costs almost nothing to trace. A test that spawns a subprocess, starts a server, or runs a
 nested test session puts all of that work inside a traced window, and it costs accordingly.
 
-There is no overhead figure that holds for every suite. The cost of tracing is recorded as an open
-question (`dev07-1-3`) rather than a claim, because a measurement on one codebase is not a property
-of the tool. [Time per story](time-per-story.md) has measurements on suites of different shapes;
+There is no overhead figure that holds for every suite. The cost of tracing is an open question
+rather than a claim, because a measurement on one codebase is not a property of the tool. [Time per story](time-per-story.md) has measurements on suites of different shapes;
 compare `plumb board` against your own plain test run to see what it costs you.
 
 If a particular test is pathologically slow under the board and fast without it, that is worth
@@ -166,7 +174,7 @@ the artifact rather than run it: parse the source, walk the imports, inspect the
 Declare those `structural` in your `plumb.toml`, keyed by the id your tests cite:
 
     [archetypes]
-    "dev07-4-3" = "structural"
+    "ARCH-1" = "structural"
 
 Silence means behavioral, so you only name the exceptions, and an entry for an id nothing cites is
 simply inert. It lives here rather than in your spec because Plumb reads no spec — that is what
@@ -217,6 +225,10 @@ already signed off.
 
 It is also slow, and the shape of the cost is worth understanding before you start one.
 
+**Only proven stories are mutated.** Mutation asks whether the tests that proved a story would
+notice it breaking, so a story that is not proven has no such tests and reads `mutation: null` in
+`--json` — not asked, never a pass.
+
 **One mutant costs one test run.** A mutant is a one-line change to your code — a comparison
 flipped, a branch negated, a return swapped — and the only way to find out whether your tests notice
 is to run them against it. Plumb runs only the tests citing *that story*, not your whole suite,
@@ -256,6 +268,23 @@ belongs in a pre-commit hook.
 floor on the time, measured on your machine — so you can stop and pick a narrower target. Pass a path
 to limit it: `plumb board --mutation tests/test_orders.py`.
 
+### What mutation does to your files
+
+**It edits your source files in place while it runs.** One mutant at a time: the file is rewritten
+with the change, the citing tests run, and the original is put back. A copy of the original is
+parked in `.plumb-mutation-rescue` at the project root first, so a run killed partway — a closed
+terminal, a CI timeout — is put back by the next `plumb board` before any test runs, and it says
+which file it restored. So, while a mutation run is going:
+
+- **Do not edit the files it is mutating**, and close them in an editor that saves on its own —
+  an edit can be overwritten when the original is put back, or saved over a mutant.
+- **Stop file watchers and hot reloaders** pointed at the project. They will see every mutant, and
+  a watcher that rebuilds or restarts on change may act on broken code.
+- **Run one at a time per project.** Two mutation runs in one working tree mutate the same files and
+  share one rescue file; each can put back the other's mutant as the original.
+
+Start from a clean working tree, so `git diff` can tell you afterwards that nothing was left behind.
+
 ## "A story says 3/40. Is that bad?"
 
 Probably not, and this is why the result is a score rather than a pass/fail.
@@ -269,12 +298,26 @@ So read it as a proportion, and compare stories against each other:
 
 - **0 of 40** — nothing citing this story checks anything about it. Worth opening: it is often a test
   that calls the code and asserts nothing, or asserts something that cannot fail.
+- **A test with no assertion can still score above 0.** A mutant that makes the code crash — a
+  return swapped for `None` that the caller then uses — fails the test whether or not it asserts
+  anything, and counts as killed. A low score from such a test is still the signal; a non-zero one
+  is not evidence it checks anything.
 - **Somewhere in the middle** — normal, and it is where nearly everything lands. Every one of
   Plumb's own 32 scored stories came back strictly between zero and full marks, 53% overall. A
   pass/fail answer would have printed the same word for all 32 and told you nothing about which
   one to open.
 - **A story you believed was thoroughly tested scoring low** — that is the signal. The gap between
   what you expected and what came back is the whole value of the number.
+
+`--survivors` lists the mutants no citing test noticed, after the board, once each:
+
+    1 surviving mutant(s) — no citing test noticed these
+      src/orders/core.py:4  swap-return · orders.core:queue_for  (ORD-1, ORD-3)
+
+naming the stories whose tests missed it, and `--json` carries the same for each story under
+`mutation.survivors` — operator, where, file and line. `reached` is always `null` from the Python
+adapter: it does not watch whether the mutated line ran. So `unreached` is `null` too — not
+reported — rather than a `0` that would claim every survivor was reached.
 
 **It never changes a status, and it never fails a build.** A mutant that survives may mean a weak
 test, or it may be *equivalent* — a change that does not alter behaviour at all, which no test could
@@ -309,10 +352,12 @@ two tools.
 
 ### Getting it
 
-Plumb ships as a single file — a Python **zipapp**, which is viable because the core has no
-dependencies. The Java adapter's jar rides inside it, so one download covers both languages and you
-never compile an adapter or clone this repository. Nothing is added to your project's dependencies.
-[installing.md](installing.md) has the installer, what it verifies, and how to pin a version.
+The installer ships Plumb as a single file — a Python **zipapp**, which is viable because the core
+has no dependencies. The Java adapter's jar rides inside it, so one download covers both languages
+and you never compile an adapter or clone this repository. Nothing is added to your project's
+dependencies. It carries no modules, so `plumb series` is not in it; `pip install plumbspec` has that
+and not the Java adapter. [installing.md](installing.md#which-to-choose) has the choice, what the
+installer verifies, and how to pin a version.
 
 Two consequences worth knowing before you adopt:
 
@@ -321,8 +366,11 @@ Two consequences worth knowing before you adopt:
   as `python3` already, and nothing about your build changes.
 - **For a Python project, the adapter runs in *your* interpreter, not Plumb's** — which is why
   the two floors are the same **3.9**, and why there is one interpreter to install rather than two.
-  The adapter has to import your code and your test framework. Plumb finds your virtualenv (`.venv`, `venv`, or an active
-  one) and runs the adapter there — nothing is installed into your environment.
+  The adapter has to import your code and your test framework. Plumb picks the interpreter in this
+  order — `[python] interpreter` if you declared one, an active virtualenv, `.venv` in the project,
+  `venv` in the project, and last the Python running Plumb itself — runs the adapter there, and prints
+  its choice as the first line of every run: `python: /path/to/python`. Nothing is installed into
+  your environment.
 
   **`PYTHONPATH` for that run is your import roots first, anything you had set next, and the
   artifact last.** The roots are derived from your declared `production` paths: the parent of each
@@ -400,9 +448,8 @@ the network.
 Sending is per **capability** — a series history is one, and a module can add others — and each
 capability's destination comes from the environment of the run: that capability's own variables
 first (`PLUMB_SERIES_ENDPOINT` and `PLUMB_SERIES_CREDENTIAL` for the series), then the machine-wide
-pair `PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL`, then an enrolment file (with `PLUMB_CREDENTIAL` set
-and `PLUMB_ENDPOINT` not, an `endpoint` key in `plumb.toml` supplies the address). With none of them
-set, what the capability produced stays local, and that is the default rather than a fault. A
+pair `PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL`, then an enrolment file. `plumb.toml` never names an
+address — an `endpoint` key there is refused by name. With none of them set, what the capability produced stays local, and that is the default rather than a fault. A
 destination that cannot be reached is reported in one line and never fails the run.
 
 Capturing and answering a support case is not part of the core; a module provides it, and what its
@@ -410,7 +457,7 @@ messages mean is that module's to explain.
 
 ## "Does Plumb want me to work test-first?"
 
-It does not require it, and it cannot: the core enforces proof and never workflow (`dev07-4-3`). Nothing
+It does not require it, and it cannot: the core enforces proof and never workflow. Nothing
 in the tool checks when you wrote anything, and no status moves because of the order you worked in.
 
 But it is worth saying plainly that **the loop works better test-first**, for a specific reason
@@ -419,13 +466,15 @@ rather than as a matter of taste.
 Plumb binds a test to a story by **id**. That is deliberate — it means there is no second list to
 keep in sync — and it has a consequence: if you rewrite what a story *claims*, its existing tests
 keep passing, because they still assert what they always asserted. Nothing goes red. The story reads
-proven for a claim nobody has tested (`dev07-4-3`, and `dev07-4-3` is the mechanism meant to catch it).
+proven for a claim nobody has tested, and nothing in the tool can notice: it compares tests against
+code, never against the words of a claim.
 
 Working test-first closes that by hand, and cheaply:
 
 1. the claim changes
 2. you go to the tests citing it and change them **first**
-3. they go red — the story un-proves itself, which is `dev07-4-3` doing exactly its job
+3. they go red — the story un-proves itself, because status is derived from the latest run and a
+   failing citation shows as `evidence.failed`
 4. you make the code true again
 
 The board is honest at every step, including the middle where it says the story is no longer proven.
@@ -443,7 +492,7 @@ the artifact the way the story's archetype says it should.**
 
 It does **not** mean the test's assertions are the right ones, or that they correspond to what the
 story says. Reading a claim and judging whether an assertion answers it is comprehension, and Plumb
-does not do it — that is a boundary, not a missing feature (`dev07-4-3`).
+does not do it — that is a boundary, not a missing feature.
 
 Which is worth being blunt about, because the gap between those two readings is where a verification
 tool would be most tempted to overclaim. What you get is *"this is really wired, and somebody really
@@ -501,8 +550,8 @@ field that answers it.
 ## "Why is there both a manifest and a board?"
 
 The **manifest** is internal: the language-neutral record your adapter produces from a test run,
-and the only thing the core reads (`dev07-3-3`). The **board** is the public contract — the derived
-result, versioned, that other tools consume (`dev07-5-1`, `dev07-5-3`).
+and the only thing the core reads. The **board** is the public contract — the derived result,
+versioned, that other tools consume.
 
 The split is what makes a new language a new adapter and nothing else. It also means the board's
 shape is a promise to you, while the manifest's is ours to change.

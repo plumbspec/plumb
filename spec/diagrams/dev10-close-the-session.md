@@ -1,6 +1,6 @@
 # dev10 · close the session
 
-**Last updated** 2026-10-26 v10
+**Last updated** 2026-10-26 v11
 
 A sub-flow of [A developer's workflow](developer-day.md). Entered from `dev09 · commit, naming the
 story`, carrying a commit, a board and — where the project keeps a series — the opening reading. Exits to `dev11 · push and open a pull
@@ -87,6 +87,8 @@ flowchart TD
   * dev10-2-ur1 - the session is the difference between two readings: which stories became proven,
     which stopped being
   * dev10-2-ur2 - a story deleted since the open is not a story that broke
+  * dev10-2-ur3 - a reading counts stories; a subject read per aspect is not a story that is
+    unproven, and is never counted as one
 
 #### System Requirements
 

@@ -16,6 +16,8 @@ machine* was one of them, and it instructed a reader whose threat model, infrast
 obligations this tool cannot see.
 """
 
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,12 +54,17 @@ def _home(variable: str, fallback: str) -> Path:
     return Path(os.environ.get(variable) or Path.home() / fallback)
 
 
-def user_level() -> tuple[Wrote, ...]:
-    """What the tool writes outside any project — the half a repository does not carry."""
+def user_level(run_cache: Path | None = None) -> tuple[Wrote, ...]:
+    """What the tool writes outside any project — the half a repository does not carry.
+
+    ``run_cache`` is one project's own directory under the cache, named where it is known: "keyed by
+    its path" without the path sent a reader to work the key out by hand (``dev00-1-4-ur4``).
+    """
+    this_project = f" This project's is {run_cache}." if run_cache else ""
     config = _home("XDG_CONFIG_HOME", ".config") / "plumb"
     return (
         Wrote(str(config / "enrolment.json"),
-              "an operator-issued enrolment — the file form, which carries a credential",
+              "the enrolment `plumb account redeem` writes, or one an operator placed — the file form, which carries a credential",
               keep=True, shared=True, secret=True),
         # **The support store is not here.** The capability left the core in the release that gave
         # the name up (`dev08-1-5`), and this list is what THIS tool writes. What a retired capability
@@ -71,7 +78,7 @@ def user_level() -> tuple[Wrote, ...]:
         Wrote(str(_home("XDG_CACHE_HOME", ".cache") / "plumb"),
               "a per-version cache the tool rebuilds when it is missing, and under `runs/` each "
               "project's run file and manifest, keyed by its path — one board's input and output, "
-              "rewritten by the next one", keep=False),
+              "rewritten by the next one." + this_project, keep=False),
     )
 
 
@@ -92,8 +99,13 @@ def in_project(config, project: Path = Path(".")) -> tuple[Wrote, ...]:
                            "the history: every transition, losslessly — a run that is not "
                            "recorded cannot be recovered from a later one",
                            keep=True, in_repo=True, irreplaceable=True))
+        # Kept with the series it describes. A lost mark loses no record, but it is not free: the
+        # next push re-sends everything, and a holder appends what it is sent, so the repeat
+        # over-counts `changes` there until compaction folds it away.
         found.append(Wrote(str(series.sent_mark(Path(config.series))),
-                           "how far that history has been transmitted", keep=True, in_repo=True))
+                           "how far that history has been transmitted. Keep it wherever the "
+                           "series is kept: losing it re-sends what already arrived, and the "
+                           "holder stores the repeat", keep=True, in_repo=True))
     return tuple(found)
 
 

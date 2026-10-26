@@ -449,3 +449,32 @@ def test_a_structural_test_may_read_its_artifact_in_a_fixture(tmp_path):
     assert facts == {"S-1": [INERT], "S-2": [INERT]}, (
         f"a module-scoped fixture opens the file once, so without attributing its read to whoever "
         f"asked for it only the first test can prove: {facts}")
+
+
+@pytest.mark.proves("dev07-4-3", depth="unit")
+def test_a_failed_citation_is_never_hidden_behind_another_reason():
+    """`dev07-4-3-ur12` — a wired test failed and a unit test passed. The story is unproven for
+    both reasons, and the board says both: told only that nothing reached the wired system, a
+    reader goes looking for a missing entry point while a test is red."""
+    from plumb.core.gate import EVIDENCE_FAILED, NOT_WIRED
+    from plumb.core.manifest import FAILED
+
+    story = Story(citations=(
+        Citation(test="t::wired", depth="wiring", result=FAILED, grounding=GROUNDED),
+        Citation(test="t::unit", depth="unit", result=PASSED, grounding=UNGROUNDED),
+    ))
+    verdict = derive("s", story)
+    assert verdict.status == UNPROVEN
+    assert EVIDENCE_FAILED in verdict.conditions and NOT_WIRED in verdict.conditions, \
+        verdict.conditions
+
+
+@pytest.mark.proves("dev07-4-3", depth="unit")
+def test_a_refuted_rung_is_not_achieved():
+    """`dev07-4-3-ur04` — `achieved` is the rungs actually reached. A wiring claim the run refuted
+    is surfaced as `depth.unsupported` and is not reported as reached as well."""
+    lying = Story(citations=(
+        Citation(test="t::a", depth="wiring", result=PASSED, grounding=UNGROUNDED),
+        Citation(test="t::b", depth="unit", result=PASSED, grounding=UNGROUNDED),
+    ))
+    assert derive("s", lying).achieved == ("unit",)

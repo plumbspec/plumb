@@ -6,7 +6,7 @@ default case and it is what makes "nothing phones home" a guarantee rather than 
 
 Never from local config: the *client* cannot be the authority on who it is —
 anything on this disk is a claim by the filer. So the client states a relationship and the
-**support service overwrites it** from the credential it authenticated. Local records are ``self``
+**holder overwrites it** from the credential it authenticated. Local records are ``self``
 because you are the only authority over your own store; transmitted ones are stamped by whoever
 accepted them.
 """
@@ -78,28 +78,21 @@ class Enrolment:
 
 
 def from_environment(root: Path | str = ".") -> Enrolment | None:
-    """An enrolment assembled from a secret and configuration held apart.
+    """An enrolment assembled from the environment of the run: the credential and the address
+    beside it (`dev07-6-2-1-1-sr4`).
 
-    The credential arrives as one opaque variable — the shape every CI secret store already has —
-    and the address comes from configuration, where it can be diffed and where a change of
-    destination does not look identical to a change of credential. ``None`` when no credential is
-    set, so the file form below stays the escape hatch for setups that genuinely deliver secrets as
-    files rather than being displaced by this.
+    ``None`` when no credential is set, so the file form below stays the escape hatch for setups
+    that deliver secrets as files.
     """
     credential = os.environ.get(CREDENTIAL_ENV, "").strip()
     if not credential:
         return None
     endpoint = os.environ.get(ENDPOINT_ENV, "").strip()
     if not endpoint:
-        from plumb.config import Config
-
-        endpoint = Config.find(root).endpoint
-    if not endpoint:
         raise NotEnrolled(
-            f"{CREDENTIAL_ENV} is set and no endpoint is: put `endpoint = \"https://…\"` in "
-            f"plumb.toml, where it can be reviewed, or set {ENDPOINT_ENV}. The address is "
-            "configuration and only the credential is a secret")
-    # `self`, because a locally assembled relationship is a claim by the filer and the support service
+            f"{CREDENTIAL_ENV} is set and {ENDPOINT_ENV} is not: name the address beside the "
+            f"credential, in the environment of the run")
+    # `self`, because a locally assembled relationship is a claim by the sender and the receiver
     # overwrites it from the credential it authenticated anyway.
     return Enrolment("self", credential, endpoint)
 

@@ -454,3 +454,51 @@ def test_every_command_the_tool_prints_is_a_command_the_tool_has():
         "the tool prints commands it does not accept: "
         + "; ".join(f"`plumb {verb}` in {sorted(where)}" for verb, where in sorted(stale.items()))
         + ". A reader copies that line and is told `invalid choice`")
+
+
+#: A spec's own ids — `dev07-6-2`, `dev07-4-1-ur5`, `D38` — are the implementation's words. A
+#: reader of `--help` has not read the spec and cannot act on one.
+SPEC_ID = re.compile(r"\bdev\d\d(?:-\d+)*(?:-[a-z]+\d+)?\b|\bD\d+\b")
+
+
+def _help_texts(parser, path=("plumb",)):
+    """Everything `--help` prints at every level: descriptions, option help and subcommand help."""
+    yield " ".join(path), parser.description or ""
+    for action in parser._actions:
+        yield " ".join(path) + f" {'/'.join(action.option_strings) or action.dest}", \
+            action.help or ""
+        if isinstance(action, argparse._SubParsersAction):
+            for choice in action._choices_actions:
+                yield " ".join(path + (choice.dest,)), choice.help or ""
+            for name, sub in action.choices.items():
+                yield from _help_texts(sub, path + (name,))
+
+
+@pytest.mark.proves("dev00-1-1", depth="unit")
+def test_help_speaks_to_its_reader_and_never_cites_the_spec():
+    """A newcomer reading `--help` met `dev07-6-2-…` and could do nothing with it."""
+    from plumb import series_holder
+
+    found = [(where, text) for parser, root in ((cli.build_parser(), ("plumb",)),
+                                                (series_holder.build_parser(),
+                                                 ("plumb-series-holder",)))
+             for where, text in _help_texts(parser, root) if SPEC_ID.search(text)]
+    assert not found, f"help that cites the spec rather than saying what it means: {found}"
+
+
+@pytest.mark.proves("dev00-1-1", depth="unit")
+def test_the_holder_s_help_shows_the_bounds_it_enforces_and_their_defaults():
+    """It enforces a reserve, a pool and a compaction ratio; its help said it enforced one bound
+    and showed the default of only one."""
+    from plumb import series_holder
+
+    said = " ".join(series_holder.build_parser().format_help().split())
+    assert "the only bound" not in said, said
+    said = said[said.index("-h, --help"):]
+    for flag, default in (("--reserve", series_holder.DISK_HEADROOM_BYTES // (1024 * 1024)),
+                          ("--pool", series_holder.POOL_BYTES // (1024 * 1024)),
+                          ("--compact-above", series_holder.COMPACT_ABOVE)):
+        start = said.index(flag + " ")
+        rest = said[start:]
+        following = rest.index(" --", 1) if " --" in rest[1:] else len(rest)
+        assert f"default: {default}" in rest[:following], (flag, rest[:following])

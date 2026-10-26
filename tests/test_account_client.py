@@ -81,3 +81,19 @@ def test_what_would_be_sent_carries_the_adopters_names_as_written(tmp_path):
     records, _ = transmit.wire_form(store)
     [record] = records
     assert record["test"] == "tests/t.py::t" and record["about"] == "the refund"
+
+
+def test_a_service_that_cannot_be_reached_is_named_not_thrown(monkeypatch, capsys):
+    """An address nobody answers at is a sentence and an exit code, never a traceback."""
+    import urllib.error
+
+    from plumb import cli
+
+    def unreachable(request, timeout=None):
+        raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr("urllib.request.urlopen", unreachable)
+    code = cli.main(["account", "open", "--email", "someone@example.org",
+                     "--endpoint", "https://support.example.invalid/"])
+    said = capsys.readouterr().err
+    assert code == 2 and "unreachable" in said and "support.example.invalid" in said, said
