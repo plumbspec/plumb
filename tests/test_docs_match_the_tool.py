@@ -502,3 +502,33 @@ def test_the_holder_s_help_shows_the_bounds_it_enforces_and_their_defaults():
         rest = said[start:]
         following = rest.index(" --", 1) if " --" in rest[1:] else len(rest)
         assert f"default: {default}" in rest[:following], (flag, rest[:following])
+
+
+def test_every_page_carries_the_front_matter_the_docs_index_is_built_from():
+    """The published index is generated from each page's front matter — kind, role, summary — and
+    the publish step refuses a page the index does not list. A page without it is shipped and
+    unreachable, which is what happened to running-a-series-holder.md."""
+    import re
+    from pathlib import Path
+
+    kinds = {"tutorial", "how-to", "reference", "explanation"}
+    roles = {"exec", "pm-ba", "engineer", "programmer", "qa", "devops"}
+    docs = Path(__file__).resolve().parent.parent / "docs"
+    wrong = []
+    for page in sorted(docs.glob("*.md")):
+        if page.name.lower() in ("readme.md", "changelog.md"):
+            continue
+        found = re.match(r"---\n(.*?)\n---\n", page.read_text(encoding="utf-8"), re.S)
+        if not found:
+            wrong.append(f"{page.name}: no front matter")
+            continue
+        fields = dict(line.split(":", 1) for line in found.group(1).splitlines() if ":" in line)
+        kind = fields.get("kind", "").strip()
+        said = {r.strip() for r in fields.get("role", "").strip().strip("[]").split(",") if r.strip()}
+        if kind not in kinds:
+            wrong.append(f"{page.name}: kind {kind!r} is not one of {sorted(kinds)}")
+        if not said or not said <= roles:
+            wrong.append(f"{page.name}: role {sorted(said)} is not drawn from {sorted(roles)}")
+        if not fields.get("summary", "").strip():
+            wrong.append(f"{page.name}: no summary")
+    assert not wrong, wrong

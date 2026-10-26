@@ -884,11 +884,11 @@ an account of your own, `plumb account open --email ADDR`.
 ## `plumb --version`
 
     $ plumb --version
-    plumb 0.8.0
+    plumb 0.8.1
 
-A build published to `edge` between releases names the commit it was cut from — `0.8.0.dev40+5f3325a`
+A build published to `edge` between releases names the commit it was cut from — `0.8.1.dev40+5f3325a`
 — so a report against one is unambiguous. A release names its version plainly. An install made
-through a channel adds the channel's name — `plumb 0.8.0.dev40+5f3325a (edge)` — and a pinned
+through a channel adds the channel's name — `plumb 0.8.1.dev40+5f3325a (edge)` — and a pinned
 install or a source checkout adds nothing.
 
 Worth knowing because the installer resolves a channel, so you never typed a version. Include it in

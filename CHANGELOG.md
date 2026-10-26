@@ -2,6 +2,11 @@
 
 What each release gives you, and what to change to take it.
 
+## 0.8.1 — the series-holder page is listed
+
+**Fixed.** "Running a series holder" carried no front matter, so the documentation index left it
+out. It is listed again, and every page is now held to the front matter the index is built from.
+
 ## 0.8.0 — a report, never a halt
 
 ### An account is your address

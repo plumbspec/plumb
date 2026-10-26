@@ -1,3 +1,9 @@
+---
+kind: how-to
+role: [devops]
+summary: Run a holder of your own for your projects' run histories, and keep it inside the disk it shares.
+---
+
 # Running a series holder
 
 **For the operator.** What you get: a holder that keeps your projects' series, hands them back,
