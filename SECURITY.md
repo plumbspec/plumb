@@ -23,7 +23,7 @@ restoring its own.
 
 To pin a version rather than take the current one:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_VERSION=0.7.0 sh
+    curl -fsSL https://plumbspec.org/install.sh | PLUMB_VERSION=0.8.0 sh
 
 By hand, if you would rather not pipe anything to a shell:
 
@@ -121,7 +121,8 @@ between any two releases until 1.0.0.
 
 | Version | Supported |
 |---|---|
-| 0.7.x | current |
+| 0.8.x | current |
+| 0.7.x | superseded |
 | 0.6.x | superseded |
 | 0.5.x | superseded |
 | 0.4.x | superseded |

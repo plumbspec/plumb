@@ -18,10 +18,10 @@ names.
 
     {
       "board_version": 3,
-      "rendered_by": "0.7.0",
+      "rendered_by": "0.8.0",
       "rendered_at": "2026-10-26T18:44:15Z",
       "observers": [
-        {"adapter": "plumb-python", "version": "0.7.0",
+        {"adapter": "plumb-python", "version": "0.8.0",
          "runtime": "CPython 3.13.5", "mechanism": "sys.settrace (per-thread call tree)"}
       ],
       "observed_tests": 4,

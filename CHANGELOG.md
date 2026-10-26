@@ -2,7 +2,7 @@
 
 What each release gives you, and what to change to take it.
 
-## Unreleased
+## 0.8.0 — a report, never a halt
 
 ### An account is your address
 
