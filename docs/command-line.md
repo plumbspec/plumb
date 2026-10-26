@@ -75,7 +75,7 @@ Runs your tests, watches your production code, and prints what each story's stat
 | Option | What it does |
 |---|---|
 | `--json` | machine-readable output instead of the text board |
-| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not (`ch11`). Opt-in and never a side effect: a board that quietly grew a store would make `--json` a mutating operation. Nothing is written when nothing changed, which is the ordinary case |
+| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not (`dev07-6-1`). Opt-in and never a side effect: a board that quietly grew a store would make `--json` a mutating operation. Nothing is written when nothing changed, which is the ordinary case |
 | `--push` | with `--series`, also send what the holder has not been given. Reports and **never fails the board** if the holder is unreachable — a board is derived from a run and complete without the network, so an outage must not turn a build red for a reason unrelated to the project. Same work as `plumb series push`, triggered here instead of separately |
 | `--enrolment FILE` | with `--push`, the enrolment to send under (default `~/.config/plumb/enrolment.json`). The credential names the store it may write to, so this is also what decides *whose* series this run joins |
 | `--manifest FILE` | **skip the test run** and derive from a saved manifest |

@@ -77,7 +77,7 @@ def test_a_capabilitys_own_pair_is_preferred_over_the_machines(monkeypatch, tmp_
 
 @pytest.mark.proves("snd1", depth="unit")
 def test_an_enrolment_file_still_names_a_destination_for_everything(monkeypatch, tmp_path):
-    """`ch6-6` was expressed as a file, and a file that already exists keeps working.
+    """Consent was expressed as a file, and a file that already exists keeps working.
 
     The enrolment is one relationship with one service, which is the shape this replaces — so it
     answers for every capability that has nothing more specific, and never overrides one that has.

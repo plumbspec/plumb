@@ -1,4 +1,4 @@
-"""Sending a record, and not caring much whether it arrives (``ch6-6``, ``ch6-7``).
+"""Sending a record, and not caring much whether it arrives (``snd2``, ``dev07-6-2-ur5``).
 
 Capture never blocks the work. An unreachable endpoint is not an error the contributor should
 ever see: the record is already safe on their disk, it is marked in the outbox, and the next
@@ -18,7 +18,7 @@ from plumb.enrolment import Enrolment, NotEnrolled, load
 
 TIMEOUT_SECONDS = 10
 
-#: The conversation this client speaks, announced on every request (``ch6-13``). Deliberately NOT
+#: The conversation this client speaks, announced on every request. Deliberately NOT
 #: any artifact's schema version: sending a record's number in a version header is the exact
 #: confusion that forced a contract to be written to settle it. A durable artifact says its own
 #: version where that belongs — stamped in the body, by the schema that wrote it.
@@ -35,7 +35,7 @@ ACCEPTED, RETRY, REFUSED = "accepted", "retry", "refused"
 #: The support service positively identified the *content* as unusable, and no retry changes that.
 #: Everything else non-2xx is retried: a version the support service does not know yet becomes
 #: deliverable when it is upgraded, and discarding is irreversible where a retry costs a request
-#: (``ch6-13``). Until a support service speaks the versioned protocol, drift arrives as a bare 400 and
+#: (``dev07-6-2-ur3``). Until a support service speaks the versioned protocol, drift arrives as a bare 400 and
 #: is indistinguishable from bad content — so 400 is retried, and 422 is what a versioned
 #: support service uses to say the content itself is wrong.
 TERMINAL = frozenset({413, 422})
@@ -113,11 +113,10 @@ def _owning_project(path: Path) -> Path | None:
 
 
 def _configured_subject(store: Path, project: str | None = None) -> str:
-    """The series name this project pushes under (`ch12-21`, `ch12-22`).
+    """The series name this project pushes under (`dev07-6-2-ur7`).
 
     It was previously required to arrive *with the credential*, and nothing issued it — which is
-    what blocked the first consumer to wire this into CI, and is `ch12-8`'s phantom grant met from
-    the outside. The repair is not to make issuance fill it in. Once a store is keyed by whoever
+    what blocked the first consumer to wire this into CI. The repair is not to make issuance fill it in. Once a store is keyed by whoever
     wrote to it, a subject names a series **inside** that store and grants nothing, so it is the
     project's own to choose and belongs with the rest of its configuration rather than in a secret.
 
@@ -128,7 +127,7 @@ def _configured_subject(store: Path, project: str | None = None) -> str:
     of a project declaring `acme-api`, from a checkout declaring `plumb`, sent it as `plumb`, and
     the pull that followed asked for `plumb` too. Both succeeded.
 
-    Nothing about the credential prevents this: a store is keyed by whoever wrote to it (`ch12-21`),
+    Nothing about the credential prevents this: a store is keyed by whoever wrote to it,
     so the request is properly authenticated and lands in the writer's own store — under the wrong
     name, silently, which is worse than a refusal. Guessing is refused for the reason the push
     already gives when it has nothing to guess from: it would put somebody's history in a
@@ -157,8 +156,7 @@ def push_series(store: Path, enrolment_path: Path | None = None,
 
     A board is derived from a run and is **complete without the network**, so a support service being down
     must defer rather than fail the thing that produced the data — otherwise an outage turns every
-    board red for a reason that has nothing to do with the project. That is the same posture the
-    rest of this module takes for friction (`ch6-7`), for the same reason.
+    board red for a reason that has nothing to do with the project. That is `dev07-6-2-ur5`.
 
     The mark advances **only on acceptance**, and now once **per accepted batch**: a high-water
     sequence can already express a partial hand-over, so an outage halfway through leaves exactly
@@ -251,7 +249,7 @@ def _deliver_batch(url: str, batch: list, sending_as) -> tuple[str, str]:
         if refused.code in TERMINAL:
             # Positively identified as unusable, and no retry changes it. The mark still does not
             # move — a refused batch is not a sent one, and treating "stop trying" as "arrived" is
-            # the bug `ch6-13` already records against friction.
+            # what `dev07-6-2-ur3` refuses.
             return REFUSED, f"support service refused ({refused.code}) at seq {batch[0].seq}"
         return RETRY, f"support service said {refused.code}"
     except (urllib.error.URLError, OSError, TimeoutError) as unreachable:

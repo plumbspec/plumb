@@ -51,21 +51,7 @@ def enrolled(tmp_path, endpoint, credential="tester-secret-token") -> Path:
     return path
 
 
-# ── the entry point (ch6-1, ch6-10) ───────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ── local by default (ch6-6) ──────────────────────────────────────────────────
+# ── local by default (snd2) ──────────────────────────────────────────────────
 
 
 
@@ -79,16 +65,6 @@ def test_an_enrolment_without_a_credential_cannot_carry_consent():
 def test_a_missing_enrolment_is_the_ordinary_case_not_a_crash(tmp_path):
     with pytest.raises(NotEnrolled):
         load(tmp_path / "nothing.json")
-
-
-# ── crossing the boundary (ch12-19) ─────────────────────────────────────────────
-
-
-
-# ── withdrawal (ch6-9) ────────────────────────────────────────────────────────
-
-
-
 
 
 AN_ENROLMENT = Enrolment("trusted-tester", "tok", "https://example.invalid")
@@ -106,7 +82,7 @@ class Refusal(urllib.error.HTTPError):
 
 
 
-# ── the series, a second record type on the same receiver (ch11, D30) ─────────
+# ── the series, a second record type on the same receiver ─────────────────────
 
 def _post_series(endpoint, subject, records, credential="tester-secret-token"):
     request = urllib.request.Request(
@@ -123,7 +99,7 @@ def _post_series(endpoint, subject, records, credential="tester-secret-token"):
 
 def _settles(condition, within=5.0) -> bool:
     """Wait for the receiver's housekeeping, which runs **after** the response is flushed so the
-    adopter never waits for it (`ch6-7`). A test that reads the store the instant a POST returns is
+    adopter never waits for it. A test that reads the store the instant a POST returns is
     therefore racing the server by design — and did, for one run in eight."""
     deadline = time.monotonic() + within
     while time.monotonic() < deadline:
@@ -139,7 +115,7 @@ UNROUTED = "no such endpoint"
 
 
 def _reach(endpoint, method, path, credential="operator-secret-token"):
-    """One request, the way a client makes it — over the socket, at the URL (`ch6-18`).
+    """One request, the way a client makes it — over the socket, at the URL.
 
     The body is whatever the route will parse least happily, on purpose: this asks *did the request
     arrive and did something decide*, and a route that refuses the content has answered that. What
@@ -375,7 +351,7 @@ def test_a_push_hands_over_only_what_the_holder_has_not_been_given(tmp_path, ser
     # what the *client* sent — four, then nothing, then one, then two — so the holder's count is
     # only a proxy for it, and only while nothing else is changing that count. Compaction fires at
     # `records > 2 x facts`, which this sequence crosses on its second append, and it runs after the
-    # reply is flushed (`ch6-7`) — so the number asserted here was whatever housekeeping had reached
+    # reply is flushed — so the number asserted here was whatever housekeeping had reached
     # by the time the read arrived. It was `6`, which is one compaction in, and it failed in about
     # half of full-suite runs for no reason connected to what the test is about.
     assert len(held) == 7, "and the holder has each record exactly once, never the log resent"
@@ -426,7 +402,7 @@ def test_an_unreachable_holder_leaves_the_backlog_and_never_fails_the_run(tmp_pa
 
 @pytest.mark.proves("dev07-6-2", depth="component")
 def test_a_refusal_leaves_the_mark_where_it_was(tmp_path, monkeypatch):
-    """`ch6-13`'s bug pointed at the other record kind: *stop trying* is not *arrived*. A refused
+    """`dev07-6-2-ur3`: *stop trying* is not *arrived*. A refused
     batch is the one a human should look at, and a mark that moved past it has lost a range of
     somebody else's history silently — which is exactly the absence `dev07-6-2` exists to prevent."""
     from plumb.core.series import last_seq, sent_mark
@@ -467,7 +443,7 @@ def test_an_enrolment_naming_no_store_is_answered_rather_than_guessed_at(tmp_pat
 @pytest.mark.proves("dev07-6-2", depth="wiring")
 def test_a_backlog_larger_than_one_request_still_arrives_whole(tmp_path, server, monkeypatch, capsys):
     """The case that shipped broken: over the receiver's limit, the whole hand-over came back
-    413 — terminal by `ch6-13`, correctly — and the producer dropped the range for good. Green
+    413 — terminal by `dev07-6-2-ur3`, correctly — and the producer dropped the range for good. Green
     board, successful run, and a fortnight simply not there.
 
     The budget is squeezed rather than the data inflated, because what is under test is the
@@ -715,7 +691,7 @@ def operator_server(tmp_path):
     """A receiver holding a corpus, with both an operator's credential and a tester's.
 
     Two credentials rather than one, because the claim is about *which* may read the store back
-    and a fixture with only the answer's own credential cannot fail (`ch6-18`).
+    and a fixture with only the answer's own credential cannot fail.
     """
     registry = tmp_path / "registry.json"
     registry.write_text(json.dumps({"contributors": [
@@ -737,12 +713,12 @@ def operator_server(tmp_path):
 
 
 def test_every_endpoint_the_receiver_publishes_answers_at_its_url(operator_server):
-    """`ch6-18` made mechanical: the receiver **publishes** what a client may reach, so every one
+    """Made mechanical: the receiver **publishes** what a client may reach, so every one
     of those routes is proven the way a client reaches it — over a socket, at the URL.
 
     A correct handler behind a route that does not reach it is *dark*, and invisible from either
     side: every unit test passes and the capability does not exist for anyone outside the host.
-    That is `ch6-14`'s measured case — the handler implemented it, had been correct throughout, and
+    That was measured — the handler implemented it, had been correct throughout, and
     the served route answered 404 without the request ever entering the process.
 
     Asserted against `/spec` rather than a list written here, because a list of routes beside the
@@ -756,7 +732,7 @@ def test_every_endpoint_the_receiver_publishes_answers_at_its_url(operator_serve
     dark = []
     for named in published:
         method, _, path = named.partition(" ")
-        # A subject is the client's to choose (`ch12-21`), so the published form carries a
+        # A subject is the client's to choose (`dev07-6-2-ur7`), so the published form carries a
         # placeholder — reaching the route means substituting something, not sending a brace.
         reachable = path.replace("{subject}", "a-subject").replace("{id}", "some-id")
         status, said = _reach(endpoint, method, reachable)
@@ -783,7 +759,7 @@ def _get_json(url, credential):
 
 
 def _file_one(endpoint, credential, record_id, project="gamma"):
-    """File a record over the wire, so the receiver stamps whose it is (`ch12-30`).
+    """File a record over the wire, so the receiver stamps whose it is.
 
     Written through the endpoint rather than into the store, because `filed_by` is the receiver's
     to fill and a fixture that wrote it directly would be asserting against its own guess.

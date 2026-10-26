@@ -1,6 +1,6 @@
 """The run history a manifest deliberately is not (`dev07-6-1`).
 
-A manifest is **amnesiac on purpose** (`ch2`): unlinked before every run so a stale one can never
+A manifest is **amnesiac on purpose**: unlinked before every run so a stale one can never
 answer for a failed one. That is right, and it means the questions people bring to a board — *when
 did this break*, *which test is flaky*, *when was this last checked* — cannot be answered from it.
 This is the second artifact those need.

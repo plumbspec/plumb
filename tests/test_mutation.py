@@ -300,7 +300,7 @@ def test_an_interrupted_run_leaves_the_tree_recoverable_and_says_so(tmp_path):
 def test_survivors_are_advisory_and_cannot_un_prove_a_story():
     """The gate is grounding, and mutation sits beside it. A survivor may be a weak test or an
     equivalent mutant and nothing can tell them apart (`dev07-2-4`), so blocking on one would be
-    this framework shipping the heuristic-dressed-as-proof it warns about (`ch7-10`)."""
+    this framework shipping the heuristic-dressed-as-proof it warns about."""
     citations = (Citation(test="t", depth="wiring", result=PASSED, grounding=GROUNDED),)
     none_killed = Story(citations=citations, mutation=Mutation(total=40, killed=0))
     all_killed = Story(citations=citations, mutation=Mutation(total=40, killed=40))

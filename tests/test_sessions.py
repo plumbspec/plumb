@@ -1,4 +1,4 @@
-"""The session loop — opening from a cursor, closing on a measured delta (`ch13`).
+"""The session loop — opening from a cursor, closing on a measured delta (`dev03`).
 
 The pure halves are exercised directly, because a cursor parser and a difference of two readings are
 answerable without a run. The wiring gets one end-to-end pass over a **generated** project with a

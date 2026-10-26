@@ -1,6 +1,6 @@
-"""The session loop — opening from a cursor and measuring what a session moved (``ch13``).
+"""The session loop — opening from a cursor and measuring what a session moved (``dev03``).
 
-Adoption happens once (``ch9``); this happens every working day. The shape was in the field twice
+Adoption happens once (``ado``); this happens every working day. The shape was in the field twice
 before it was written down, in two projects sharing no policy at all, and what they had written
 identically is what ships here: read the cursor, confirm the ground, take a reading, difference it,
 hold the gate.

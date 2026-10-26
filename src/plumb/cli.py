@@ -376,7 +376,7 @@ def _say_history(config, project, seq: int) -> None:
 
 
 def cmd_session(args) -> int:
-    """Open from a cursor, close by measuring against the spec (`ch13`).
+    """Open from a cursor, close by measuring against the spec (`dev03`).
 
     Two commands and a deliberate asymmetry: opening reports everything it finds and refuses
     nothing, because the cost of a wrong open lands on the person who can see it; closing refuses,
@@ -618,7 +618,7 @@ def cmd_registry_moved(args) -> int:
 
 
 def cmd_board(args) -> int:
-    """Run a board and note what it was asked to do (`ch6-32`).
+    """Run a board and note what it was asked to do.
 
     A wrapper rather than a line at each `return`: this function has several exits and a note taken
     on only some of them is worse than none — a filing would carry the shape of whichever run
@@ -637,7 +637,7 @@ def cmd_board(args) -> int:
 
 
 def _board(args) -> int:
-    """Run the adapter, derive, emit, and note what was asked (`ch6-32`).
+    """Run the adapter, derive, emit, and note what was asked.
 
     Every number printed is one the gate produced.
 

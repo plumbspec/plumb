@@ -1,10 +1,10 @@
-"""Who is filing, and whether their records may leave (``ch12-19``, ``ch6-6``).
+"""Who is filing, and whether their records may leave (``snd2``).
 
 Consent is established **once, at enrolment**, never re-asked per record. An installation nobody
 enrolled keeps everything local and never transmits — the core ships to anyone, so that is the
 default case and it is what makes "nothing phones home" a guarantee rather than a promise.
 
-On ``ch12-19``'s "never from local config": the *client* cannot be the authority on who it is —
+Never from local config: the *client* cannot be the authority on who it is —
 anything on this disk is a claim by the filer. So the client states a relationship and the
 **support service overwrites it** from the credential it authenticated. Local records are ``self``
 because you are the only authority over your own store; transmitted ones are stamped by whoever
@@ -20,7 +20,7 @@ from pathlib import Path
 
 RELATIONSHIPS = ("self", "trusted-tester")
 
-#: The one field of an enrolment that is a secret, carried as an opaque string (``ch12-22``).
+#: The one field of an enrolment that is a secret, carried as an opaque string.
 #: Every runner can set a variable; not every runner can mount a file, and a file in a working tree
 #: is collectable by an artifact upload or a cache action written for an unrelated purpose.
 CREDENTIAL_ENV = "PLUMB_CREDENTIAL"
@@ -36,7 +36,7 @@ DEFAULT_ENROLMENT = Path(
 
 
 class NotEnrolled(Exception):
-    """No enrolment, so nothing transmits. Not an error — the default (``ch6-6``)."""
+    """No enrolment, so nothing transmits. Not an error — the default (``snd2``)."""
 
 
 @dataclass(frozen=True)
@@ -64,7 +64,7 @@ class Enrolment:
 
     @property
     def may_transmit(self) -> bool:
-        """Enrolment *is* the consent (``ch6-6``); there is no per-record question to ask."""
+        """Enrolment *is* the consent (``snd2``); there is no per-record question to ask."""
         return True
 
     def to_json(self) -> str:
@@ -78,7 +78,7 @@ class Enrolment:
 
 
 def from_environment(root: Path | str = ".") -> Enrolment | None:
-    """An enrolment assembled from a secret and configuration held apart (``ch12-22``).
+    """An enrolment assembled from a secret and configuration held apart.
 
     The credential arrives as one opaque variable — the shape every CI secret store already has —
     and the address comes from configuration, where it can be diffed and where a change of
@@ -100,7 +100,7 @@ def from_environment(root: Path | str = ".") -> Enrolment | None:
             f"plumb.toml, where it can be reviewed, or set {ENDPOINT_ENV}. The address is "
             "configuration and only the credential is a secret")
     # `self`, because a locally assembled relationship is a claim by the filer and the support service
-    # overwrites it from the credential it authenticated anyway (`ch12-19`).
+    # overwrites it from the credential it authenticated anyway.
     return Enrolment("self", credential, endpoint)
 
 
