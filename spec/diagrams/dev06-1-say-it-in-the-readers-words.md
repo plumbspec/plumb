@@ -6,7 +6,7 @@ What somebody implementing a story does where the story's words and the names th
 differ: name the inside so it outlives any one audience, and carry each audience's word at the edge.
 
 Entered from [dev06 · do the work](developer-day.md); the words the chapter itself uses are settled
-in goldspec's [sha · share a word across owners](https://github.com/plumbspec/goldspec/blob/master/spec/diagrams/sha-share-a-word-across-owners.md),
+in goldspec's [spe6-2-3-1 · share a word across owners](https://github.com/plumbspec/goldspec/blob/master/spec/diagrams/spe6-2-3-1-share-a-word-across-owners.md),
 which is the other half and is about two specs rather than a spec and its code.
 
 ```mermaid

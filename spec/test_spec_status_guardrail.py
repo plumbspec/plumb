@@ -35,7 +35,7 @@ def test_the_spec_directory_is_consistent_with_itself():
     exists to remove, arriving through the tooling rather than through the corpus.
     """
     conv = conventions_for(SPEC)
-    # The corpus spans repositories (`ent2`): chapter 0 consumes `spec`, which the methodology's
+    # The corpus spans repositories (`spe1-1-2`): chapter 0 consumes `spec`, which the methodology's
     # own chapter 7 defines. A sibling is read for the names it defines and never checked here.
     assert conv.siblings and all(Path(s).is_dir() for s in conv.siblings), (
         f"a sibling spec named in {SPEC}/goldspec.toml is not on disk: {conv.siblings}. This check "
