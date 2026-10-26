@@ -29,11 +29,12 @@ a decision does and reads differently:
 | word | what happened |
 |---|---|
 | **supported** | the measurement backs the value |
-| **unvalidated** | nothing has tested it — the ordinary case for most constants |
+| **unvalidated** | nothing cites this aspect — the ordinary case for most constants |
 | **refuted** | it was tested and lost |
-| **unmeasured** | cited, and no measurement ran |
+| **unmeasured** | cited, and no measurement ran — every citing test was skipped |
 
-Aspect names are yours. The core never reads them, so name them after what your evidence actually
+As with a decision, a parameter nothing cites at all is absent from the board; **unvalidated**
+appears on a declared aspect that nothing cites yet. Aspect names are yours. The core never reads them, so name them after what your evidence actually
 distinguishes.
 
 ## Is it a parameter, or just a number?

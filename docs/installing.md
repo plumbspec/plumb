@@ -34,6 +34,23 @@ is needed. To install somewhere else, set `PLUMB_BIN_DIR`:
 
 The installer tells you if the directory it used is not on your `PATH`.
 
+An install made through a channel also leaves a small marker beside them, `.plumb-install`, naming
+the channel — it is what lets `plumb --version` say which one you are on.
+
+**What the single file does not carry: modules.** Modules — `plumb series` is the first — are found
+through installed package metadata, and the zipapp carries none of its own — run against an
+interpreter with nothing installed into it, it mounts no modules: `plumb series` is absent rather than broken, and `plumb modules`
+says what is mounted. If you want the series commands, install the package instead.
+
+### With pip
+
+    pip install plumbspec
+
+This installs the `plumb` command with its `series` module mounted, and the `plumb-series-holder`
+command for running a holder of your own. It does **not** carry the Java adapter, which ships only
+inside the zipapp: for a Java project, use the installer above, or set `PLUMB_JAVA_CLASSPATH` to a
+`plumb-java.jar` you already have.
+
 ---
 
 ## What you need
@@ -116,13 +133,13 @@ Two things follow, and both are on purpose:
 
 - **The channel tells you what it promises**, at install time, out of the pointer itself:
 
-      plumb: edge is 0.5.0rc4 — could be broken, a candidate, published so it can be tested
+      plumb: edge is 0.7.0rc1 — could be broken, a candidate, published so it can be tested
 
 - **The install remembers which channel answered**, because one build can be named by both at once
   and the version alone cannot say:
 
       $ plumb --version
-      plumb 0.5.1.dev12+a1b2c3d (edge)
+      plumb 0.7.0.dev12+a1b2c3d (edge)
 
   Include that line in anything you report. A defect on `edge` is a different conversation from the
   same symptom on `stable`.
@@ -154,13 +171,15 @@ Every one of these is an environment variable read by the installer:
 
 ## Removing it
 
-Delete the two files:
+Delete what the installer wrote:
 
-    rm ~/.local/bin/plumb ~/.local/bin/plumb.pyz
+    rm -f ~/.local/bin/plumb ~/.local/bin/plumb.pyz ~/.local/bin/.plumb-install
 
-Nothing else was touched. Plumb writes no system configuration and installs nothing into your
-project, so removing it leaves your build exactly as it was. Any `plumb.toml` you created is yours
-and stays put.
+Plumb writes no system configuration and installs nothing into your project, so removing it leaves
+your build exactly as it was. Using it does write a few things of its own — a cache, a session's
+scratch reading, an enrolment if you made one — and `plumb footprint`, run before you remove it,
+lists each of them with what losing it would cost. Any `plumb.toml` you created is yours and stays
+put.
 
 ---
 

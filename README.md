@@ -58,7 +58,7 @@ the link **mechanical** — a story is proven by **two checks**:
 Pass both and the story is proven; fail either and it isn't. Beyond the gate, two things that never
 fail the build:
 
-- **Does the test *check* the code?** — a free, opt-in mutation pass (chapter 4) mutates the code the
+- **Does the test *check* the code?** — a free, opt-in mutation pass mutates the code the
   story grounded into and expects a citing test to *fail*; a survivor is *advisory*, not a red build.
   Turn it on with `plumb board --mutation`, or `mutation = true` in `plumb.toml`.
 - **Residue, named not hidden** — execution proves the code ran, not that an *assertion* is
@@ -79,8 +79,8 @@ check.
 If you would rather not start from a blank page, the methodology is a **separate product**, and it is
 the one we recommend:
 
-**[goldspec](https://plumbspec.org/gold/)** — process flows with IPO, data definitions, stories,
-decisions and unknowns, and the gates that keep them honest. Installed separately, run as `goldspec`,
+**[goldspec](https://plumbspec.org/gold/)** — process flows whose every step is a person's story, with what it
+moves, its requirements, decisions and unknowns, and the gates that keep them honest. Installed separately, run as `goldspec`,
 and what Plumb uses for its own specification.
 
 Recommended is not required, and it is not a one-way door. Its conventions are settings rather than a

@@ -155,12 +155,25 @@ Hand it to a holder:
     plumb series pull restored.jsonl          # write the holder's copy to a file
 
 Only what the holder has not already been given goes over the wire, so pushing repeatedly is cheap
-and safe. Which store a run joins comes from the enrolment where it carries one, and otherwise from
-`subject` in `plumb.toml`.
+and safe.
 
-A **credential** — `PLUMB_CREDENTIAL` in the environment, with `endpoint` in `plumb.toml` — is
-presented beside the body. A test name describes behaviour, so what leaves on a run is the shape
-of your product, and it is worth looking at before the first push.
+**Where it goes is set by the environment of the run.** A push sends to the series destination,
+taken from the first of these that answers:
+
+1. `PLUMB_SERIES_ENDPOINT` and `PLUMB_SERIES_CREDENTIAL` (and optionally `PLUMB_SERIES_SUBJECT`)
+2. the machine-wide `PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL` (and optionally `PLUMB_SUBJECT`)
+3. an enrolment file — `--enrolment FILE`, else `$PLUMB_ENROLMENT`, else
+   `~/.config/plumb/enrolment.json`. With `PLUMB_CREDENTIAL` set and `PLUMB_ENDPOINT` not, the
+   address is read from an `endpoint` key in `plumb.toml`.
+
+An endpoint and a credential count only as a pair; one without the other is skipped. With none of
+them, nothing is pushed and the history stays on this machine. `series pull` reads the second and
+third of these, not the series-specific variables.
+
+The request carries one secret: the credential, as a bearer token. Nothing is signed and there is no
+account key. Which series it lands in is the destination's subject where one is set, and otherwise
+`subject` in `plumb.toml`. A test name describes behaviour, so what leaves on a run is the shape of
+your product, and it is worth looking at before the first push.
 
 **See it before you send it.** `--dry-run` prints what would go over the wire and sends nothing:
 

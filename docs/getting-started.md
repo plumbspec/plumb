@@ -17,7 +17,7 @@ Four steps:
 3. **Run the board** — see what Plumb makes of it
 4. **Read what it says** — and do the one thing it asks
 
-If you have not installed it yet, that is one command: see the [README](../README.md).
+If you have not installed it yet, that is one command: see [Installing Plumb](installing.md).
 If something surprises you along the way, [What to expect the first time](what-to-expect.md)
 answers the common surprises.
 
@@ -181,8 +181,8 @@ a chapter in a document. Plumb never invents ids and keeps no list of them. If y
 | `smoke` | it touched the deployed thing |
 
 Claiming `wiring` when the test only called a function directly does **not** quietly downgrade to
-`unit`. It fails the story. That is the point: the claim has to survive contact with what actually
-ran.
+`unit`. The story stays UNPROVEN and the board says why. That is the point: the claim has to survive
+contact with what actually ran.
 
 Start with one citation. Not ten.
 
@@ -203,13 +203,18 @@ found. The first run says something like:
            next · declare where the wired system begins, to catch orphaned code
         example · in plumb.toml — Python:  entry_points = ["myapp.cli:main"]   ·  Java:  entry_points = ["com.acme.Api#handle"]
 
+      unlock  [unlock.grounding]
+           what · 1 stories passed but their wiring was never checked
+           next · declare production entry points, and those stories get gated on real wiring
+
       passed-wiring-not-verified: 1
+      answering for the 1 subject(s) this run's tests cited, and nothing else — …
     ═══════════════════
 
 This is not a failure. Your test passed. Plumb is telling you it could not *check* the part you
 claimed, because you have not told it where your system begins yet.
 
-Every message has the same three lines, and they are worth learning:
+Every condition has the same three lines, and they are worth learning:
 
 - **what** — what Plumb found
 - **next** — the one thing to do about it
@@ -233,10 +238,17 @@ an HTTP handler, a queue consumer. Not every public method. The handful of front
 Run `plumb board` again:
 
     ══════ BOARD ══════
-      PROVEN   ORD-1  [wiring]
+      PROVEN                       ORD-1  [wiring]
+
+      unlock  [unlock.mutation]
+           what · 1 stories are proven, and nothing has checked that their tests assert anything
+           next · run mutation over them to find a test that runs the code without checking it
 
       proven: 1
+      answering for the 1 subject(s) this run's tests cited, and nothing else — …
     ═══════════════════
+
+An `unlock` is the board pointing at the next check you could turn on. It is never a failure.
 
 That is a proven story. It means: a test cited it, that test passed, and the test's execution went
 **through** a declared entry point into your real code. Not a comment, not a checkbox — something
@@ -261,20 +273,31 @@ The usual first cause looks like this:
 
       1 stories  [depth.unsupported]
            what · a citation claims it reached the wired system, and its execution never did
-           next · lower the claimed depth to what the test actually reaches, or drive the story
-                  through a declared entry point
-        example · cite it at depth="unit" instead — a claim the execution supports
+           next · drive the story through a declared entry point, which is what a wired claim needs
+                  to hold — or lower the claimed depth, which ends this complaint and moves the
+                  verdict no further on its own
+        example · at depth="unit" the claim is one the execution supports; the status stays
+                  whatever the grounding already earned, and the board says why separately
+
+      1 stories  [grounding.not-wired]
+           what · every citation passed, and none of them reached the wired system — what ran was
+                  the implementation on its own, which is not evidence the story holds where it is used
+           next · drive it through a declared entry point, or leave it at the depth it reaches and
+                  let the board say so
+        example · a test calling the class directly proves the class; the story is about the system
+                  that calls it
 
 `ORD-2` claimed `wiring`, but the test called the function directly instead of going in through the
 front door. Plumb watched, saw it never pass an entry point, and refused the claim.
 
-You have two honest moves. They are not interchangeable, and the board's suggestion is only one of
-them:
+(The board prints each line unwrapped; it is wrapped here to fit the page.)
+
+You have two honest moves. They are not interchangeable:
 
 1. **Lower the claim.** Change `depth="wiring"` to `depth="unit"`. This makes the claim true, and
    the `depth.unsupported` message goes away. **It does not make the story proven.** A test that
-   never enters through a declared entry point leaves the story UNPROVEN — and once the claim is
-   honest the board has nothing left to say, so it goes quiet while the story stays unproven.
+   never enters through a declared entry point leaves the story UNPROVEN, and `grounding.not-wired`
+   stays on the board to say so.
 2. **Raise the test.** Rewrite it to go in through an entry point, so it really does exercise the
    wired system. **This is the only one of the two that reaches PROVEN.**
 

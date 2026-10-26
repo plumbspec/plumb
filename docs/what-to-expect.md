@@ -65,7 +65,7 @@ rather than the top one (`dev07-4-3`):
 
 The board tells you exactly this, under the stable code `grounding.not-checked`:
 
-    declare entry points to catch orphaned code
+    declare where the wired system begins, to catch orphaned code
 
 Declare them and the same tests start reading PROVEN, with no change to the tests themselves.
 Nothing was wrong; you had reached a level and the tool said so instead of rounding up.
@@ -73,19 +73,24 @@ Nothing was wrong; you had reached a level and the tool said so instead of round
 **Why not just call it proven?** Because then the first thing you would learn about Plumb is
 that its top status is available for free — and everything after that is worth less.
 
-Here is Plumb's own first board, run on itself with no entry points declared. Every story its
-tests cite reads the middle status, and the run is green:
+Here is a small project's board with no entry points declared. Every story whose tests passed
+reads the middle status, and the run exits 0:
 
     ══════ BOARD ══════
-      PASSED-WIRING-NOT-VERIFIED   dev07-3-1  [component · unit]
-      PASSED-WIRING-NOT-VERIFIED   dev07-5-3  [unit]
-      …
+      PASSED-WIRING-NOT-VERIFIED   APP-1  [e2e]
+      PASSED-WIRING-NOT-VERIFIED   APP-2  [unit]
 
-      36 stories  [grounding.not-checked]
-        declare entry points to catch orphaned code
-        "module.path:function", e.g. "myapp.cli:main"
+      2 stories  [grounding.not-checked]
+           what · grounding did not run — no production entry points are declared
+           next · declare where the wired system begins, to catch orphaned code
+        example · in plumb.toml — Python:  entry_points = ["myapp.cli:main"]   ·  Java:  entry_points = ["com.acme.Api#handle"]
 
-      passed-wiring-not-verified: 36
+      unlock  [unlock.grounding]
+           what · 2 stories passed but their wiring was never checked
+           next · declare production entry points, and those stories get gated on real wiring
+
+      passed-wiring-not-verified: 2
+      answering for the 2 subject(s) this run's tests cited, and nothing else — …
     ═══════════════════
 
 That is a working tool reporting honestly, not a tool with nothing built.
@@ -138,16 +143,15 @@ it is to prove it somewhere new.
 
 Some. How much depends on something less obvious than the size of your codebase.
 
-Tracing is scoped to each citing test's **body** — setup, teardown and collection are outside the
-window. So the cost tracks **what your tests do**, not how much code you have. A test doing
+Tracing is scoped to each test's **body** — setup is watched only for what it reads, and teardown
+and collection are outside the window. So the cost tracks **what your tests do**, not how much code you have. A test doing
 arithmetic costs almost nothing to trace. A test that spawns a subprocess, starts a server, or runs a
 nested test session puts all of that work inside a traced window, and it costs accordingly.
 
-For scale: on this project — about 1,700 lines — the whole board takes a few seconds, and tracing
-adds roughly double the untraced run. **Do not read that as a promise.** It is one codebase, measured
-by the authors of both it and the tracer, and it is recorded as an open question (`dev07-1-3`)
-rather than a claim precisely because one measurement is not a property. If your suite is shaped
-differently, yours will be too.
+There is no overhead figure that holds for every suite. The cost of tracing is recorded as an open
+question (`dev07-1-3`) rather than a claim, because a measurement on one codebase is not a property
+of the tool. [Time per story](time-per-story.md) has measurements on suites of different shapes;
+compare `plumb board` against your own plain test run to see what it costs you.
 
 If a particular test is pathologically slow under the board and fast without it, that is worth
 reporting — it is the measurement the open question is waiting for.
@@ -305,19 +309,10 @@ two tools.
 
 ### Getting it
 
-    curl -fsSL https://plumbspec.org/install.sh | sh
-    plumb board
-
-One file. Plumb ships as a **zipapp** — Python's own single-file format, which is only viable
-because the core has no dependencies. The Java adapter's jar rides inside it, so one download
-covers both languages and you never compile an adapter or clone this repository.
-
-No package index, no account, nothing added to your project's dependencies. The installer verifies
-a checksum every time and a signature when it can, and **tells you which it did** —
-[SECURITY.md](../SECURITY.md) states exactly what each one is worth, including what neither of them
-covers. `PLUMB_REQUIRE_SIGNATURE=1` refuses to install without a verified signature and
-`PLUMB_NO_SIGNATURE=1` installs without checking one;
-`PLUMB_VERSION=0.5.0` pins one.
+Plumb ships as a single file — a Python **zipapp**, which is viable because the core has no
+dependencies. The Java adapter's jar rides inside it, so one download covers both languages and you
+never compile an adapter or clone this repository. Nothing is added to your project's dependencies.
+[installing.md](installing.md) has the installer, what it verifies, and how to pin a version.
 
 Two consequences worth knowing before you adopt:
 
@@ -397,13 +392,21 @@ other story the way its own claim demands, by actually running the thing.
 Annoying once, and right: it forces the two kinds of evidence apart instead of letting one test
 claim both.
 
-## "I filed a record and it said *queued*, not *sent*"
+## "Does anything leave my machine?"
 
-**Filing left the core.** Capturing, reading and answering a support case is a module now, not a
-core verb, so what those words mean is that module's to explain and not this page's.
+Not unless you named somewhere for it to go. A board is derived from a run and is complete without
+the network.
 
-What has not changed is the rule underneath it: nothing leaves your machine unless you named
-somewhere for it to go. That holds for every capability, including any a module adds.
+Sending is per **capability** — a series history is one, and a module can add others — and each
+capability's destination comes from the environment of the run: that capability's own variables
+first (`PLUMB_SERIES_ENDPOINT` and `PLUMB_SERIES_CREDENTIAL` for the series), then the machine-wide
+pair `PLUMB_ENDPOINT` and `PLUMB_CREDENTIAL`, then an enrolment file (with `PLUMB_CREDENTIAL` set
+and `PLUMB_ENDPOINT` not, an `endpoint` key in `plumb.toml` supplies the address). With none of them
+set, what the capability produced stays local, and that is the default rather than a fault. A
+destination that cannot be reached is reported in one line and never fails the run.
+
+Capturing and answering a support case is not part of the core; a module provides it, and what its
+messages mean is that module's to explain.
 
 ## "Does Plumb want me to work test-first?"
 
@@ -479,10 +482,10 @@ can produce the same word from genuinely different evidence. Today's two adapter
 
 Same values, same meanings, different grounds. Neither is wrong; they are not interchangeable.
 
-**This field is also how you compare boards across a Plumb upgrade.** The JVM adapter's mechanism
-changed from `JDWP breakpoints …` to `bytecode probes, in process …`, and boards made either side
-of that carry the string that made them. A story whose grounding moved across that line has not
-necessarily changed: read the mechanism first.
+**This field is also how you compare boards across a Plumb upgrade.** When an adapter's way of
+observing changes, its `mechanism` string changes with it, and every board carries the string of
+the instrument that made it. A story whose grounding moved across such a change has not necessarily
+changed: read the mechanism first.
 
 The practical readings:
 

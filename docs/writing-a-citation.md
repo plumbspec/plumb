@@ -120,9 +120,14 @@ Omit `about` and the citation is about the only aspect there is, which is what a
 
 ### The words change, the codes do not
 
-A decision that has nothing citing it reads **silent**, not *unproven*; a parameter reads
-**unvalidated**. Set `lexicon` in your feed and the board says the word; the underlying status and
-condition code are unchanged, so anything reading the board mechanically is unaffected. The full
+A decision's aspect that nothing cites reads **silent**, not *unproven*; a parameter's reads
+**unvalidated**. (A subject nothing cites at all is absent from the board, like any other.) Name the subject's vocabulary in `plumb.toml` and the board says the word:
+
+    [lexicon]
+    "D41" = "decision"
+
+The underlying status and condition code are unchanged, so anything reading the board mechanically
+is unaffected. The full
 table is under [the codes it can emit](command-line.md#the-codes-it-can-emit).
 
 **A breach informs and never fails a build.** A decision whose falsifier has fired is news, not a

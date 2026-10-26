@@ -22,18 +22,22 @@ name and email. A PR whose commits are not signed off cannot be merged.
     pip install -e ".[dev]"
     pytest
 
-**The install is not optional any more.** `plumb series` is a module, mounted through the
-`plumb.modules` entry point, and entry points are read from installed distribution metadata — so a
-bare checkout on `PYTHONPATH` has no modules and the series tests fail with `invalid choice`. The
-same is true of the tool itself: run it from a checkout and `plumb series` is simply absent.
+**The install is required.** `plumb series` is a module, mounted through the `plumb.modules` entry
+point, and entry points are read from installed distribution metadata — so a bare checkout on
+`PYTHONPATH` has no modules and the series tests fail with `invalid choice`. The same is true of
+the tool itself: run it from an uninstalled checkout and `plumb series` is simply absent.
+
+**The spec checks need goldspec.** The tests under `spec/` import the `goldspec` library, which is
+a separate product and not a dependency of Plumb. Install its wheel, or put a goldspec checkout's
+`src/` on `PYTHONPATH`, before running the whole suite.
 
 If an `src/plumbspec.egg-info/` is present and stale, it shadows the real metadata and the entry
 point disappears with it. Delete it and reinstall.
 
 ## Ground rules
 
-- **The spec is the authority.** `spec/` is Plumb's own gold-spec — the chapter modules plus
-  `diagrams/`, run with `pytest`. Behavior changes land with the story and tests that prove them —
+- **The spec is the authority.** `spec/` is Plumb's own gold-spec — the flows in `diagrams/`,
+  starting from `diagrams/developer-day.md`, and the checks over them, run with `pytest`. Behavior changes land with the story and tests that prove them —
   Plumb traces itself with its own gates.
 - **No core feature without a real consumer.** The core grows only when an actual project needs it;
   a second adapter lands only when a second project adopts Plumb. That discipline is what proves

@@ -26,6 +26,10 @@ If you read one thing here, read [When the disk gets tight](#when-the-disk-gets-
 | `--reserve` | MiB to leave free for everything else on this volume — writes refuse below it |
 | `--pool` | MiB this holder may hold in total |
 | `--compact-above` | how much churn a series may carry before it is collapsed into a fresh base |
+| `--host`, `--port` | where it listens — `127.0.0.1` and `8081` unless you say otherwise |
+
+`--store` is required. `--reserve` defaults to 256 MiB, `--pool` to 2048 MiB and `--compact-above`
+to 2.
 
 Startup says what is free, what writes are refused under, and the most it will hold — a host
 already under its reserve is something you learn from that line, not from the first refusal. A
@@ -34,12 +38,15 @@ custodial store reads exactly like one nothing was ever written to.
 
 ### It authenticates nobody
 
-There is no credential, no account and no quota per anybody, because this is a holder you run for
-yourself and there is no second party to be told apart from. What it protects is a **disk**, and
+There is no credential check, no account and no quota per anybody, because this is a holder you run
+for yourself and there is no second party to be told apart from. The client still sends a bearer
+credential with every push and pull — it will not push without one — so give your producers any
+value in `PLUMB_SERIES_CREDENTIAL` (or `PLUMB_CREDENTIAL`); this holder ignores it. What it protects is a **disk**, and
 the bounds it enforces are the ones that keep that disk working.
 
 That also means it must not be exposed to the internet unless something in front of it decides who
-may reach it. It binds to the loopback and expects the host's own proxy for TLS.
+may reach it. It binds to the loopback by default, speaks plain HTTP, and expects the host's own
+proxy for TLS.
 
 ## When the disk gets tight
 
@@ -100,9 +107,13 @@ holder that is actually answering — including the batch cap producers split ag
 
 | Code | Meaning | What the producer does |
 |---|---|---|
-| 413 | the body exceeds the published cap | splits the batch and resends |
-| 422 | the body could not be read | stops; the content is at fault — terminal |
+| 413 | the body exceeds the published cap | stops; the refused batch is not marked sent. The client already sends in batches well below the cap, so this means the cap was lowered under it |
+| 422 | the body could not be read, or the subject is not lowercase letters, digits and hyphens | stops; the content is at fault — terminal |
 | **507** | **no room to accept** | keeps the backlog, sends next run |
+
+Batches are accepted in order and the client marks each one sent as it is accepted, so a push that
+stops partway leaves only the unaccepted tail to send. None of these refusals fails the producer's
+board.
 
 ---
 

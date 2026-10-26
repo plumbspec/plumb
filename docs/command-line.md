@@ -8,33 +8,38 @@ summary: Every command and option, and how they cancel each other out.
 
 **For programmers and DevOps** who need the exact behaviour of a flag.
 
-Six commands, and a handful of options. The options matter less than **how they fit together** —
-most confusion comes from not knowing which ones cancel each other out.
+The core's commands, the `series` module that ships in the same distribution, and a handful of
+options. The options matter less than **how they fit together** — most confusion comes from not
+knowing which ones cancel each other out.
 
     plumb --version
     plumb board      [--json] [--manifest FILE] [--emit-manifest FILE] [--mutation] [--survivors] [--tests] [--scope NS] [--project DIR]
                      [--series FILE [--push] [--enrolment FILE]]
-    plumb series     {show|pull|push} FILE [--subject ID] [--enrolment FILE] [--dry-run]
-    plumb modules                                      what is mounted, and what it reaches
     plumb init       [--project DIR]
+    plumb footprint  [--project DIR]
+    plumb session    [--project DIR] {start|wrap-up}
     plumb manifest   migrate FILE
+    plumb modules                                      what is mounted, and what it reaches
     plumb account    {open|redeem} [--endpoint URL]
+    plumb series     {show|pull|push} FILE [--subject ID] [--project DIR] [--enrolment FILE] [--dry-run]
+
+`plumb registry` is a signpost rather than a command — see [below](#plumb-registry).
 
 ---
 
 ## The shape of it
 
 ```
-                        plumb
-                          |
-      +---------+---------+---------+---------+
-      |         |         |         |
-    init      board    manifest  account
-   set up   derive and  bring a   an identity
-     a         show     document   nobody has
-   project    status    forward    to issue
+                              plumb
+                                |
+     +--------+--------+--------+--------+--------+--------+
+     |        |        |        |        |        |        |
+   init     board  footprint session manifest modules  account
+  set up  derive and  what it  open and bring a  what is  open one
+    a        show     wrote,   close at document mounted  by your
+  project   status    where   the board forward          address
 
-              and whatever a module mounts
+              and whatever a module mounts — `series` is the first
 
     board, in detail:
 
@@ -74,18 +79,18 @@ Runs your tests, watches your production code, and prints what each story's stat
 
 | Option | What it does |
 |---|---|
-| `--json` | machine-readable output instead of the text board |
-| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not (`dev07-6-1`). Opt-in and never a side effect: a board that quietly grew a store would make `--json` a mutating operation. Nothing is written when nothing changed, which is the ordinary case |
-| `--push` | with `--series`, also send what the holder has not been given. Reports and **never fails the board** if the holder is unreachable — a board is derived from a run and complete without the network, so an outage must not turn a build red for a reason unrelated to the project. Same work as `plumb series push`, triggered here instead of separately |
-| `--enrolment FILE` | with `--push`, the enrolment to send under (default `~/.config/plumb/enrolment.json`). The credential names the store it may write to, so this is also what decides *whose* series this run joins |
-| `--manifest FILE` | **skip the test run** and derive from a saved manifest |
+| `--json` | the board as JSON instead of the text board, in the format [The board, as JSON](consuming-the-board.md) documents. The text board is the default |
+| `--manifest FILE` | **skip the test run** and derive from a saved manifest. Repeatable: give it more than once to board several manifests together |
 | `--emit-manifest FILE` | save the manifest this run produced |
 | `--mutation` | also check the tests would notice if the code changed. In `--json`, each story's `mutation` carries `total`, `killed`, `survived`, `unreached` and a `survivors` list of `{operator, where, file, line, reached}`. **`unreached` counts survivors no citing test evaluated** — scope is per method, so a story gets mutants on paths its tests never enter, and those could not have been killed by any assertion. A ratio that mixes them answers neither question |
 | `--survivors` | after the board, list the mutants no test noticed — once each, with how many stories scoped them. Off by default: a survivor sits in every story that reached its method, so printing them per story repeats one work item many times and buries the verdicts |
 | `--tests` | list every test the run observed and what it grounded, instead of counting them. Off by default: on a mature suite the citing tests are a small minority, so the recital buries the verdict — the board's output should scale with the spec, not with the suite. Turn it on when a board is not what you expected and you need the per-test fact |
 | `--scope NAMESPACE` | show only stories whose id begins with NAMESPACE |
-| `--manifest FILE` (repeatable) | give it more than once to board several manifests together |
 | `--project DIR` | read `plumb.toml` from somewhere other than here |
+| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not (`dev07-6-1`). Opt-in and never a side effect. An unchanged run appends no transitions, only a marker recording that the run happened. Written with the text board; with `--json` nothing is appended, so `--json` never mutates anything |
+| `--push` | with `--series`, also send what the holder has not been given. Reports and **never fails the board** if the holder is unreachable — a board is derived from a run and complete without the network, so an outage must not turn a build red for a reason unrelated to the project. Same work as `plumb series push`, triggered here instead of separately |
+| `--enrolment FILE` | with `--push`, the enrolment file to fall back on (default `~/.config/plumb/enrolment.json`). Read only when the environment names no destination for series — see [Environment](#environment) |
+| `PATH …` | anything after the options is passed to pytest, e.g. a path to limit collection. Put `--` first to pass pytest its own flags: `plumb board -- -k orders`. Python only |
 
 ### How they intersect
 
@@ -97,8 +102,9 @@ Runs your tests, watches your production code, and prints what each story's stat
 That is what makes a board reproducible: the manifest is the evidence, and rendering it twice gives
 the same answer twice.
 
-**So `--manifest` cancels three other options.** `--mutation`, `--project` and `--emit-manifest`
-only apply on the run path. Give `--manifest` and they do nothing.
+**So `--manifest` cancels the options that belong to a run.** `--mutation`, `--project`,
+`--emit-manifest` and anything passed to the runner only apply on the run path. Give `--manifest` and
+they do nothing. Use `--series` and `--push` on the run path too.
 
 > **Sharp edge:** `plumb board --manifest a.json --emit-manifest b.json` writes **no file** and says
 > nothing about it. `--emit-manifest` is silently ignored when you are not running. If you wanted a
@@ -352,9 +358,10 @@ entry point in this distribution's own metadata. Remove that entry and `plumb se
 tool without a line of the core changing.
 
 One consequence worth knowing before it surprises you: **a module is discoverable only where its
-distribution is installed.** `pip install plumbspec` has it. A source checkout on `PYTHONPATH`, or a
-zipapp run against an interpreter that has not been installed into, sees no modules at all — and
-`plumb series` is simply absent rather than broken. `plumb modules` says which are mounted.
+distribution is installed**, because modules are found through installed package metadata.
+`pip install plumbspec` has it. A source checkout on `PYTHONPATH` with no install, or a zipapp run
+against an interpreter nothing was installed into, sees no modules at all — and `plumb series` is
+simply absent rather than broken. `plumb modules` says which are mounted.
 
 The run history a manifest deliberately is not. A manifest is unlinked before every run so a stale
 one can never answer for a failed one — which is right, and means *when did this break*, *which test
@@ -362,7 +369,9 @@ is flaky* and *when was this last checked* cannot be answered from it. A series 
 artifact those need.
 
 It records **what changed**, not what a run found. A fact that has not changed is not new
-information, so an unchanged run adds no transitions at all — only a line saying the run happened.
+information, so an unchanged run adds no transitions at all — only a marker saying the run happened.
+A new series also starts with an origin stamp, which is how `show` can tell a whole history from a
+partial copy.
 
     $ plumb board --series series.jsonl
     series: 323 transition(s) -> series.jsonl
@@ -393,8 +402,8 @@ reading of one observation.
 | `--subject ID` | one subject's transitions, oldest first, instead of the summary over all of them |
 
     $ plumb series show series.jsonl --subject ORD-14
-      2026-08-01T09:00:00Z  passed · grounded    tests/test_orders.py::test_queue
-      2026-08-03T09:00:00Z  failed · grounded    tests/test_orders.py::test_queue
+      2026-08-01T09:00:00Z  passed · grounded         tests/test_orders.py::test_queue
+      2026-08-03T09:00:00Z  failed · grounded         tests/test_orders.py::test_queue
 
 That is *when did this break* — a question no board can answer, because a board is one run.
 
@@ -420,10 +429,15 @@ What lands is a series like any other, so `plumb series show` reads it.
 
 | Option | What it does |
 |---|---|
-| `--subject ID` | which store to ask for; defaults to the one the enrolment names |
-| `--enrolment FILE` | the enrolment to ask under (default `~/.config/plumb/enrolment.json`) |
+| `--subject ID` | which series to ask for. Without it: the subject the enrolment carries, else `subject` in `plumb.toml` |
+| `--project DIR` | the project whose `plumb.toml` names the subject |
+| `--enrolment FILE` | the enrolment file to ask under (default `~/.config/plumb/enrolment.json`) |
 
-Exits `1` when the holder has nothing for that subject, and writes no file — an empty one would read
+**Where `pull` asks** is resolved differently from `push`: it reads `PLUMB_CREDENTIAL` with
+`PLUMB_ENDPOINT`, or the enrolment file, and does not read the `PLUMB_SERIES_*` variables.
+
+Exits `1` when the holder has nothing for that subject, cannot be reached, or nothing names where to
+ask — and writes no file — an empty one would read
 as *nothing happened*, which is the answer this whole chapter exists to keep apart from *we no
 longer hold it*.
 
@@ -432,21 +446,29 @@ reading your history is part of what keeps it.
 
 ### `plumb series push FILE`
 
-Sends what the holder has not been given yet. Requires an enrolment carrying a subject — the store
-that credential owns.
+Sends what the holder has not been given yet, to the destination named for series — see
+[Environment](#environment).
 
     $ plumb series push series.jsonl
     series: pushed 324 record(s)
 
 | Option | What it does |
 |---|---|
-| `--enrolment FILE` | the enrolment to send under (default `~/.config/plumb/enrolment.json`) |
+| `--dry-run` | print exactly the records a push would send, and send nothing |
+| `--project DIR` | the project whose `plumb.toml` names the subject (default: the project the series file lives in) |
+| `--enrolment FILE` | the enrolment file to fall back on when the environment names no destination (default `~/.config/plumb/enrolment.json`) |
 
-An enrolment issued before series support carries no subject, and this says so rather than guessing
-one — a guessed store would file this project's history under a stranger's name.
+**It needs a subject** — which series, inside the store the credential owns. It is taken from the
+destination (`PLUMB_SERIES_SUBJECT`, `PLUMB_SUBJECT`, or the enrolment's `subject`), else from
+`subject = "…"` in the project's `plumb.toml`. With none, it says so rather than guessing one:
 
     $ plumb series push series.jsonl
-    series: not pushed — this enrolment carries no subject, so there is no store to push to
+    series: not pushed — no subject to push under: name one with `subject = "…"` in plumb.toml. ...
+
+With no destination named for series, nothing leaves and the push says so:
+
+    $ plumb series push series.jsonl
+    series: not pushed — no destination named for series — set PLUMB_SERIES_ENDPOINT and PLUMB_SERIES_CREDENTIAL, or enrol. ...
 
 **The log is its own outbox.** Every record carries a dense, monotonic sequence, so *what has not
 been sent* is a number rather than a queue. If the holder is unreachable the mark does not move
@@ -459,9 +481,10 @@ order and the mark moves after each one, so a push interrupted halfway leaves ex
 did not arrive.
 
     $ plumb series push series.jsonl
-    series: not pushed — holder unreachable: [Errno 111] Connection refused
+    series: not pushed — support service unreachable: <urlopen error [Errno 111] Connection refused>
 
-Exits `0` whenever the store was readable, including when the holder was down. A board is derived
+Exits `0` whenever the series file exists, including when the holder was down or nothing was
+named, and `1` when there is no series at that path. A board is derived
 from a run and is complete without the network, so an outage must never turn a build red for a
 reason that has nothing to do with the project.
 
@@ -475,22 +498,25 @@ rather than a hope.
 
     $ plumb modules
       series 1.0.0  verbs: series (push|show|pull)  speaks: series 1  network: yes
-          writes the series file named on the command line, and its `.sent` mark beside it
+          writes the series file named on the command line
+          writes its `.sent` mark, beside it
 
 A module that did not mount is listed too, with the reason, rather than being missing:
 
     $ plumb modules
-      telemetry  NOT MOUNTED — speaks `telemetry`, which the core publishes no version of
+      telemetry  NOT MOUNTED — speaks `telemetry`, which the core publishes no version of — it publishes board, series, transport
 
 The core refuses a module that names a verb the core already owns, one that speaks a surface the
-core publishes no version of or a version it cannot give, and one that will not import. **A module
+core publishes no version of or a version it cannot give, one that declares writes that are not
+footprint entries, and one that will not import. **A module
 that fails to import is named and every other module still mounts** — one broken extension never
 costs the tool. Nothing here probes whether a module can reach what it needs: a module that cannot
 is inert, and its own verbs report their own standing, because the core cannot tell a service being
 down from a credential being wrong.
 
-The surfaces the core publishes, each versioned on its own, are the **board** and the **series
-interface**. A module declares the version it speaks per surface.
+The surfaces the core publishes, each versioned on its own, are the **board**, the **series
+interface** and the **transport**. A module declares the version it speaks per surface; the
+[module contract](module-contract.md) says what each one is.
 
 ## `plumb manifest`
 
@@ -530,84 +556,69 @@ path forward.
 
 ---
 
+## `plumb support`
 
----
-
-## `plumb support` — moved out of the core
-
-**It is not here any more.** Filing, reading and answering a support case left the core in this
-release, and what answers `plumb support` now is a module, installed like any other package and
-mounted through the `plumb.modules` entry point.
-
-That is not a rename and nothing was kept behind. An open-source tool does not carry a support
-desk, and a core that still shipped the verb would still be claiming the capability. `plumb
-modules` lists what is mounted; with no support module installed, `plumb support` is simply not a
-command this tool has.
-
-Records you filed with the old client are **exactly where they were** and nothing moved them. This
-release writes nothing to that directory and no longer lists it under *What Plumb writes* — it is
-yours to keep or remove.
+**Not a core command.** A support module provides it if one is installed, mounted through the
+`plumb.modules` entry point like any other module. With none installed, `plumb support` is not a
+command this tool has; `plumb modules` lists what is mounted.
 
 ---
 
 ## Environment
 
-Only one value Plumb reads is a secret, and it travels on its own.
+**A destination belongs to a capability, and comes from the environment of the run.** Nothing is
+sent anywhere unless a destination is named for the capability doing the sending. Three places are
+read, most specific first, and the first that answers wins:
 
-    PLUMB_CREDENTIAL   the credential every capability sends with — the only secret here
-    PLUMB_ENDPOINT     the address every capability sends to
-    PLUMB_ENROLMENT    path to an enrolment file — the escape hatch, see below
+1. **the capability's own variables** — for the run history, which is the capability the core sends:
 
-### A destination belongs to a capability, not to the machine
+       PLUMB_SERIES_ENDPOINT     where run histories go
+       PLUMB_SERIES_CREDENTIAL   what they go with — a secret
+       PLUMB_SERIES_SUBJECT      which series there this credential owns (optional)
 
-One address for everything is a choice between two products the moment you self-host one of them:
-a team running its own series holder had to accept whoever answered that address for support as
-well, because both hung off it. So each capability may name its own, and the specific wins:
+2. **the machine-wide set** — one address for every capability that names none of its own:
 
-    PLUMB_SERIES_ENDPOINT     where run histories go
-    PLUMB_SERIES_CREDENTIAL   and what they go with
-    PLUMB_SERIES_SUBJECT      which series there this credential owns
+       PLUMB_ENDPOINT
+       PLUMB_CREDENTIAL
+       PLUMB_SUBJECT             (optional)
 
-A capability the core no longer has reads nothing here: with support gone from the core, no
-`PLUMB_SUPPORT_*` variable is read by this tool. A module that takes a capability reads its own
-through the same three places.
+3. **an enrolment file** — `~/.config/plumb/enrolment.json` (under `$XDG_CONFIG_HOME` if set), or
+   the file `PLUMB_ENROLMENT` names, or the one `--enrolment` names.
 
-The name is the capability's, upper-cased, with anything that is not a letter or a digit becoming
-an underscore. Three places are read, most specific first: **the capability's own pair**, then
-**the machine-wide pair above**, then **an enrolment file**. One address for everything still
-works and is no longer the only thing you can say.
+A module that sends something reads its own variables the same way. The name is the capability's,
+upper-cased, with anything that is not a letter or a digit becoming an underscore. No
+`PLUMB_SUPPORT_*` variable is read by the core.
 
-**Both halves or neither.** An endpoint with no credential is a half-configured runner, and
-answering with it would send unauthenticated and report the refusal as the service's.
+**Both halves or neither.** An endpoint with no credential is a half-configured runner, and is
+skipped rather than used: answering with it would send unauthenticated and report the refusal as
+the service's.
 
 **Naming none is the ordinary state.** With no destination for a capability, what that capability
-produced stays on this machine and the run says so. That is what makes *nothing leaves without
-being told where* a guarantee rather than a promise about your configuration: there is no default
-address to forget to change.
+produced stays on this machine and the command says so. There is no default address, which is what
+makes *nothing leaves without being told where* a guarantee rather than a promise about your
+configuration.
 
-The address is **configuration**: put `endpoint = "https://…"` in `plumb.toml` where a reviewer can
-see it. Keeping it out of the secret store is what makes "which holder is this CI pushing to?"
-answerable from the repository, and what lets a wrong address fail as a wrong address instead of as
-a rejected credential. It also means rotating a credential does not mean re-pasting the destination.
+**Prefer the variables to the file** where you have the choice. A file in the working tree can be
+collected by an artifact upload, a cache action or a debug step that archives the directory, and a
+variable cannot. The file is the right primitive where secrets genuinely arrive as files —
+Kubernetes mounts, Vault templating.
 
-`PLUMB_ENROLMENT` still takes a path to a JSON file, and is the right primitive where secrets
-genuinely arrive as files — Kubernetes mounts, Vault templating, the `*_FILE` convention. Prefer the
-variable where you have the choice: a file in the working tree can be collected by an artifact
-upload, a cache action or a debug step that archives the directory, and a variable cannot.
+`plumb account` reads `PLUMB_ENDPOINT` when `--endpoint` is not given. `plumb series pull` reads the
+machine-wide pair or the enrolment file, not the `PLUMB_SERIES_*` variables.
 
 ---
 
 ## What Plumb writes, and where
 
-So you can decide what to back up and what to carry to a new machine. Two things here are
-irreplaceable; everything else is either in your repository already or rebuilt on demand.
+So you can decide what to back up and what to carry to a new machine. One thing here is
+irreplaceable — your series; everything else is either in your repository already, a credential you
+can be issued again, or rebuilt on demand.
 
 **In your project** — your version control already carries all of it.
 
 | Path | What it is |
 |---|---|
 | `plumb.toml` | your declaration — the whole of what `plumb init` may write |
-| the `stories` feed | the stories you hand over, if you declared one |
 | the `cursor` file | the handoff between two sessions (default `.plumb/next-session.txt`) |
 | the `series` store | **irreplaceable** — every transition, losslessly. A run that was not recorded cannot be recovered from a later one |
 | `<series>.sent` | how far that history has been transmitted |
@@ -616,9 +627,9 @@ irreplaceable; everything else is either in your repository already or rebuilt o
 
 | Path | What it is | Keep it? |
 |---|---|---|
-| `~/.config/plumb/enrolment.json` | an enrolment, file form — **this one carries a credential** | yes; marked `SECRET`, and **shared** across every project pushing to that holder |
+| `~/.config/plumb/enrolment.json` | an enrolment, file form — written by `plumb account redeem`, or issued by a holder's operator. **This one carries a credential** | yes; marked `SECRET`, and **shared** across every project pushing to that holder |
 | `~/.local/state/plumb/` | a session's opening reading, keyed by project path | no — scratch; a session that loses it is simply told its delta cannot be computed |
-| `~/.cache/plumb/` | a per-version cache | no — rebuilt when missing |
+| `~/.cache/plumb/` | a per-version cache, and under `runs/` each project's latest run file and manifest | no — rebuilt when missing |
 
 Each honours its `XDG_*` variable.
 
@@ -650,11 +661,10 @@ hand-kept list of paths stays right until somebody adds a writer, and nothing go
 `IRREPLACEABLE`; point whatever you already back up at those paths. That includes what mounted
 modules declare, so installing one does not quietly put state outside the list.
 
-That is a deliberate retirement. `plumb backup` and `plumb restore` existed, and taking custody of
-your files meant Plumb deciding what counts as a secret, what your repository already carries and
-what a restore may overwrite — three policies belonging to whoever runs the machine, on a machine
-that is already being backed up somehow. Holding the list removes the reason anybody read the
-source, which is all the story ever asked for.
+Taking custody of your files would mean Plumb deciding what counts as a secret, what your repository
+already carries and what a restore may overwrite — three policies belonging to whoever runs the
+machine, on a machine that is already being backed up somehow. So Plumb holds the list and leaves
+the backing up to you.
 
 One thing nothing else holds, so it is the one to point your backup at:
 
@@ -700,11 +710,14 @@ The delta since the open, and the gate.
                 + dev03
       cursor    set → dev00-1-2
 
-      OK — the next session runs: plumb session start
+      OK — commit .plumb/next-session.txt; the next session runs: plumb session start
+
+The last line names what the close itself wrote — the cursor, and the series if one is declared —
+because a command cannot require committed a file it is about to write.
 
 | Option | What it does |
 |---|---|
-| `--project DIR` | the project to read `plumb.toml` from |
+| `--project DIR` | the project to read `plumb.toml` from. An option of `plumb session`, so it goes before the subcommand: `plumb session --project ../app wrap-up` |
 | `--next TEXT` | the single next thing (writes the cursor) |
 | `--ref ID` | where it is specified — a story or an open unknown |
 | `--context TEXT` | the one line the next session cannot reconstruct by reading |
@@ -716,7 +729,8 @@ because a proof that later fails un-proves its story, and a gate that demanded p
 people learn to route around. Pushing is not checked either: a remote is somebody else's
 availability, and a gate that fails when a network does teaches people to force past it.
 
-Exits `1` when the gate refuses, naming each reason.
+Exits `1` when the gate refuses, naming each reason, and `2` when `plumb.toml` cannot be read or no
+reading can be taken. `plumb session start` exits `0`, or `2` for the same two reasons.
 
 **A refused close changes nothing.** The gate is held before the board is run and before anything is
 written, so a refusal costs you the time it takes to read it — no cursor written, no history
@@ -750,13 +764,21 @@ An account named by your address.
     plumb account open --email ADDR       # the service mails a link to the address
     plumb account redeem TOKEN            # redeem the link's token; the answer comes once
 
-`open` hands the address to the support service, which mails a credential link to it. `redeem`
-trades the link's token for the credential itself, once, and stores it where the channel reads
-(`~/.config/plumb/enrolment.json`, any prior file kept beside it). The link is spent by the answer.
-Coming back after losing a machine is the same two commands: your cases and `filed_by` are
-unchanged throughout.
+**The address is the credential.** There is no key to generate or keep: nothing is created on your
+machine before you ask, and nothing is signed.
 
-Both send to `--endpoint`, or to `PLUMB_ENDPOINT` when it is not given.
+`open` sends the address to the service, which mails a credential link to it. `redeem` trades the
+link's token for the credential itself, once, and writes it to the enrolment file
+(`~/.config/plumb/enrolment.json`, mode `0600`), where a push already looks. A file already there is
+kept beside it as `enrolment.json.replaced`. The link is spent by the answer.
+
+| Option | What it does |
+|---|---|
+| `--email ADDR` | `open` only, required — the address the account is named by |
+| `--endpoint URL` | the service to send to. Without it, `PLUMB_ENDPOINT` |
+
+Exits `0` on success, `1` when neither `--endpoint` nor `PLUMB_ENDPOINT` names a service, and `2`
+when the service refuses, with its answer printed.
 
 ### Running a holder
 
@@ -798,10 +820,12 @@ an account of your own, `plumb account open --email ADDR`.
 ## `plumb --version`
 
     $ plumb --version
-    plumb 0.5.1
+    plumb 0.7.0
 
-A build published to `edge` between releases names the commit it was cut from — `0.5.1.dev40+5f3325a`
-— so a report against one is unambiguous. A release names its version plainly.
+A build published to `edge` between releases names the commit it was cut from — `0.7.0.dev40+5f3325a`
+— so a report against one is unambiguous. A release names its version plainly. An install made
+through a channel adds the channel's name — `plumb 0.7.0.dev40+5f3325a (edge)` — and a pinned
+install or a source checkout adds nothing.
 
 Worth knowing because the installer resolves a channel, so you never typed a version. Include it in
 any bug report — a report against an unidentifiable build costs the maintainer

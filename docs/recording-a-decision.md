@@ -33,8 +33,8 @@ and says it in words that fit a claim about the future instead of borrowing *pro
 |---|---|
 | **holding** | the condition was evaluated and has not fired |
 | **breached** | a citing test ran and did not pass — the condition has fired |
-| **silent** | nothing cites it at all. Nobody is watching, and that *is* the finding |
-| **unwatched** | cited, and nothing ran |
+| **silent** | nothing cites this aspect. Nobody is watching it, and that *is* the finding |
+| **unwatched** | cited, and nothing ran — every citing test was skipped |
 
 A subject with several aspects gets **one line per aspect and no overall status**. That is
 deliberate: the three close at different times for different reasons, and a single word for all of
@@ -102,8 +102,9 @@ uncheckable.
 
 - **It never fails your build.** A breached decision informs. What a breach costs you is yours to
   decide, exactly as an unproven story is.
-- **It never types a status.** If nothing cites a decision, the board says **silent** — it does
-  not say fine, and it does not stay quiet.
+- **It never types a status.** If nothing cites one of a decision's declared aspects, that aspect
+  reads **silent** — it does not say fine, and it does not stay quiet. A decision nothing cites at
+  all is absent from the board, like any subject: the board answers for what the run's tests cited.
 
 ## A decision with a number in it
 

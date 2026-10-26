@@ -12,8 +12,7 @@ An adapter binds one language's test toolchain to `plumb`'s language-neutral cor
 [the module contract](module-contract.md), governs the other seam — what consumes the core's
 derived surfaces.
 
-An adapter binds one language's test toolchain to `plumb`'s language-neutral core. It exists to
-produce **the manifest** — nothing else. The core reads the manifest and runs the gates; it never
+An adapter exists to produce **the manifest** — nothing else. The core reads the manifest and runs the gates; it never
 touches a test framework.
 
 The seam is a package boundary, not a convention:
@@ -53,9 +52,12 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
 
 1. **`collect_citations()` → [(test_id, story_id, depth, ref)]**
    Read the native citation mechanism (pytest mark, JUnit `@DisplayName`/annotation, xUnit
-   attribute) and the declared **depth** (unit | component | wiring | standards-integration | smoke/e2e). Depth is a
-   second tag alongside the story; a test with no declared depth is a hard error, not a default —
-   an untagged test is an unplaceable one.
+   attribute) and the declared **depth** — the rung the test claims to reach, such as `unit`,
+   `component`, `wiring`, `standards-integration`, `smoke`, `smoke/e2e` or `e2e`. Depth is a
+   second tag alongside the story and an opaque string to the core; only the wired rungs
+   (`wiring`, `standards-integration`, `smoke`, `smoke/e2e`, `e2e`) make a claim grounding can
+   refute. The Python adapter records a citation with no declared depth as `""`, which claims no
+   rung.
 
    The list is one entry **per (test, story) pair**, so a test citing several stories is already
    expressible — stacked markers, repeated annotations — with each story carrying its own depth
@@ -70,12 +72,13 @@ data. An adapter is "done" (by Plumb's own gates) when each is proven against a 
 
 2. **`collect_archetypes()` → [(story_id, archetype)]** where archetype ∈ {behavioral, structural},
    **defaulting to behavioral.**
-   The one capability that reads the **spec**, not the run. It reports what kind of claim each story
-   makes (`dev07-4-2`), which selects the gate's second check: a behavioral story must ground, a
-   structural one must be inert. It is deliberately *not* part of `collect_citations` — the citation
-   is what a **test** claims, and the archetype is the one thing a test must not get to claim about
-   the story judging it. An adapter for a spec that declares no archetypes returns nothing and
-   everything is behavioral, which is why this is backward-compatible by construction.
+   Not read from the run. It reports what kind of claim each story makes (`dev07-4-2`), which
+   selects the gate's second check: a behavioral story must ground, a structural one must be inert.
+   The project declares it in `plumb.toml` under `[archetypes]`, keyed by story id, and the
+   launcher applies that table to the manifest after the run — saying so on stderr for every story
+   it overrides. It is deliberately *not* part of `collect_citations` — the citation is what a
+   **test** claims, and the archetype is the one thing a test must not get to claim about the story
+   judging it. With nothing declared, every story is behavioral.
 
 3. **`run(testset) → [(test_id, result)]`** where result ∈ {passed, skipped, aborted, failed}.
    Runs the tests and reports the native result verbatim. This is what closes "a citing test ran and
@@ -169,6 +172,9 @@ downstream — the gate, the status, the board — is the core's, and reads noth
       "stories": {
         "<opaque story id>": {
           "archetype": "behavioral" | "structural",
+          "aspects":   [] | ["<aspect>", ...],
+          "reduce":    "best" | "worst",
+          "lexicon":   "story" | "decision" | "parameter",
           "mutation":  null | {"total": <int>, "killed": <int>,
                                "survivors": [{"operator": <str>, "where": <str>,
                                               "file": <str>, "line": <int>,
@@ -176,11 +182,15 @@ downstream — the gate, the status, the board — is the core's, and reads noth
           "citations": [
             {
               "test":      "<adapter-native test id>",
-              "depth":     "unit" | "component" | "wiring" | "standards-integration" | "smoke",
+              "depth":     "<rung, e.g. unit | component | wiring | smoke | e2e>",
               "result":    "passed" | "skipped" | "failed",
               "grounding": "grounded" | "ungrounded" | "inert" | "not-checked" | "dispatched"
                              | "untouched",
               "ref":       null | "<the consumer's own external key>",
+              "about":     null | "<one of the story's aspects>",
+              "when":      null | "<RFC 3339 UTC time>",
+              "observer":  {"adapter": <str>, "version": <str>, "runtime": <str>,
+                            "mechanism": <str>},
               "reached_outside_entry": null | true | false,
               "entered_through": null | ["<declared entry point>", ...]
             }
@@ -197,14 +207,12 @@ Notes an adapter author needs and the field names do not carry:
   the requirement rather than the execution, and the one thing a *test* must not get to claim about
   the story judging it (`dev07-3-2`, `dev07-4-2`). Absent means `behavioral`.
 - **`grounding` is a fact, never a verdict.** Report what the trace showed and let the gate decide.
-- **`inert` is a positive claim from major 8 on, and `untouched` is what it used to hide.** `inert`
+- **`inert` is a positive claim, and `untouched` is its opposite.** `inert`
   means the test **read** the production artifact and ran none of it — the mirror `dev07-4-2` asks
   for, and the only fact that proves a structural story. `untouched` means it did neither, which is
   what `assert True` does. Emit `inert` only if you can actually see the read: an adapter that
   watches execution alone cannot tell the two apart, and saying `inert` anyway hands a passing
-  grade to a test that touched nothing. **If you cannot see reads, emit major 7**, where `inert`
-  means *ran none of it* and claims nothing about reading — which is what Plumb's own Java adapter
-  does today.
+  grade to a test that touched nothing. Both shipped adapters see reads and emit the current major.
   `inert` is not a weaker `ungrounded`: it means no production code ran at all, which is what
   inspecting an artifact looks like, and it is the positive proof a structural story needs.
   `not-checked` means the question could not be asked — no entry points, or no production roots.
@@ -247,14 +255,15 @@ where it did, and omit the field if you cannot observe it: `null` is *not report
 that the line was unreachable (`dev07-3-3`). This is not `dev07-2-4`'s equivalence, which is undecidable;
 it is a fact a run can watch for.
 
-**`entered_through` is optional and names the door, where `grounding` names only that there was
-one.** `entry_points` is a single flat set for the whole project, so a door declared for one subject
-is open to every subject — and without the identity nothing downstream can tell a test that came in
-at the front from one that entered at a subsystem door somebody declared for another chapter
-(`dev07-1-4`). Report the entry points the test entered **from outside any open window**: a test that
-enters at the front and reaches a second declared door on the way names the first one only, so
-declaring another door never rewrites the fact for a test that did not change. Ordinarily one; a test
-driving two entrances reports both. `[]` means it entered by none, `null` means you cannot say.
+**`entered_through` is optional and names the entry point, where `grounding` names only that there
+was one.** `entry_points` is a single flat set for the whole project, so an entry point declared for
+one subject counts for every subject — and without the identity nothing downstream can tell a test
+that came in at the outermost entry point from one that entered at a subsystem entry point somebody
+declared for another chapter (`dev07-1-4`). Report the entry points the test entered **from outside
+any open window**: a test that enters at the front and reaches a second declared entry point on the
+way names the first one only, so declaring another entry point never rewrites the fact for a test
+that did not change. Ordinarily one; a test driving two entrances reports both. `[]` means it
+entered by none, `null` means you cannot say.
 
 **`reached_outside_entry` is optional and reports a limit rather than a fact about depth.**
 Grounding is a property of the *test* (`dev07-1-4`), so a test that drives an entry point and then
@@ -301,11 +310,10 @@ an archived CI artifact, a decommissioned system, a handover. A migration may fi
 with a value meaning *"this was not reported"* (`dev07-3-3`), so a carried-forward document can never
 gain a fact your adapter did not report.
 
-**Major 7 lets a citation name the aspect it is about.** A subject may declare more than one aspect
+**A citation may name the aspect it is about.** A subject may declare more than one aspect
 — `"aspects": ["levers", "outcome", "falsifier"]` on the story — and a citation may carry
-`"about": "falsifier"` to say which one it bears on. A story has exactly one, declares none and
-names none, so every document written against major 6 reads unchanged and the climb has nothing to
-guess.
+`"about": "falsifier"` to say which one it bears on. An ordinary story has exactly one, declares
+none and names none.
 
 Both are opaque strings the core never interprets. It routes evidence to a derivation and asserts
 nothing about the aspect itself — *whether* your falsifier is a good one, or your control sound, is
@@ -324,26 +332,30 @@ when it measured says nothing, which is strictly weaker than a time it made up. 
 refused rather than coerced, because a time is the axis a series gets ordered on and one that parses
 differently in two languages orders differently in two languages.
 
-**Major 6 moved the instrument onto the fact.** Up to major 5 one `observer` described the whole
-document, which was true while one run meant one adapter. A board may now carry facts from several
-adapters at once, and `dev07-3-1` says two facts are comparable only when the same kind of observer
-produced them — so each citation names its own (`dev07-3-1`). Climbing a major-5 document is lossless:
-its single observer is attached to every fact in it.
+**The instrument is on the fact.** A board may carry facts from several adapters at once, and
+`dev07-3-1` says two facts are comparable only when the same kind of observer produced them — so
+each citation names its own `observer`, and there is no document-level one.
 
-Every refusal tells you what this Plumb reads:
+Every refusal tells you what this Plumb reads. A run (`plumb board --manifest`) names the
+versions it accepts:
 
-    schema_version 99 is newer than this Plumb understands (reads: 7.x, 8.x, 9.x). Upgrade Plumb,
+    schema_version 99.0 is newer than this Plumb understands (reads: 8.x, 9.x). Upgrade Plumb,
     or emit an older version — a newer shape cannot be guessed at
 
-    S-1: citation: field(s) ['confidence'] are not defined by schema_version 9.0 — it defines
+`plumb manifest migrate` names the deeper set it can bring forward:
+
+    schema_version 99.0 is newer than this Plumb understands (reads: 7.x, 8.x, 9.x). Upgrade Plumb,
+    or emit an older version — a newer shape cannot be guessed at
+
+A field the declared version does not define is refused by name:
+
+    S-1: citation: field(s) ['confidence'] are not defined by schema_version 9 — it defines
     ['about', 'depth', 'entered_through', 'grounding', 'observer', 'reached_outside_entry',
      'ref', 'result', 'test', 'when']
 
 `mutation` sits on the **story**, not the citation: a mutant is run against every test citing the
 story, so the result is one fact about the story rather than the same number repeated per
-citation. Versions 1-3 put a bare `"killed"`/`"survived"` on the citation; no adapter ever filled
-it, so an empty slot carries forward and a filled one is refused rather than given an invented
-denominator.
+citation.
 
 Only `test`, `depth` and `result` are required in a citation. The rest carry defaults, so a first
 adapter can be small and still conform: report what you have, and the board degrades honestly
@@ -377,7 +389,7 @@ designed without a consumer exercising it.
 **Java / JUnit second**, proven against a large, genuinely complex codebase rather than against
 this one. Capturing a system's requirements this way — unambiguous user stories a gate can check —
 is what keeps its build correct and within an agent's reach as it grows. That target exercises all
-five capabilities on hard code the adapter's author did not write, which is the part self-tracing
+six capabilities on hard code the adapter's author did not write, which is the part self-tracing
 cannot prove.
 
 A third adapter only when a project actually adopts `plumb` — never speculatively. A real consumer is

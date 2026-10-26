@@ -25,10 +25,11 @@ no open question is recorded in only one place. Those are good checks. They are 
 ship, because to run them a tool must first decide **what a story is, where it lives, and in what
 format** — and a tool that decides those things has chosen your method for you.
 
-A `stories.csv` — a declared set of subjects, handed over as data, so the board could report what a project had left to
-do. It was a second home for subjects the project's own spec already owned, and it desynchronised
-the moment either moved, with nothing able to detect that it had. The lesson written into the spec
-afterwards is blunt — a board answers for the subjects a run's tests cited, and for nothing else.
+The same goes for any list of subjects handed to the tool as data so that the board could report
+what is left to do. Such a list is a second home for subjects your own spec or tracker already
+owns, it desynchronises the moment either moves, and nothing could detect that it had. So a board
+answers for the subjects a run's tests cited, and for nothing else — a subject nothing cites is
+absent rather than unproven, and what is left to do lives with your project.
 
 So the rule is not *never read a file*. It is that **no artifact may be a copy of another**, and
 that the tool must not require artifacts it did not observe a run produce.
@@ -39,8 +40,8 @@ Some projects want the opposite of a blank page — particularly those that have
 architecture decision records, design notes and half-current documents that no longer agree with
 each other. For those, the methodology exists as its own product:
 
-**[goldspec](https://plumbspec.org/gold/)** — process flows with IPO, data definitions, stories,
-decisions and unknowns, and the gates that keep them honest. Installed separately, run as
+**[goldspec](https://plumbspec.org/gold/)** — process flows whose every step is a person's story, with what it
+moves, its requirements, decisions and unknowns, and the gates that keep them honest. Installed separately, run as
 `goldspec`, and entirely optional.
 
 The two are not layered products or tiers of one thing. They answer different questions:

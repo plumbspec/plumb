@@ -6,7 +6,9 @@ summary: The JSON document `plumb board --json` emits, field by field, for the t
 
 # The board, as JSON
 
-`plumb board --json` emits one JSON document on stdout and nothing else. This page is its shape.
+`plumb board` prints the text board for a person to read. `plumb board --json` emits instead one
+JSON document on stdout and nothing else — the runner's own output goes to stderr — and that
+document is the documented, versioned format for tooling. This page is its shape.
 
 If you are wiring Plumb into a tracker or a pipeline rather than looking up a field, start at
 [Integrating with your tooling](integrating-with-your-tooling.md) and come back here for the exact
@@ -16,16 +18,35 @@ names.
 
     {
       "board_version": 3,
-      "rendered_by": "0.6.0",
-      "rendered_at": "2026-08-30T17:04:12Z",
+      "rendered_by": "0.7.0",
+      "rendered_at": "2026-10-26T18:44:15Z",
       "observers": [
-        {"adapter": "plumb-python", "version": "0.6.0",
+        {"adapter": "plumb-python", "version": "0.7.0",
          "runtime": "CPython 3.13.5", "mechanism": "sys.settrace (per-thread call tree)"}
       ],
-      "observed_tests": 11,
+      "observed_tests": 4,
       "conditions": [],
-      "stories": { "...": {} },
-      "unlocks": []
+      "stories": {
+        "APP-1": {
+          "status": "proven",
+          "label": "proven",
+          "achieved": ["e2e"],
+          "conditions": [],
+          "aspects": null,
+          "mutation": null,
+          "evidence": [
+            {"test": "tests/test_a.py::test_main", "depth": "e2e", "result": "passed",
+             "grounding": "grounded", "entered_through": ["myapp.cli:main"],
+             "when": "2026-10-26T18:44:15Z", "ref": null, "about": null}
+          ]
+        }
+      },
+      "unlocks": [
+        {"code": "unlock.mutation",
+         "what": "1 stories are proven, and nothing has checked that their tests assert anything",
+         "next_step": "run mutation over them to find a test that runs the code without checking it",
+         "example": "plumb board --mutation — off by default because it is slow, …"}
+      ]
     }
 
 | Field | Type | Meaning |
@@ -44,10 +65,10 @@ names.
 | Field | Type | Meaning |
 |---|---|---|
 | `status` | string | `proven`, `passed-wiring-not-verified`, `unproven`, or `not-passed`. Spelled exactly like that — hyphenated, lower case, and never the prose form a reader sees |
-| `label` | string | The word a reader sees. Derived from `status` plus a condition already carried — never a second status |
+| `label` | string | The word a reader sees. Derived from `status` plus a condition already carried — never a second status. For an ordinary story it is the status itself; a subject declared `decision` in `[lexicon]` reads `holding`, `silent`, `breached` or `unwatched`, and one declared `parameter` reads `supported`, `unvalidated`, `refuted` or `unmeasured`. Where the vocabulary has no word for a state, the label is the status |
 | `achieved` | list | The depth rungs this subject actually reached |
 | `conditions` | list | Why it reads as it does, as condition objects |
-| `aspects` | object \| null | Per-aspect verdicts where a subject has more than one. **`null` means the only one there is**, which is every ordinary story |
+| `aspects` | object \| null | Per-aspect verdicts where a subject has more than one, keyed by aspect name; each carries `status`, `label` and `conditions`. **`null` means the only one there is**, which is every ordinary story |
 | `mutation` | object \| null | `total`, `killed`, `survived`, `unreached`, and `survivors`. **`null` means the opt-in was off** — *not asked*, never a pass |
 | `evidence` | list | The citations behind the verdict |
 
@@ -70,7 +91,7 @@ Conditions appear on the run and on each story, and have the same shape:
 | `depth` | The rung this citation claims at |
 | `result` | `passed`, `skipped`, or `failed` |
 | `grounding` | `grounded`, `ungrounded`, `inert`, `untouched`, `not-checked`, or `dispatched` |
-| `entered_through` | **Which declared entry points this test came in through**, outermost — the door it arrived at, where `grounding` says only that it reached the wired system. A test that enters at your front door and reaches a subsystem door on the way names the front one. `null` is *not reported* (an adapter below manifest major 9); `[]` means it entered by none |
+| `entered_through` | **Which declared entry points this test came in through**, outermost — where it arrived, where `grounding` says only that it reached the wired system. A test that enters at your outermost entry point and reaches a subsystem entry point on the way names the outer one. `null` is *not reported* (an adapter below manifest major 9); `[]` means it entered by none |
 | `when` | When **this fact was measured**, which is not when the board was rendered. A board can carry facts from several runs, so a document-level time would be a false claim for all but one of them. `null` is *not reported* and must not be read as now |
 | `ref` | **Your own key, carried untouched.** You mint it, you own it, you join on it; Plumb neither mints nor parses one. `null` if the citation set none |
 | `about` | Which aspect this citation is about. `null` means the only one |

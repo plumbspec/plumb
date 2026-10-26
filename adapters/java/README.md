@@ -7,21 +7,21 @@ derives every status from it, so nothing here decides anything.
     plumb board --project .             # one command, same as any Python project
     plumb board --project . --mutation  # …and the same flag
 
-**There is no `ground.sh` any more.** Loading the agent, handing it the declared entry points and
-then mutating are all the launcher's job. What makes Java adoption expensive is never the adapter —
-it is *"run two shell scripts, then point `plumb` at a file"*, and a config file in a shape no
-Python project uses.
+**One command.** Loading the agent, handing it the declared entry points and then mutating are all
+the launcher's job, read from the same `plumb.toml` a Python project uses. There is no script to run
+first and no second configuration format.
 
 The build only compiles. Plumb does not build your project; your build tool does, and it writes a
 classpath the same way (`mvn dependency:build-classpath`).
 
-**The suite JVM outlives its own run.** `sample/App.java` holds a non-daemon `ExecutorService`, so
-that process does not exit when the manifest is written — real suites do this constantly, and it is
-the same hazard the observer works around by not waiting for `VMDeath`. The launcher terminates it
-rather than waiting, which is why the command returns.
+**The suite JVM would outlive its own run.** `sample/App.java` holds a non-daemon `ExecutorService`,
+so that process would not exit on its own when the last test finishes — real suites do this
+constantly. The runner ends the JVM itself once the manifest is written, which is why the command
+returns.
 
 The `adapter` module also produces `build/plumb-java.jar` — the shippable half, everything the
-adapter owns and nothing of the sample. That jar is what rides inside the artifact, so an adopter never
+adapter owns and nothing of the sample — and `build/plumb-boot.jar`, the probe alone, which the
+agent puts on the bootstrap class path so that JDK classes can call it. That jar is what rides inside the artifact, so an adopter never
 compiles this and never configures where it is: the launcher extracts it from its own archive on
 first use, into a cache keyed by version.
 
@@ -37,6 +37,7 @@ here.
 
 - **`@Proves(value, depth, ref)`** — the one authored link, on the test (`dev05`). Repeatable,
   because a citation is per (test, story) pair and each carries its own depth and external key.
+  `@Informs` is its counterpart for a decision or a parameter.
 - **Result normalization** (`dev07-3-1`) — JUnit's own signal, without translation loss. An
   `Assumptions.abort` is the "specified, not built" signal, exactly as pytest's skip is.
 - **Archetypes** (`dev07-4-2`, `dev07-3-2`) — **handed over already resolved**. The adapter keeps no copy
@@ -51,9 +52,11 @@ here.
     plumb board --project .    # runs the suite with the agent loaded
 
 One process. The suite runs with a `java.lang.instrument` agent loaded, which weaves probes into
-classes as they load; the listener writes the manifest. It watches three things and nothing else,
-because cost is per event: the probe anchors (which test owns the window, and on which thread),
-each declared entry point, and a short fixed list of dispatch primitives.
+classes as they load; the listener writes the manifest. The production code reports its own
+execution rather than being watched from outside, and only what the questions need is woven: a
+one-store flag in each production method, a probe on each declared entry point (which test's
+window it opened, and on which thread), the read primitives, and a short fixed list of dispatch
+primitives.
 
 Entry points are declared in `plumb.toml`, in Java's own spelling (`dev07-1-3`):
 
@@ -69,41 +72,52 @@ The **values** stay adapter-native — `Class#method` here, `module:function` in
 one invented spelling would make every adapter translate out of a form none of them use. The
 **file** is shared, and that is what makes one command work.
 
-**Why from outside the process.** A flag set on a thread cannot survive a hand-off to a pool that
-already existed — measured, and true of `ThreadLocal`, `InheritableThreadLocal` and `ScopedValue`
-alike. So there is nothing to propagate. A debugger sees *both ends* of the hand-off and can
-attribute it, which is what makes `dispatched` reachable rather than theoretical.
+**Production and test classes are told apart by where they were loaded from**, not by their
+package: Maven puts `com.myapp.FooTest` in the same package tree as `com.myapp.Foo`, and the agent
+excludes everything loaded from a declared test root. A production class compiled under a test root
+is therefore never instrumented — and if nothing at all was, the board says so
+(`observation.failed`) rather than reporting grounding it never observed.
 
-**Two things the observer must not assume.** That the debuggee exits — a suite leaving a
-non-daemon executor keeps the JVM alive forever, so `PlumbProbe.runFinished` says when the run is
-over rather than waiting for `VMDeath`. And that it can see everything — it watches entry points,
-not every method.
+**Following a hand-off.** Two dispatch primitives are instrumented — `Thread.start` and
+`ThreadPoolExecutor.execute` — so a test whose work reaches an entry point on another thread reads
+`dispatched` rather than `ungrounded`. A pooled task is wrapped so it carries the test's window to
+whichever thread runs it.
 
-## All five grounding values, including `inert`
+## Every grounding value, including `inert` and `untouched`
 
-`inert` is a positive claim that **no** production code ran anywhere, so it looked at first as
-though an observer watching entry points could never support it — and therefore that structural
-stories could never be proven on Java, which would have cut out most of what a JVM estate wants
-this for.
+Each test closes with one of: `grounded` (the test's own thread reached a declared entry point),
+`dispatched` (another thread did, or work was handed off and had not arrived when the test ended),
+`ungrounded` (production code ran, but not through an entry point), `inert`, `untouched`, or
+`not-checked`.
 
-It costs one event. `inert` needs a **bit**, not a count: *did any production method run at all*.
-So the observer arms a `MethodEntryRequest` filtered to declared production classes when a test
-opens, and **switches it off the instant it fires**. A test that touches production code pays
-exactly one event; a genuinely inert test pays none. Watching every method entry for a whole run
-is what makes `MethodEntry` infamous — this is not that.
+`inert` is a positive claim — *the test read the production artifact and ran none of it* — and it
+needs two facts:
 
-Without `production` the observer cannot tell *inspected the artifact* from *ran code we
-were not watching*, and reports the weaker `ungrounded` rather than guessing.
+- **Did any production method run at all?** A bit, not a count. Every instrumented production
+  method sets one volatile flag, read and cleared around each test, so a test that touches
+  production code pays a single store and an inert one pays nothing.
+- **Was the artifact read?** The agent instruments `ClassLoader.getResourceAsStream` and
+  `java.nio.file.Files` — the primitives IO libraries funnel through — and records a read whose name
+  matches the declared `production` classes or packages.
+
+Ran nothing and read it is `inert`. Ran nothing and read nothing is `untouched`, which proves nothing
+and says so. Without `production` the adapter cannot tell the two apart and reports the weaker
+`ungrounded`. Where the agent instrumented nothing at all, every value but `grounded` and
+`dispatched` becomes `not-checked`, because it was read from an absence there was nothing to observe
+with.
 
 ## Mutation — do the tests actually check the code?
 
     plumb board --project . --mutation
 
-A third step after the suite and the observer, because it needs what both produced: which tests
-cited which story, and which methods ran with an entry point above them. It mutates that code, runs
-**every test citing the story** against each mutant, and reports **killed out of total**.
+A step after the suite, because it needs what the suite produced: which tests cited which story, and
+which methods ran with an entry point above them. It needs at least one declared entry point and a
+single `tests` root, and refuses by name otherwise. It mutates that code, runs **every test citing
+the story** against each mutant, and reports **killed out of total**. Each distinct mutant is
+compiled and run once, however many stories scope it, and each story is judged by its own citing
+tests.
 
-    mutation: 4 mutants over 2 stories — at least 5s (1.1s compile+JVM floor, measured here)
+    mutation: 4 mutants over 2 stories, 4 distinct — at least 4s (1.1s compile+JVM floor, measured here), plus the tests themselves
       [1/2] APP-1: 2/2 killed
       [2/2] APP-5: 0/2 killed
 
@@ -127,11 +141,13 @@ mutant there is one test process, and here it is a `javac` *and* a JVM. Measured
 finds a test that cannot fail — it changes when you can afford to ask, which is why the count and a
 measured floor are printed before any of it runs.
 
-**Entry points are suspended while mutation is on**, and only then. Grounding needs to know an entry
-point was *reached*, so it pauses nothing; the wired scope needs the window open *before* the calls
-inside it happen, and with `SUSPEND_NONE` the debuggee runs on while the event is still queued — so
-the probe arms after the first callees have gone by, and the scope comes out as the entry point
-alone. That was a real bug here, and its symptom was a plausible-looking smaller number.
+**The scope comes from the same agent.** While mutating, the agent also names each production
+method that runs inside an entry point's window, so the code a story is mutated over is the code its
+tests actually drove through the wired system — never the whole call tree.
+
+**Interrupted runs are repaired.** Before each edit the original source is parked in
+`.plumb-mutation-rescue`; the next board puts it back before its tests run, mutating or not. Once a
+mutant has run, the original is restored and recompiled, so the class files match the source again.
 
 ## Where the two adapters genuinely differ
 
@@ -139,11 +155,13 @@ They are not interchangeable, and the manifest says which produced a fact (`dev0
 can tell an instrumental difference from a real one:
 
 - **Java is more precise on async.** It distinguishes `dispatched` from `ungrounded` by *seeing*
-  the hand-off. The Python adapter has only a coarse "some other thread was alive" and must
-  decline to use it, so it reports `ungrounded` where Java reports `dispatched`.
-- **The two `inert`s rest on different evidence.** Python's comes from a per-thread call tree;
-  Java's from a filtered method-entry probe over declared production classes. Same value, same
-  meaning, different instruments — which is why the manifest names the instrument.
+  the hand-off through the instrumented dispatch primitives. The Python adapter's evidence that work
+  escaped is coarse — "some other thread was alive" — so it uses it only to withhold `inert`, and a
+  test that runs some code locally and hands its entry-point work to another thread reads
+  `ungrounded` there where Java reports `dispatched`.
+- **The two `inert`s rest on different evidence.** Python's comes from its tracer and an audit hook
+  on reads; Java's from a flag set by woven production methods and instrumented read primitives.
+  Same value, same meaning, different instruments — which is why the manifest names the instrument.
 
 **A project that declares no entry points** is not observed at all: citations only, grounding
 reads `not-checked` — honest rather than guessed, and still a usable board at `dev07-5-1`'s lowest

@@ -54,22 +54,23 @@ choose between them.
 
 Two things worth knowing before you read the table:
 
-- **Only the wired rungs get checked.** `wiring`, `standards-integration` and `smoke/e2e` all claim
-  the test drove the real system, and grounding is the check on that claim. `unit` and `component`
-  claim the opposite — isolation — which no trace can refute, so they are taken at your word. This
-  is why lowering a depth quiets the tool: you have moved the claim to where nothing checks it.
-- **Spell the value exactly as the table spells it.** Nothing validates the string today. A
-  misspelled `wiring` is accepted as written, silently stops matching a wired rung, and the story
-  simply loses its diagnostic — `wirring` and `wiring` both end up UNPROVEN on the same test, but
-  only the correctly-spelled one tells you why.
+- **Only the wired rungs get checked.** Exactly five values claim the test drove the real system:
+  `wiring`, `standards-integration`, `smoke`, `smoke/e2e` and `e2e`. Grounding is the check on that
+  claim, and a citation claiming one of them whose execution was `ungrounded` or `inert` raises
+  `depth.unsupported`. `unit`, `component` and any other value claim isolation, which no trace can
+  refute, so they are taken at your word. This is why lowering a depth quiets that complaint: you
+  have moved the claim to where nothing checks it.
+- **Spell the value exactly as the table spells it.** Nothing validates the string. A misspelled
+  `wiring` is accepted as written and silently stops being a wired rung: on a test that never
+  reached an entry point, `wiring` raises `depth.unsupported` and `wirring` does not.
 
 ## Choosing a depth honestly
 
 There is a real pull toward claiming deep, and it is worth naming rather than pretending it away.
 
 **A behavioural story reaches PROVEN only when its test grounds** — when execution passes through a
-declared production entry point. `unit` and `component` claim isolation, so they do not ground, so a
-story cited only at those rungs stays UNPROVEN however good the test is. That is by design, and it
+declared production entry point. A test written in isolation, as `unit` and `component` tests are,
+does not ground, so a story cited only by such tests stays UNPROVEN however good they are. That is by design, and it
 means the board rewards depth. Anyone reading a board as a score will feel it.
 
 **Claiming a rung you did not reach does not work, and the tool says so.** Write `depth="wiring"` on
@@ -79,8 +80,8 @@ citation named. This is the check doing its job, and it is not the thing to guar
 **The thing to guard against is `entry_points`.** That list is the one input Plumb cannot verify: it
 takes your word for where the system begins. Declare the unit under test as an entry point and a
 direct unit test grounds, comes out `PROVEN [wiring]`, and raises no condition at all — because
-every mechanical check passed. The claim became true by moving the front door, and nothing in the
-tool can tell that from a system whose front door was always there.
+every mechanical check passed. The claim became true by moving where the system begins, and nothing
+in the tool can tell that from a system that always began there.
 
 So the discipline lives in one place:
 
@@ -109,17 +110,17 @@ of them still tells you something the day it goes red.
 | **component** | branching, looping, error paths — how the unit *behaves* | yes (spies) | the doubles mirror the real collaborators → *wiring / standards-integration* | programmer | the engineer: the code does what the story says |
 | **wiring** | the code is actually **integrated**, not orphaned | yes | *component is already proven* — ordered, because you cannot check the wiring of wrong code | programmer + engineer | that "done" is real, not dead or unwired code |
 | **standards-integration** | it works against the real resource **technology** through a standard interface | no — a **real** resource, **embedded & fresh** | standard conformance; the *platform* choice is ops' → *smoke/e2e* | programmer / engineer | portability, and that it works against the resource |
-| **smoke / e2e** | everything real, assembled artifact, end-to-end | no | nothing — the floor | programmers, to a QA + devops plan | QA: works as specified · devops: packaging introduced no bug |
+| **smoke / e2e** (`smoke`, `smoke/e2e` or `e2e`) | everything real, assembled artifact, end-to-end | no | nothing — the floor | programmers, to a QA + devops plan | QA: works as specified · devops: packaging introduced no bug |
 
-**Grounding** underlies wiring and standards-integration: in the test's own call tree — a
-language-native per-test trace, never a coverage tool — execution must run *under* a *declared
-production entry point*, proof it drove the real system and not an isolated method. A test claiming
-`wiring` or `standards-integration` whose execution never grounds is a lie the tool catches.
+**Grounding** underlies every wired rung — wiring, standards-integration and smoke/e2e: in the
+test's own call tree — a language-native per-test trace, never a coverage tool — execution must run
+*under* a *declared production entry point*, proof it drove the real system and not an isolated
+method. A test claiming a wired rung whose execution never grounds is a lie the tool catches.
 
 **These rungs are the pyramid for *behavioral* proof.** A **structural** story — dependency
 direction, containment, format — is proved by inspecting the artifact rather than running it, so its
 test executes no production code at all and grounding is the wrong question to ask of it; the gate
-asks the mirror question instead (Plumb's own gold spec, `dev07-4-2`, `dev07-4-2`). Which rung such a test sits on is
+asks the mirror question instead (Plumb's own gold spec, `dev07-4-2`). Which rung such a test sits on is
 genuinely unsettled — see `dev07-4-3`.
 
 > **Read the artifact; do not import it.** A structural test must reach its subject *as data* — open
@@ -129,9 +130,10 @@ genuinely unsettled — see `dev07-4-3`.
 > touches nothing at all. Same test, same assertions, and what the board says depends on whether
 > some *other* test imported it first. Plumb refuses both — a structural claim is proved only by a
 > test that read the artifact — so an import-based one is simply never provable, whichever order the
-> suite runs in. Note that **non-functional requirements are not a third kind**:
-they are behavioral, proven at smoke/e2e against the assembled artifact, exactly as the two-track
-section below describes.
+> suite runs in.
+
+Note that **non-functional requirements are not a third kind**: they are behavioral, proven at
+smoke/e2e against the assembled artifact, exactly as the two-track section below describes.
 
 ## Three things that cost people time when missed
 

@@ -23,7 +23,7 @@ restoring its own.
 
 To pin a version rather than take the current one:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_VERSION=0.6.0 sh
+    curl -fsSL https://plumbspec.org/install.sh | PLUMB_VERSION=0.7.0 sh
 
 By hand, if you would rather not pipe anything to a shell:
 
@@ -121,7 +121,8 @@ between any two releases until 1.0.0.
 
 | Version | Supported |
 |---|---|
-| 0.6.x | current; current; pre-1.0 |
+| 0.7.x | current |
+| 0.6.x | superseded |
 | 0.5.x | superseded |
 | 0.4.x | superseded |
 | 0.3.x | superseded |
@@ -138,12 +139,14 @@ artifact is possible because of it.
 - **Python 3.9+** at runtime, and nothing else — the same floor the adapter declares, so a
   project needs one interpreter rather than one for its tests and a newer one for the tool
   that watches them.
-- **A JDK** only for the Java adapter, and only in the project being measured. The shipped
-  adapter's bytecode floor is the `maven.compiler.release` its module declares.
+- **Java 8 or newer** only for the Java adapter, and only in the project being measured — the
+  shipped adapter's bytecode floor is the `maven.compiler.release` its module declares, which is 8.
+  Mutation on Java also needs `javac`, so a JDK rather than a JRE.
 - **pytest** is required only in the project being measured, which already has it — Plumb does not
   install it and does not carry it.
 - The Java adapter uses **JDK-provided APIs only** (`java.lang.instrument`, `com.sun.source`, JUnit
-  Platform Launcher supplied by the project under test). No PIT, no Stryker, no coverage agent.
+  Platform Launcher supplied by the project under test), and weaves its probes with its own
+  class-file code rather than a bytecode library. No ASM, no PIT, no Stryker, no coverage agent.
 
 ## What Plumb does to the code it measures
 
@@ -154,10 +157,14 @@ Worth knowing before pointing it at anything you care about:
   every class file on disk untouched.
 - **Mutation edits your source in place**, one file at a time, and restores it. It is off by
   default. Before each edit the original is written to `.plumb-mutation-rescue`, and a run killed
-  mid-mutant is repaired by the next run *before its tests execute*. Run it on a clean working tree
-  anyway; that is what version control is for.
-- **Nothing is transmitted** unless the installation is enrolled, which is a separate, explicit
-  consent, and anything filed can be withdrawn.
+  mid-mutant is repaired by the next run *before its tests execute*. On Java each mutant is also
+  compiled into your build output, and the original is recompiled when it is put back. Run it on a
+  clean working tree anyway; that is what version control is for.
+- **Nothing is transmitted** unless a destination is named for the capability doing the sending —
+  in the environment of the run, or in an enrolment file — and the core sends a run history only
+  when asked: `plumb board --series FILE --push`, or `plumb series push`. `plumb series push
+  --dry-run` prints exactly what would leave. There is no default address. `plumb account open`
+  sends the address you give it, to the service you name.
 - **`plumb session` writes a cursor into your repository** and a disposable reading outside it. The
   cursor is `key="value"` data and is parsed, never executed; nothing in the tool sources it.
 

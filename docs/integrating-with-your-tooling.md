@@ -19,7 +19,7 @@ question about it per run.
          ▲                                                      │
          └──────────────  your tooling reads it  ◀──────────────┘
 
-Four decisions make it work, and they are all made once.
+Each step below is set up once.
 
 ## 1. Decide what the join key is
 
@@ -65,10 +65,11 @@ history, and the board cannot answer it. See step 4.
 Parse [the JSON](consuming-the-board.md). Per story you get `status`, a human `label`, the depth rungs
 it `achieved`, and `conditions` explaining why.
 
-`entered_through` on each piece of evidence names the door a test came in through. It is worth
-reading if you declare entry points at more than one altitude: `entry_points` is a single flat set, so
-a door you open for one subject is open to every subject, and this is what tells a test that came in
-your front door from one that let itself in at a subsystem door declared for something else.
+`entered_through` on each piece of evidence names the entry point a test came in through. It is
+worth reading if you declare entry points at more than one altitude: `entry_points` is a single flat
+set, so an entry point you declare for one subject counts for every subject, and this is what tells a
+test that came in at your outermost entry point from one that entered at a subsystem entry point
+declared for something else.
 
 **Key your logic off `conditions[].code` and never off the prose.** The code is the promise; `what`,
 `next_step` and `example` are written for a person and may be reworded between versions.
@@ -103,9 +104,11 @@ they mean.
 
 ## 5. Re-run after you upgrade Plumb
 
-A tree carries working state from whichever version last wrote it, and a board derived over the last
-version's state can be confidently wrong in ways nothing in its output suggests. After an upgrade,
-clear the derived state and run again from a build the current version made.
+A board is derived from a run, and a saved board or manifest is a record of the Plumb that made it —
+`rendered_by` on the board, `version` on each observer. After an upgrade, derive a fresh board rather
+than comparing against one the previous version wrote; if the instrument changed, its `mechanism`
+says so. Plumb's own cache is kept per version (`plumb footprint` shows where), so nothing it keeps
+carries across an upgrade.
 
 ## What this will not do
 
