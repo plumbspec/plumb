@@ -151,13 +151,13 @@ Two things follow, and both are on purpose:
 
 - **The channel tells you what it promises**, at install time, out of the pointer itself:
 
-      plumb: edge is 0.8.1rc1 — could be broken, a candidate, published so it can be tested
+      plumb: edge is 0.8.2rc1 — could be broken, a candidate, published so it can be tested
 
 - **The install remembers which channel answered**, because one build can be named by both at once
   and the version alone cannot say:
 
       $ plumb --version
-      plumb 0.8.1.dev12+a1b2c3d (edge)
+      plumb 0.8.2.dev12+a1b2c3d (edge)
 
   Include that line in anything you report. A defect on `edge` is a different conversation from the
   same symptom on `stable`.

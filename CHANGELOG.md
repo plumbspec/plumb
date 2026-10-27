@@ -2,6 +2,13 @@
 
 What each release gives you, and what to change to take it.
 
+## 0.8.2 — where to report
+
+**Changed.** Vulnerability reports and proposals for a large change go to
+[support.plumbspec.org](https://support.plumbspec.org), not to GitHub issues. A contribution no
+longer needs a `Signed-off-by:` line; the pull request is the ask. The package links to
+plumbspec.org and its source.
+
 ## 0.8.1 — the series-holder page is listed
 
 **Fixed.** "Running a series holder" carried no front matter, so the documentation index left it
