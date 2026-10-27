@@ -31,6 +31,11 @@ dependencies = []
 # `pip install plumbspec[dev]` unsatisfiable on the floor this project declares one line above.
 dev = ["pytest>=8"]
 
+# Where the package index links back to: the site, and the source.
+[project.urls]
+Homepage = "https://plumbspec.org"
+Source = "https://github.com/plumbspec/plumb"
+
 # The CLI command is `plumb`, split from the `plumbspec` package.
 [project.scripts]
 plumb = "plumb.cli:main"

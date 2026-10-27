@@ -176,5 +176,4 @@ is worth backing up.
 
 ## Reporting a vulnerability
 
-Open a GitHub issue for anything already public. For anything not, use GitHub's private security
-advisory reporting on the repository. There is no separate mailbox and no bounty.
+Report it at [support.plumbspec.org](https://support.plumbspec.org).

@@ -2,21 +2,6 @@
 
 Thanks for helping keep requirements true to the code.
 
-## Sign your commits (DCO)
-
-Plumb accepts contributions under the [Developer Certificate of Origin](https://developercertificate.org/)
-— a lightweight affirmation that you wrote the patch or otherwise have the right to submit it under
-the project's license. There is **no CLA to sign.**
-
-Add a `Signed-off-by:` line to every commit by committing with `-s`:
-
-```
-git commit -s -m "your message"
-```
-
-This appends a line like `Signed-off-by: Your Name <you@example.com>` using your `git config`
-name and email. A PR whose commits are not signed off cannot be merged.
-
 ## Running the suite
 
     pip install -e ".[dev]"
@@ -53,5 +38,5 @@ test could hold becomes a test. Run when a change alters what the pages assert.
 
 ## Scope
 
-Plumb keeps its scope tight on purpose. Before a large change, open an issue so we can agree it
-fits before you build it.
+Plumb keeps its scope tight on purpose. Before a large change, propose it at
+[support.plumbspec.org](https://support.plumbspec.org) so we can agree it fits before you build it.
