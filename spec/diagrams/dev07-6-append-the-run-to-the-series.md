@@ -1,6 +1,6 @@
 # dev07-6 · append the run to the series
 
-**Last updated** 2026-10-26 v7
+**Last updated** 2026-10-27 v8
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered where the project keeps a series,
 carrying the run's verdicts. Exits with the run in the history and the history readable: closing
@@ -67,6 +67,8 @@ flowchart TD
     stamp is reported as one of unknown extent, never as a short one
   * dev07-6-1-ur5 - an entry that cannot be read is refused, saying where it is and what shape it
     has; an unreadable history is an outcome the run reports, never a crash
+  * dev07-6-1-ur6 - a run told to keep a series appends to it however its board is printed —
+    a board printed for a machine is the same run as one printed for a person
 
 #### System Requirements
   * dev07-6-1-sr1 - a history kept in the project's own tree is append-only, and transitions, run

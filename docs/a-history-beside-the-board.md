@@ -33,8 +33,8 @@ A series is opt-in and is never a side effect of asking for a board:
 
 A run that changed nothing appends one line — a marker that the run happened, which is what *last
 looked* is read from — and no transitions. Without `--series` nothing is written: a board that
-quietly grew a store would make asking a question a mutating operation. With `--json` nothing is
-appended either; add `--series` to a text board, which can be rendered from a saved manifest
+quietly grew a store would make asking a question a mutating operation. `--series` works with the
+text board and with `--json`, and with a board rendered from a saved manifest
 (`plumb board --manifest m.json --series series.jsonl`) without running the suite again.
 
 ## What it shows you

@@ -815,18 +815,9 @@ def _board(args) -> int:
                                                           declared)
     exit_code = EXIT_NOTHING_OBSERVED if nothing_observed else EXIT_OK
 
-    if args.json:
-        print(board.to_json())
-        return exit_code
-
-    if nothing_observed:
-        # Printed *instead of* the nothing-cited guidance, not beside it: telling someone whose
-        # runner discovered no tests to go and write a citation sends them to fix the one thing
-        # that is not broken.
-        print(_nothing_observed(), file=sys.stderr)
-    elif not board.verdicts:
-        print(_nothing_cited(getattr(args, "_adapter", "python")), file=sys.stderr)
-
+    # Before the board is printed in either form (`dev07-6-1-ur6`): `--json` once returned ahead of
+    # this, so a pipeline reading JSON kept no history and nothing said so. Everything here speaks
+    # on stderr, so stdout is still the board alone.
     if getattr(args, "series", None):
         # Explicit, never a side effect: a board run that quietly grew a store would make `--json`
         # a mutating operation, and a series nobody chose to keep is one nobody knows the shape of.
@@ -840,6 +831,18 @@ def _board(args) -> int:
         if getattr(args, "push", False):
             say(_push_series(Path(args.series), getattr(args, "enrolment", None),
                              getattr(args, "project", None)))
+
+    if args.json:
+        print(board.to_json())
+        return exit_code
+
+    if nothing_observed:
+        # Printed *instead of* the nothing-cited guidance, not beside it: telling someone whose
+        # runner discovered no tests to go and write a citation sends them to fix the one thing
+        # that is not broken.
+        print(_nothing_observed(), file=sys.stderr)
+    elif not board.verdicts:
+        print(_nothing_cited(getattr(args, "_adapter", "python")), file=sys.stderr)
 
     print("\n══════ BOARD ══════")
     for sid, verdict in sorted(board.verdicts.items(), key=lambda kv: natural_key(kv[0])):

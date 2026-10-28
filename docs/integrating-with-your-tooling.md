@@ -156,9 +156,8 @@ anyone last look* need a history:
 
 It records what **changed**, so an unchanged run appends only a one-line marker that it happened.
 That is what keeps it small and what makes a regression gate cheap — you are reading transitions,
-not diffing snapshots. `--series` is written with the text board and not with `--json`, so in the
-recipe above put it on step 3: `plumb board --manifest artifacts/manifest.json --project . --series
-history.jsonl` records the same run.
+not diffing snapshots. It works with `--json` too, so in the recipe above add it to step 2 and the
+one run both prints the board for your tooling and records it.
 
 **Where to keep it in CI.** A CI runner usually starts empty, and a series is a file each run
 appends to, so it needs a home that outlives the runner. The default we recommend:

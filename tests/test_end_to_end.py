@@ -957,6 +957,22 @@ def test_a_board_read_from_a_manifest_appends_to_the_series(capsys, tmp_path):
     assert store.read_text().strip(), "the run left its mark"
 
 
+@pytest.mark.proves("dev07-6-1", depth="smoke")
+def test_a_board_printed_as_json_still_appends_to_the_series(capsys, tmp_path):
+    """`dev07-6-1-ur6` — `--json` changes how the board is printed, never whether the run is kept.
+    It returned before the append, so a pipeline reading JSON kept no history and nothing said so;
+    and stdout stays the board alone, so a consumer still parses it."""
+    path = tmp_path / "junit.json"
+    path.write_text(FOREIGN_MANIFEST)
+    store = tmp_path / "series.jsonl"
+
+    assert cli.main(["board", "--json", "--manifest", str(path), "--series", str(store)]) == 0
+    printed = capsys.readouterr()
+    assert store.exists() and store.read_text().strip(), "the run left no mark in the series"
+    assert "series:" in printed.err, "and the append is said, on stderr"
+    json.loads(printed.out)
+
+
 @pytest.mark.proves("dev07-3-2", depth="smoke")
 def test_a_python_run_names_every_citing_test_when_asked(monkeypatch, capsys, tmp_path):
     """`--tests` lists each citing test and what it grounded, for Python as for Java — the per-test

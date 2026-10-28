@@ -2,6 +2,14 @@
 
 What each release gives you, and what to change to take it.
 
+## 0.8.3 — `--json` keeps the series
+
+**Fixed.** `plumb board --json --series FILE` printed the board and never wrote the history, without
+a word; `--push` beside it was dropped the same way. The run is now appended, and pushed if asked,
+whichever way its board is printed, and stdout still carries only the JSON board. A CI step that
+ran the board a second time to keep the history can drop that step and add `--series` to the one
+that prints the JSON.
+
 ## 0.8.2 — where to report
 
 **Changed.** Vulnerability reports and proposals for a large change go to

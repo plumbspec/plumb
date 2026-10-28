@@ -87,7 +87,7 @@ Runs your tests, watches your production code, and prints what each story's stat
 | `--tests` | list every citing test and what it grounded, one line each on stderr — `python: grounded    tests/test_orders.py::test_wired`, and `java: …` for a JVM run — instead of counting them. Off by default: on a mature suite the citing tests are a small minority, so the recital buries the verdict — the board's output should scale with the spec, not with the suite. Turn it on when a board is not what you expected and you need the per-test fact |
 | `--scope NAMESPACE` | show only stories whose id begins with NAMESPACE |
 | `--project DIR` | read `plumb.toml` from somewhere other than here. With `--manifest`, `plumb.toml` is read **only** when `--project` is given — see below |
-| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not. Opt-in and never a side effect. An unchanged run appends no transitions, only a marker recording that the run happened. Written with the text board, from a run or from `--manifest`; with `--json` nothing is appended, so `--json` never mutates anything |
+| `--series FILE` | also append what this run **changed** to a series — the history a manifest deliberately is not. Opt-in and never a side effect. An unchanged run appends no transitions, only a marker recording that the run happened. Written whichever way the board is printed, text or `--json`, from a run or from `--manifest` |
 | `--push` | with `--series`, also send what the holder has not been given. Reports and **never fails the board** if the holder is unreachable — a board is derived from a run and complete without the network, so an outage must not turn a build red for a reason unrelated to the project. Same work as `plumb series push`, triggered here instead of separately |
 | `--enrolment FILE` | with `--push`, the enrolment file to fall back on (default `~/.config/plumb/enrolment.json`). Read only when the environment names no destination for series — see [Environment](#environment) |
 | `PATH …` | anything after the options is passed to pytest, e.g. a path to limit collection. Put `--` first to pass pytest its own flags: `plumb board -- -k orders`. Python only |
@@ -116,7 +116,7 @@ the same answer twice.
 
 **So `--manifest` cancels the options that belong to a run.** `--mutation`, `--tests`,
 `--emit-manifest` and anything passed to the runner only apply on the run path. Give `--manifest` and
-they do nothing. `--series` and `--push` work on either path, with the text board.
+they do nothing. `--series` and `--push` work on either path, with either board.
 
 > **Sharp edge:** `plumb board --manifest a.json --emit-manifest b.json` writes **no file** and says
 > nothing about it. `--emit-manifest` is silently ignored when you are not running. If you wanted a
@@ -884,11 +884,11 @@ an account of your own, `plumb account open --email ADDR`.
 ## `plumb --version`
 
     $ plumb --version
-    plumb 0.8.2
+    plumb 0.8.3
 
-A build published to `edge` between releases names the commit it was cut from — `0.8.2.dev40+5f3325a`
+A build published to `edge` between releases names the commit it was cut from — `0.8.3.dev40+5f3325a`
 — so a report against one is unambiguous. A release names its version plainly. An install made
-through a channel adds the channel's name — `plumb 0.8.2.dev40+5f3325a (edge)` — and a pinned
+through a channel adds the channel's name — `plumb 0.8.3.dev40+5f3325a (edge)` — and a pinned
 install or a source checkout adds nothing.
 
 Worth knowing because the installer resolves a channel, so you never typed a version. Include it in
