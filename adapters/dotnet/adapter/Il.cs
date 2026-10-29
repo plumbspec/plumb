@@ -143,6 +143,28 @@ namespace PlumbSpec
                             body.InitLocals || resultLocal != null, regions);
         }
 
+        /// <summary>
+        /// The body with each <c>call</c>, <c>callvirt</c> or <c>newobj</c> whose token is in
+        /// <paramref name="retarget"/> made a <c>call</c> to its replacement — one opcode and one
+        /// token, the same five bytes, so nothing else in the body moves.
+        /// </summary>
+        public static (Body Body, int Retargeted) Retarget(Body body, IReadOnlyDictionary<int, int> retarget)
+        {
+            if (retarget.Count == 0) return (body, 0);
+            byte[]? code = null;
+            var count = 0;
+            foreach (var i in Decode(body.Code))
+            {
+                if (i.Op is not (0x28 or 0x6F or 0x73)) continue;
+                if (!retarget.TryGetValue(BitConverter.ToInt32(i.Operand, 0), out var to)) continue;
+                code ??= (byte[])body.Code.Clone();
+                code[i.Offset] = 0x28;
+                BitConverter.GetBytes(to).CopyTo(code, i.Offset + 1);
+                count++;
+            }
+            return code == null ? (body, 0) : (body with { Code = code }, count);
+        }
+
         /// <summary>The body as a fat method body, 4-aligned for wherever it is put.</summary>
         public static byte[] Encode(Body body)
         {

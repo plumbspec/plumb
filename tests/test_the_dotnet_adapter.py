@@ -9,7 +9,9 @@ rather than from any one framework.
 **The weave** (`dev07-1-3-sr11`, `sr12`, `sr13`) puts a probe at the top of every production method,
 wraps each declared entry point so its window closes on every way out, and opens each test's window
 in the test's own code — VSTest reports a test from another thread than the one running it, and
-xUnit runs test classes at once. Reads are not observed (`dev07-1-3-u7`), so a test that reads the
+xUnit runs test classes at once. Hand-offs are retargeted to shims that carry the window, and each
+async step says whose flow it resumes, so work sent elsewhere reads `dispatched` and work awaited
+stays the test's own. Reads are not observed (`dev07-1-3-u7`), so a test that reads the
 artifact reads `untouched` rather than `inert` until they are.
 
 The sample targets `net6.0`, so its testhost runs on the floor runtime (`dev07-1-1-ur1`) whatever
@@ -133,6 +135,12 @@ def test_the_dotnet_adapter_runs_a_suite_and_reports_what_the_runner_said(board)
         f"a woven entry point no longer answers as it was built — the weave changed the program: "
         f"{results}")
 
+    # Work handed off through a shim does what it did unwoven: each of those tests checks its answer.
+    handed = {"APP-2", "APP-8", "DIS-1", "DIS-2", "DIS-3", "DIS-4", "DIS-5", "DIS-6", "OWN-1"}
+    assert {sid: results.get(sid) for sid in handed} == {sid: ["passed"] for sid in handed}, (
+        "a test whose work was handed off through the weave's shims no longer passes — the shim "
+        f"changed what the hand-off did: {results}")
+
     # A citation on the class is a citation on every test in it, as `@Proves` on a type is.
     assert len(stories.get("CM-106", {}).get("citations", ())) == 2, stories.get("CM-106")
 
@@ -182,6 +190,17 @@ EXPECTED = {
     "Sample.Tests.GroundingTests.AnEntryPointThatThrowsStillGrounds": "grounded",
     "Sample.Tests.DrivingAlongside.DrivesTheEntryPointWhileAnotherTestWaits": "grounded",
     "Sample.Tests.WaitingAlongside.TouchesNothingWhileAnotherTestDrives": "untouched",
+    # Work leaving the test (`dev07-1-4-ur1.5`): handed to another thread and arriving, or only seen
+    # leaving, is `dispatched`; work the test awaits is its own.
+    "Sample.Tests.HandOffTests.HandsTheEntryPointToThePool": "dispatched",
+    "Sample.Tests.HandOffTests.StartsAThreadThatDrivesTheEntryPoint": "dispatched",
+    "Sample.Tests.HandOffTests.QueuesTheEntryPointToThePool": "dispatched",
+    "Sample.Tests.HandOffTests.HandsOffWorkThatReachesNothing": "dispatched",
+    "Sample.Tests.HandOffTests.HandsOffAsyncWorkThatDrivesTheEntryPointAfterAnAwait": "dispatched",
+    "Sample.Tests.HandOffTests.StartsWorkFromTheFactory": "dispatched",
+    "Sample.Tests.HandOffTests.ATimerTheWeaveCannotSeeDrivesTheEntryPoint": "dispatched",
+    "Sample.Tests.HandOffTests.CallsProductionThatHandsTheEntryPointOff": "dispatched",
+    "Sample.Tests.HandOffTests.AwaitsThenDrivesTheEntryPoint": "grounded",
     "Sample.Tests.SampleSpecTests.RoutesAnOrderToAQueue": "grounded",
     "Sample.Tests.SampleSpecTests.OneTestCitingTwoStories": "untouched",
     # Skipped: its body never ran, so its window never opened and nothing could be asked.

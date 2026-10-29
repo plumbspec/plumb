@@ -1259,10 +1259,11 @@ def _weave(dotnet: str, adapter: str, copy: Path, tests: str, run_file: Path, re
     for line in report.read_text().splitlines():
         kind, *fields = line.split("\t")
         if kind == "woven":
-            name, methods, entries, tests_ = fields
+            name, methods, entries, tests_, handoffs, steps = fields
             woven += int(methods) + int(entries)
-            what = (f"{tests_} tests" if int(tests_) else f"{methods} methods, {entries} entry points")
-            say(f"dotnet: woven {name}: {what}")
+            what = (f"{tests_} tests, {steps} async steps" if int(tests_)
+                    else f"{methods} methods, {entries} entry points")
+            say(f"dotnet: woven {name}: {what}, {handoffs} hand-offs")
         elif kind == "left":
             say(f"dotnet: left as built — {': '.join(fields)}")
         elif kind == "unfound":

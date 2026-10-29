@@ -22,6 +22,24 @@ namespace PlumbSpec
     {
         private static readonly AsyncLocal<Scope?> Current = new AsyncLocal<Scope?>();
 
+        /// <summary>Set inside work a seen hand-off carried, and carried on with it across its own
+        /// awaits: the flow is the test's work, and no longer the test's own (dev07-1-4-ur1.5).</summary>
+        private static readonly AsyncLocal<bool> Hopped = new AsyncLocal<bool>();
+
+        /// <summary>
+        /// The test whose own flow this thread is resuming, while a woven async step runs here.
+        /// </summary>
+        /// <remarks>
+        /// .NET carries a test's flow to every thread it reaches — across an await, and equally
+        /// across a hand-off nobody saw — so the flow alone cannot say whether the test is still
+        /// the one running. The test's own thread can, and so can a step of the project's own async
+        /// code resuming that flow: an await, not a hand-off (dev07-1-3-sr05). Anything else reaching
+        /// an entry point is somewhere the test sent work, and reads as that (dev07-1-4-sr4).
+        /// </remarks>
+        [ThreadStatic] private static Scope? resumed;
+
+        [ThreadStatic] private static int resuming;
+
         /// <summary>How deep this thread is inside entry points. Per thread, so an entry point is the
         /// outermost on the thread it is entered on (dev07-1-4-sr3).</summary>
         [ThreadStatic] private static int depth;
@@ -32,8 +50,9 @@ namespace PlumbSpec
         /// <summary>The first instruction of every test: open its window.</summary>
         public static void Begin(object? self, string type, string method)
         {
-            var scope = new Scope();
+            var scope = new Scope(Environment.CurrentManagedThreadId);
             Current.Value = scope;
+            Hopped.Value = false;
             var name = (self?.GetType().FullName ?? type) + "." + method;
             Begun.GetOrAdd(name, _ => new ConcurrentQueue<Scope>()).Enqueue(scope);
         }
@@ -52,7 +71,75 @@ namespace PlumbSpec
             var scope = Current.Value;
             if (scope == null || scope.Closed) return;
             scope.Ran = true;
-            scope.Entered(entryPoint);
+            var own = !Hopped.Value &&
+                      (Environment.CurrentManagedThreadId == scope.Thread || resumed == scope);
+            if (own) scope.Entered(entryPoint);
+            else scope.Elsewhere = true;
+        }
+
+        /// <summary>The first instruction of a woven async step: whose own flow, if anyone's, this
+        /// thread now resumes.</summary>
+        public static void Resume()
+        {
+            Ran();
+            if (resuming++ == 0) resumed = Hopped.Value ? null : Current.Value;
+        }
+
+        /// <summary>The <c>finally</c> of a woven async step.</summary>
+        public static void Suspend()
+        {
+            if (resuming > 0 && --resuming == 0) resumed = null;
+        }
+
+        /// <summary>
+        /// A hand-off, seen on the side that knows the window (dev07-1-4-sr2): the window is marked as
+        /// having sent work, and the work is wrapped to carry it, wherever it runs.
+        /// </summary>
+        /// <remarks>
+        /// Unchanged when no test's window is open, which is almost always: a process hands work off
+        /// constantly and none of it is this run's business. The wrapper restores what it set on
+        /// every way out, so a pool thread goes back to the pool as it came.
+        /// </remarks>
+        internal static Func<T> Carry<T>(Func<T> work)
+        {
+            var scope = Sent();
+            return scope == null ? work : () => Within(scope, work);
+        }
+
+        internal static Action Carry(Action work)
+        {
+            var scope = Sent();
+            return scope == null ? work : () => Within(scope, () => { work(); return true; });
+        }
+
+        internal static Action<T> Carry<T>(Action<T> work)
+        {
+            var scope = Sent();
+            return scope == null ? work : argument => Within(scope, () => { work(argument); return true; });
+        }
+
+        internal static Func<TArgument, T> Carry<TArgument, T>(Func<TArgument, T> work)
+        {
+            var scope = Sent();
+            return scope == null ? work : argument => Within(scope, () => work(argument));
+        }
+
+        /// <summary>The open window work is being sent from, marked as having sent it.</summary>
+        private static Scope? Sent()
+        {
+            var scope = Current.Value;
+            if (scope == null || scope.Closed) return null;
+            scope.HandedOff = true;
+            return scope;
+        }
+
+        private static T Within<T>(Scope scope, Func<T> work)
+        {
+            var (current, hopped) = (Current.Value, Hopped.Value);
+            Current.Value = scope;
+            Hopped.Value = true;
+            try { return work(); }
+            finally { Current.Value = current; Hopped.Value = hopped; }
         }
 
         /// <summary>The <c>finally</c> of a declared entry point, on every way out of it.</summary>
@@ -79,6 +166,19 @@ namespace PlumbSpec
 
         internal sealed class Scope
         {
+            public Scope(int thread) => Thread = thread;
+
+            /// <summary>The thread the test's own code began on.</summary>
+            public int Thread { get; }
+
+            private volatile bool elsewhere, handedOff;
+
+            /// <summary>An entry point reached by work the test sent elsewhere.</summary>
+            public bool Elsewhere { get => elsewhere; set => elsewhere = value; }
+
+            /// <summary>A hand-off seen inside the window, arrived or not.</summary>
+            public bool HandedOff { get => handedOff; set => handedOff = value; }
+
             private readonly object gate = new object();
             private readonly List<string> entered = new List<string>();
             private volatile bool ran, closed;

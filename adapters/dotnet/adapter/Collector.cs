@@ -105,6 +105,8 @@ namespace PlumbSpec
         /// window its own code opened.
         /// </summary>
         /// <remarks>
+        /// The test's own flow reaching an entry point is <c>grounded</c>; work it handed to another
+        /// thread reaching one, or a hand-off seen and not arrived, is <c>dispatched</c>.
         /// No window is a test whose body never ran — skipped before it began, or marked by an
         /// attribute the weave does not know — and nothing could be asked of it. A read of the
         /// artifact is not observed (dev07-1-3-u7), so <c>inert</c> is never said: a test that ran
@@ -115,6 +117,10 @@ namespace PlumbSpec
         {
             if (woven == 0 || !entryPointsDeclared || scope == null) return NotChecked;
             if (scope.EnteredThrough().Count > 0) return "grounded";
+            // An arrival is the better fact and is checked first: work the test sent reached an entry
+            // point elsewhere. What is left is a hand-off seen leaving, whose work may arrive after
+            // the window closed — not a definite negative, because we stopped looking (dev07-1-4).
+            if (scope.Elsewhere || scope.HandedOff) return "dispatched";
             return scope.Ran ? "ungrounded" : "untouched";
         }
 

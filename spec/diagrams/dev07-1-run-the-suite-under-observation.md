@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-10-29 v11
+**Last updated** 2026-10-29 v12
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered when plumb is run, carrying the
 configuration, the annotations and the working tree. Exits to `dev07-3 · collect what the run
@@ -277,6 +277,9 @@ flowchart TD
     whether the hand-off is the right fact for a process boundary is open
   * dev07-1-4-u4 - static dead-code detection — code reachable from no entry point regardless of
     any test — is a separate question, undecided
+  * dev07-1-4-u5 - where the runtime's own libraries cannot be woven, as on .NET, a hand-off is seen
+    only at a call the weave rewrote; one a library makes is known only if its work arrives, and
+    whether that loses a `dispatched` a reader needs is unmeasured
 
 
 ---

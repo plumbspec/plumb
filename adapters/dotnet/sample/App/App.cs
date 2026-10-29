@@ -53,6 +53,10 @@ namespace Sample
         /// <summary>An entry point that returns nothing.</summary>
         public static void Record(List<int> into) => into.Add(Work(1));
 
+        /// <summary>Production that hands its own work to the pool — not an entry point, so a test
+        /// calling it reaches the entry point only through the hand-off.</summary>
+        public static int Dispatch(int n) => System.Threading.Tasks.Task.Run(() => HandleRequest(n)).Result;
+
         /// <summary>An entry point that throws, so the window must close on the way out.</summary>
         public static int FailingRequest(int n) => throw new ArgumentException("refused " + n);
     }

@@ -46,6 +46,7 @@ namespace PlumbSpec
         private readonly List<(int Scope, int Name, int Namespace)> typeRefs = new List<(int, int, int)>();
         private readonly List<(int Parent, int Name, int Signature)> memberRefs = new List<(int, int, int)>();
         private readonly List<int> standAloneSigs = new List<int>();
+        private readonly List<(int Method, int Instantiation)> methodSpecs = new List<(int, int)>();
 
         public Rewriter(byte[] image)
         {
@@ -132,6 +133,14 @@ namespace PlumbSpec
         {
             standAloneSigs.Add(Blob(signature));
             return 0x11000000 | (Md.GetTableRowCount(TableIndex.StandAloneSig) + standAloneSigs.Count);
+        }
+
+        /// <summary>A generic method's instantiation, of a member reference, with an instantiation
+        /// blob the assembly already holds.</summary>
+        public int MethodSpec(int memberRefToken, BlobHandle instantiation)
+        {
+            methodSpecs.Add((memberRefToken & 0xFFFFFF, MetadataTokens.GetHeapOffset(instantiation)));
+            return 0x2B000000 | (Md.GetTableRowCount(TableIndex.MethodSpec) + methodSpecs.Count);
         }
 
         public void SetBody(MethodDefinitionHandle method, byte[] encoded)
@@ -248,6 +257,7 @@ namespace PlumbSpec
             after[0x01] += typeRefs.Count;
             after[0x0A] += memberRefs.Count;
             after[0x11] += standAloneSigs.Count;
+            after[0x2B] += methodSpecs.Count;
             if (!Widths(before).SequenceEqual(Widths(after)))
                 throw new Refused("the rows the weave adds would widen its metadata's indexes, which " +
                                   "this writer does not do yet");
@@ -259,10 +269,12 @@ namespace PlumbSpec
             var blobIndex = (heapSizes & 0x04) != 0 ? 4 : 2;
             var scope = Coded(after, 2, 0x00, 0x1A, 0x23, 0x01);
             var parent = Coded(after, 3, 0x02, 0x01, 0x1A, 0x06, 0x1B);
+            var methodDefOrRef = Coded(after, 1, 0x06, 0x0A);
             Expect(TableIndex.TypeRef, scope + 2 * stringIndex);
             Expect(TableIndex.MemberRef, parent + stringIndex + blobIndex);
             Expect(TableIndex.AssemblyRef, 12 + 2 * blobIndex + 2 * stringIndex);
             Expect(TableIndex.StandAloneSig, blobIndex);
+            Expect(TableIndex.MethodSpec, methodDefOrRef + blobIndex);
 
             var newValid = valid;
             for (var t = 0; t < 64; t++) if (after[t] > 0) newValid |= 1UL << t;
@@ -305,6 +317,13 @@ namespace PlumbSpec
                         break;
                     case 0x11:
                         foreach (var sig in standAloneSigs) Index(o, sig, blobIndex);
+                        break;
+                    case 0x2B:
+                        foreach (var (method, instantiation) in methodSpecs)
+                        {
+                            Index(o, (method << 1) | 1, methodDefOrRef); // MemberRef is MethodDefOrRef tag 1
+                            Index(o, instantiation, blobIndex);
+                        }
                         break;
                     case 0x23:
                         foreach (var (v, name) in assemblyRefs)
@@ -395,12 +414,12 @@ namespace PlumbSpec
 
         // ---- index widths (ECMA-335 II.24.2.6) ----
 
-        /// <summary>Every index width a row the weave adds can change: the four grown tables' own,
+        /// <summary>Every index width a row the weave adds can change: the grown tables' own,
         /// and each coded index any of them is a member of.</summary>
         private static int[] Widths(int[] rows) => new[]
         {
             rows[0x01] < 0x10000 ? 2 : 4, rows[0x0A] < 0x10000 ? 2 : 4,
-            rows[0x11] < 0x10000 ? 2 : 4, rows[0x23] < 0x10000 ? 2 : 4,
+            rows[0x11] < 0x10000 ? 2 : 4, rows[0x23] < 0x10000 ? 2 : 4, rows[0x2B] < 0x10000 ? 2 : 4,
             Coded(rows, 2, 0x02, 0x01, 0x1B),                                  // TypeDefOrRef
             Coded(rows, 5, 0x06, 0x04, 0x01, 0x02, 0x08, 0x09, 0x0A, 0x00, 0x0E, 0x17, 0x14, 0x11,
                   0x1A, 0x1B, 0x20, 0x23, 0x26, 0x27, 0x28, 0x2A, 0x2C, 0x2B),  // HasCustomAttribute

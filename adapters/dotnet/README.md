@@ -59,15 +59,38 @@ The weave is the adapter's own, on the runtime's own metadata reader (`dev07-1-3
 - every production method's first instruction reports that it ran;
 - each declared entry point is wrapped in `try { … } finally { … }`, so its window closes on a throw
   as on a return;
-- each test's first instruction opens the test's own window.
+- each test's first instruction opens the test's own window;
+- each async step (`MoveNext` of a compiler-made state machine) says whose flow it resumes;
+- each call to a hand-off primitive is pointed at a shim that sees it and carries the window.
 
 The window rides the test's logical flow, an `AsyncLocal` that .NET carries into whatever the test
 awaits, starts or queues (`dev07-1-3-sr05`). It is opened by the test and not by VSTest, because
 VSTest reports a test from another thread than the one running it under xUnit and NUnit, and xUnit
 runs test classes at once (`dev07-1-3-sr13`).
 
-A test then reads `grounded` (it entered an entry point), `ungrounded` (it ran production and no
-entry point), or `untouched` (it ran none). `inert` is never said: a read of the artifact is not
+A test then reads `grounded` (its own flow entered an entry point), `dispatched` (work it handed to
+another thread entered one, or a hand-off was seen leaving), `ungrounded` (it ran production and no
+entry point), or `untouched` (it ran none).
+
+## Following a hand-off
+
+.NET carries a test's flow to every thread it reaches, across an `await` and across a hand-off
+alike, so the flow alone cannot say whether the test is still the one running. Two aspects tell
+them apart:
+
+- **The hand-off, at the call.** .NET's primitives are in its own libraries, which are not in the
+  copy, so the aspect goes on the call: `Task.Run`, `TaskFactory.StartNew`, `new Thread(…)` and
+  `ThreadPool.QueueUserWorkItem` (and `UnsafeQueueUserWorkItem`) in woven code call a shim instead,
+  matched on the exact signature. The shim marks the window as having sent work and wraps the
+  delegate, which carries the window, says it is handed-off work across its own awaits, and restores
+  the thread on every way out (`dev07-1-4-sr2`). A task the runtime runs inline on the test's own
+  thread is still the hand-off's.
+- **The await, at the step.** A step of the project's own async code resuming the test's flow is the
+  test's own, on whatever thread it resumes (`dev07-1-3-sr05`).
+
+Anything else reaching an entry point with the test's flow — a timer, or a hand-off a library made —
+is work the test sent somewhere, and reads `dispatched` (`dev07-1-4-sr4`). A hand-off a library makes
+whose work never arrives is not seen (`dev07-1-4-u5`). `inert` is never said: a read of the artifact is not
 observed yet (`dev07-1-3-u7`), and `inert` is not claimed from an absence. A test whose body never ran
 — skipped, or marked by a test attribute the weave does not know — reads `not-checked`.
 
@@ -78,8 +101,7 @@ method that uses `jmp`, is left exactly as built and named on the run (`dev07-1-
 
 ## Not yet
 
-Reads (`inert`), `dispatched`, async entry points (the window is kept per thread inside an entry
-point), setup code run before a test's own window opens (`dev07-1-3-u8`), the runtime check against
+Reads (`inert`), async entry points (the window is kept per thread inside an entry point), setup code run before a test's own window opens (`dev07-1-3-u8`), the runtime check against
 `deps.json` (`dev07-1-1`), progress (`dev07-1-5`), mutation, plumb coverage, and the adapter riding
 inside the shipped artifact. Until it does, an installed plumb refuses a .NET project by naming its
 own install.

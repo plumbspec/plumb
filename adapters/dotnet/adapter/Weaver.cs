@@ -78,13 +78,13 @@ namespace PlumbSpec
                 try
                 {
                     var rewriter = new Rewriter(File.ReadAllBytes(path));
-                    var counts = isTests ? WeaveTests(rewriter, report, file)
-                                         : WeaveProduction(rewriter, entryPoints, found, report, file);
+                    var counts = WeaveAssembly(rewriter, isTests, entryPoints, found, report, file);
                     if (!rewriter.Changed) continue;
                     var woven = rewriter.Build();
                     File.WriteAllBytes(path + ".plumb", woven);
                     File.Move(path + ".plumb", path, true);
-                    report.Add($"woven\t{file}\t{counts.Methods}\t{counts.Entries}\t{counts.Tests}");
+                    report.Add($"woven\t{file}\t{counts.Methods}\t{counts.Entries}\t{counts.Tests}\t" +
+                               $"{counts.Handoffs}\t{counts.Steps}");
                 }
                 catch (Rewriter.Refused refused)
                 {
@@ -100,43 +100,70 @@ namespace PlumbSpec
                 ? name.StartsWith(pattern.Substring(0, pattern.Length - 1), StringComparison.Ordinal)
                 : string.Equals(name, pattern, StringComparison.Ordinal);
 
-        private static int ProbeType(Rewriter rewriter)
+        private static int ProbeType(Rewriter rewriter, string name)
         {
             var self = typeof(Probe).Assembly.GetName();
             var assembly = rewriter.AssemblyRef(self.Name!, self.Version!);
-            return rewriter.TypeRef(assembly, "PlumbSpec", nameof(Probe));
+            return rewriter.TypeRef(assembly, "PlumbSpec", name);
         }
 
-        private static (int Methods, int Entries, int Tests) WeaveProduction(
-            Rewriter rewriter, HashSet<string> entryPoints, HashSet<string> found,
-            List<string> report, string file)
+        /// <summary>
+        /// One assembly. In production, every method reports that it ran and each declared entry point
+        /// opens a window; in the tests, each test opens its own. In both, every hand-off is seen and
+        /// every async step says whose flow it resumes (dev07-1-4-sr2, dev07-1-3-sr05).
+        /// </summary>
+        private static Counts WeaveAssembly(Rewriter rewriter, bool isTests, HashSet<string> entryPoints,
+                                            HashSet<string> found, List<string> report, string file)
         {
             var md = rewriter.Md;
-            var probe = ProbeType(rewriter);
-            var ran = rewriter.MemberRef(probe, nameof(Probe.Ran), new byte[] { 0x00, 0x00, 0x01 });
-            var enter = rewriter.MemberRef(probe, nameof(Probe.Enter), new byte[] { 0x00, 0x01, 0x01, 0x0E });
-            var exit = rewriter.MemberRef(probe, nameof(Probe.Exit), new byte[] { 0x00, 0x00, 0x01 });
-            int methods = 0, entries = 0;
-            foreach (var (handle, def, name) in Methods(md))
+            var probe = ProbeType(rewriter, nameof(Probe));
+            int Member(string name, params byte[] signature) => rewriter.MemberRef(probe, name, signature);
+            var ran = Member(nameof(Probe.Ran), 0x00, 0x00, 0x01);
+            var enter = Member(nameof(Probe.Enter), 0x00, 0x01, 0x01, 0x0E);
+            var exit = Member(nameof(Probe.Exit), 0x00, 0x00, 0x01);
+            var resume = Member(nameof(Probe.Resume), 0x00, 0x00, 0x01);
+            var suspend = Member(nameof(Probe.Suspend), 0x00, 0x00, 0x01);
+            var begin = Member(nameof(Probe.Begin), 0x00, 0x03, 0x01, 0x1C, 0x0E, 0x0E);
+            var handoffs = new HandoffSites(rewriter, () => ProbeType(rewriter, nameof(Handoff))).Retarget;
+            var counts = new Counts();
+            foreach (var (type, handle, def, name) in Methods(md))
             {
                 try
                 {
-                    var body = Il.Read(rewriter.Pe.GetMethodBody(def.RelativeVirtualAddress));
-                    if (entryPoints.Contains(name))
+                    var (body, retargeted) = Il.Retarget(
+                        Il.Read(rewriter.Pe.GetMethodBody(def.RelativeVirtualAddress)), handoffs);
+                    counts.Handoffs += retargeted;
+                    if (!isTests && entryPoints.Contains(name))
                     {
                         var (local, signature) = ResultLocal(md, def, body);
-                        var wrapped = Il.Wrap(body,
+                        rewriter.SetBody(handle, Il.Encode(Il.Wrap(body,
                             Il.Op(0x72, rewriter.UserString(name)).Concat(Il.Op(0x28, enter)).ToArray(),
                             Il.Op(0x28, exit), local,
-                            signature == null ? body.LocalSignatureToken : rewriter.StandAloneSig(signature));
-                        rewriter.SetBody(handle, Il.Encode(wrapped));
+                            signature == null ? body.LocalSignatureToken : rewriter.StandAloneSig(signature))));
                         found.Add(name);
-                        entries++;
+                        counts.Entries++;
                     }
-                    else
+                    else if (IsAsyncStep(md, type, def))
+                    {
+                        var prologue = isTests ? Il.Op(0x28, resume)
+                            : Il.Op(0x28, ran).Concat(Il.Op(0x28, resume)).ToArray();
+                        rewriter.SetBody(handle, Il.Encode(Il.Wrap(body, prologue, Il.Op(0x28, suspend),
+                                                                   null, body.LocalSignatureToken)));
+                        if (isTests) counts.Steps++; else counts.Methods++;
+                    }
+                    else if (!isTests)
                     {
                         rewriter.SetBody(handle, Il.Encode(Il.Prefix(body, Il.Op(0x28, ran), 0)));
-                        methods++;
+                        counts.Methods++;
+                    }
+                    else if (IsTest(md, def))
+                    {
+                        rewriter.SetBody(handle, Il.Encode(Il.Prefix(body, BeginPrologue(rewriter, def, name, begin), 3)));
+                        counts.Tests++;
+                    }
+                    else if (retargeted > 0)
+                    {
+                        rewriter.SetBody(handle, Il.Encode(body));
                     }
                 }
                 catch (Il.Unweavable why)
@@ -144,40 +171,50 @@ namespace PlumbSpec
                     report.Add($"left\t{file}\t{name}: {why.Message}");
                 }
             }
-            return (methods, entries, 0);
+            return counts;
         }
 
-        private static (int Methods, int Entries, int Tests) WeaveTests(
-            Rewriter rewriter, List<string> report, string file)
+        private sealed class Counts
+        {
+            public int Methods, Entries, Tests, Steps, Handoffs;
+        }
+
+        private static byte[] BeginPrologue(Rewriter rewriter, MethodDefinition def, string name, int begin)
         {
             var md = rewriter.Md;
-            var probe = ProbeType(rewriter);
-            var begin = rewriter.MemberRef(probe, nameof(Probe.Begin),
-                                           new byte[] { 0x00, 0x03, 0x01, 0x1C, 0x0E, 0x0E });
-            var tests = 0;
-            foreach (var (handle, def, name) in Methods(md))
+            var prologue = new List<byte>
             {
-                if (!IsTest(md, def)) continue;
-                var type = name.Substring(0, name.LastIndexOf('.'));
-                var prologue = new List<byte>
-                {
-                    // The instance, so a test inherited from a base class is named for the class it
-                    // ran in, as VSTest names it; nothing for a static test.
-                    (def.Attributes & MethodAttributes.Static) != 0 ? (byte)0x14 : (byte)0x02,
-                };
-                prologue.AddRange(Il.Op(0x72, rewriter.UserString(type)));
-                prologue.AddRange(Il.Op(0x72, rewriter.UserString(md.GetString(def.Name))));
-                prologue.AddRange(Il.Op(0x28, begin));
-                var body = Il.Read(rewriter.Pe.GetMethodBody(def.RelativeVirtualAddress));
-                rewriter.SetBody(handle, Il.Encode(Il.Prefix(body, prologue.ToArray(), 3)));
-                tests++;
+                // The instance, so a test inherited from a base class is named for the class it
+                // ran in, as VSTest names it; nothing for a static test.
+                (def.Attributes & MethodAttributes.Static) != 0 ? (byte)0x14 : (byte)0x02,
+            };
+            prologue.AddRange(Il.Op(0x72, rewriter.UserString(name.Substring(0, name.LastIndexOf('.')))));
+            prologue.AddRange(Il.Op(0x72, rewriter.UserString(md.GetString(def.Name))));
+            prologue.AddRange(Il.Op(0x28, begin));
+            return prologue.ToArray();
+        }
+
+        /// <summary>A step of an async method or iterator: the <c>MoveNext</c> of a type the compiler
+        /// made to implement <c>IAsyncStateMachine</c>.</summary>
+        private static bool IsAsyncStep(MetadataReader md, TypeDefinitionHandle type, MethodDefinition def)
+        {
+            if (!md.GetString(def.Name).EndsWith("MoveNext", StringComparison.Ordinal)) return false;
+            foreach (var handle in md.GetTypeDefinition(type).GetInterfaceImplementations())
+            {
+                var implemented = md.GetInterfaceImplementation(handle).Interface;
+                if (implemented.Kind != HandleKind.TypeReference) continue;
+                var reference = md.GetTypeReference((TypeReferenceHandle)implemented);
+                if (md.GetString(reference.Namespace) == "System.Runtime.CompilerServices" &&
+                    md.GetString(reference.Name) == "IAsyncStateMachine")
+                    return true;
             }
-            return (0, 0, tests);
+            return false;
         }
 
         /// <summary>Every method with an IL body, named as an entry point is declared:
         /// <c>Namespace.Type.Method</c>, a nested type joined to its parent by <c>+</c>.</summary>
-        private static IEnumerable<(MethodDefinitionHandle, MethodDefinition, string)> Methods(MetadataReader md)
+        private static IEnumerable<(TypeDefinitionHandle, MethodDefinitionHandle, MethodDefinition, string)> Methods(
+            MetadataReader md)
         {
             foreach (var typeHandle in md.TypeDefinitions)
             {
@@ -187,7 +224,7 @@ namespace PlumbSpec
                     var def = md.GetMethodDefinition(handle);
                     if (def.RelativeVirtualAddress == 0) continue;
                     if ((def.ImplAttributes & MethodImplAttributes.CodeTypeMask) != MethodImplAttributes.IL) continue;
-                    yield return (handle, def, typeName + "." + md.GetString(def.Name));
+                    yield return (typeHandle, handle, def, typeName + "." + md.GetString(def.Name));
                 }
             }
         }
@@ -244,13 +281,13 @@ namespace PlumbSpec
             var signature = md.GetBlobBytes(def.Signature);
             var at = 0;
             var convention = signature[at++];
-            if ((convention & 0x10) != 0) Compressed(signature, ref at);
-            Compressed(signature, ref at);
+            if ((convention & 0x10) != 0) Signature.Compressed(signature, ref at);
+            Signature.Compressed(signature, ref at);
             var start = at;
             var peek = at;
-            while (signature[peek] == 0x1F || signature[peek] == 0x20) { peek++; Compressed(signature, ref peek); }
+            while (signature[peek] == 0x1F || signature[peek] == 0x20) { peek++; Signature.Compressed(signature, ref peek); }
             if (signature[peek] == 0x01) return (null, null);
-            SkipType(signature, ref at);
+            Signature.SkipType(signature, ref at);
             var returned = signature.Skip(start).Take(at - start).ToArray();
 
             var count = 0;
@@ -260,7 +297,7 @@ namespace PlumbSpec
                 var locals = md.GetBlobBytes(md.GetStandaloneSignature(
                     (StandaloneSignatureHandle)MetadataTokens.EntityHandle(body.LocalSignatureToken)).Signature);
                 var p = 1;
-                count = Compressed(locals, ref p);
+                count = Signature.Compressed(locals, ref p);
                 types = locals.Skip(p).ToArray();
             }
             var o = new MemoryStream();
@@ -272,61 +309,6 @@ namespace PlumbSpec
             o.Write(types, 0, types.Length);
             o.Write(returned, 0, returned.Length);
             return (count, o.ToArray());
-        }
-
-        private static int Compressed(byte[] b, ref int at)
-        {
-            var first = b[at];
-            if ((first & 0x80) == 0) { at += 1; return first; }
-            if ((first & 0xC0) == 0x80) { at += 2; return ((first & 0x3F) << 8) | b[at - 1]; }
-            at += 4;
-            return ((first & 0x1F) << 24) | (b[at - 3] << 16) | (b[at - 2] << 8) | b[at - 1];
-        }
-
-        /// <summary>One type in a signature, by ECMA-335 II.23.2.12, so its bytes can be copied.</summary>
-        private static void SkipType(byte[] b, ref int at)
-        {
-            while (b[at] == 0x1F || b[at] == 0x20) { at++; Compressed(b, ref at); }
-            var element = b[at++];
-            switch (element)
-            {
-                case >= 0x01 and <= 0x0E:
-                case 0x16: case 0x18: case 0x19: case 0x1C:
-                    return;
-                case 0x0F: case 0x10: case 0x1D: case 0x45:
-                    SkipType(b, ref at);
-                    return;
-                case 0x11: case 0x12: case 0x13: case 0x1E:
-                    Compressed(b, ref at);
-                    return;
-                case 0x14:
-                    SkipType(b, ref at);
-                    Compressed(b, ref at);
-                    var sizes = Compressed(b, ref at);
-                    for (var i = 0; i < sizes; i++) Compressed(b, ref at);
-                    var bounds = Compressed(b, ref at);
-                    for (var i = 0; i < bounds; i++) Compressed(b, ref at);
-                    return;
-                case 0x15:
-                    at++;
-                    Compressed(b, ref at);
-                    var arguments = Compressed(b, ref at);
-                    for (var i = 0; i < arguments; i++) SkipType(b, ref at);
-                    return;
-                case 0x1B:
-                    var convention = b[at++];
-                    if ((convention & 0x10) != 0) Compressed(b, ref at);
-                    var parameters = Compressed(b, ref at);
-                    SkipType(b, ref at);
-                    for (var i = 0; i < parameters; i++)
-                    {
-                        if (b[at] == 0x41) at++;
-                        SkipType(b, ref at);
-                    }
-                    return;
-                default:
-                    throw new Il.Unweavable($"its return type has an element 0x{element:x2} this writer does not read");
-            }
         }
     }
 }
