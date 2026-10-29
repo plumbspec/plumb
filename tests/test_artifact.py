@@ -247,3 +247,69 @@ def test_the_bundled_vocabulary_is_the_one_published_to_maven_central():
     adapter_pom = (module.parent / "adapter" / "pom.xml").read_text()
     assert "annotations/src/main/java" in adapter_pom, \
         "the adapter must add the vocabulary's source directory, not a named file, or these drift"
+
+
+def _artifact_carrying(path: Path, members: dict) -> Path:
+    """A stand-in for the shipped artifact: a zip holding the members the tool looks for. Files,
+    not a build — what is under test is how the tool finds and unpacks what the artifact carries."""
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as bundle:
+        for name, data in members.items():
+            bundle.writestr(name, data)
+    return path
+
+
+DOTNET_MEMBERS = {
+    "plumb/adapters/dotnet/PlumbSpec.Adapter.dll": b"MZ adapter",
+    "plumb/adapters/dotnet/PlumbSpec.Adapter.runtimeconfig.json": b'{"runtimeOptions": {}}',
+    "plumb/adapters/dotnet/instrumenter/linux-x64/PlumbInstrumenter.so": b"\x7fELF instrumenter",
+    "plumb/adapters/dotnet/instrumenter/linux-x64/PlumbInstrumenter.config": b"<config/>",
+}
+
+
+@pytest.mark.proves("dev00-1-1", depth="unit")
+def test_the_dotnet_adapter_is_unpacked_from_the_artifact_with_what_it_runs_beside(tmp_path, monkeypatch):
+    """`dev00-1-1-sr4`: the .NET adapter ships built, inside the artifact, and is unpacked on first
+    use to a cache keyed by version — each file beside the one it is read with: the collector beside
+    its runtime config, the instrumenter beside the config the engine finds it by."""
+    from plumb.launch import _bundled_collector, _bundled_instrumenter
+
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    artifact = _artifact_carrying(tmp_path / "plumb.pyz", DOTNET_MEMBERS)
+
+    collector = Path(_bundled_collector(artifact))
+    assert collector.read_bytes() == b"MZ adapter"
+    assert (collector.parent / "PlumbSpec.Adapter.runtimeconfig.json").is_file()
+    instrumenter = _bundled_instrumenter("linux-x64", artifact)
+    assert instrumenter is not None and instrumenter.read_bytes() == b"\x7fELF instrumenter"
+    assert (instrumenter.parent / "PlumbInstrumenter.config").read_bytes() == b"<config/>", (
+        "the engine finds the instrumenter by the path its config names relative to itself")
+
+
+@pytest.mark.proves("dev00-1-1", depth="unit")
+def test_a_cached_file_cut_short_is_unpacked_again(tmp_path, monkeypatch):
+    """An interrupted unpack leaves a file that is still a file; trusting it would hand the runtime
+    a broken adapter, which reads as a broken project rather than a broken install."""
+    from plumb.launch import _bundled_instrumenter
+
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    artifact = _artifact_carrying(tmp_path / "plumb.pyz", DOTNET_MEMBERS)
+    instrumenter = _bundled_instrumenter("linux-x64", artifact)
+    instrumenter.write_bytes(b"\x7fEL")
+    assert _bundled_instrumenter("linux-x64", artifact).read_bytes() == b"\x7fELF instrumenter"
+
+
+@pytest.mark.proves("dev00-1-1", depth="unit")
+def test_an_artifact_without_a_platforms_instrumenter_carries_none_for_it(tmp_path, monkeypatch):
+    """Half a pair unpacked is as broken as none, so a platform the artifact lacks a file for gets
+    nothing — and the launcher names its own install as the fault (`dev00-1-1-ur7`)."""
+    from plumb.launch import _bundled_instrumenter
+
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    lacking = {k: v for k, v in DOTNET_MEMBERS.items() if not k.endswith(".config")}
+    artifact = _artifact_carrying(tmp_path / "plumb.pyz", lacking)
+    assert _bundled_instrumenter("linux-x64", artifact) is None
+    assert _bundled_instrumenter("osx-x64", artifact) is None, "a platform it carries nothing for"
+    assert not list((tmp_path / "cache").rglob("PlumbInstrumenter.so")), (
+        "nothing is unpacked unless everything it is read with is there")

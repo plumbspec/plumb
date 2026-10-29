@@ -1533,27 +1533,78 @@ def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path, 
         "</RunSettings>\n")
 
 
-def _bundled_collector() -> str:
+def _archive() -> Path | None:
+    """The artifact this tool is running from, or nothing in a checkout."""
+    return next((parent for parent in Path(__file__).resolve().parents if parent.is_file()), None)
+
+
+def _unpacked(archive: Path, folder: str, names: tuple[str, ...]) -> Path | None:
+    """Files that shipped together inside the artifact, unpacked together to a cache keyed by
+    version — or nothing, if the artifact does not carry every one of them.
+
+    Together because they are read together: the runtime loads the collector beside its runtime
+    config, and the engine loads the instrumenter by the path its config names relative to itself,
+    so half a pair unpacked is as broken as none. A cached file is trusted only at the size the
+    artifact records for it, because a file left short by an interrupted run is still a file, and
+    the runtime given one reports a broken project rather than a broken install.
+    """
+    import zipfile
+
+    from plumb import __version__
+
+    cached = (Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "plumb" / __version__
+              / folder.removeprefix("plumb/adapters/"))
+    with zipfile.ZipFile(archive) as bundle:
+        members = {info.filename: info for info in bundle.infolist()}
+        wanted = [members.get(f"{folder}/{name}") for name in names]
+        if not all(wanted):
+            return None
+        for info, name in zip(wanted, names):
+            target = cached / name
+            if target.is_file() and target.stat().st_size == info.file_size:
+                continue
+            cached.mkdir(parents=True, exist_ok=True)
+            # Written whole, then moved into place, as the jars are: an interrupted extraction
+            # leaves a partial file under a name nothing looks for.
+            partial = target.with_name(f"{name}.{os.getpid()}.part")
+            partial.write_bytes(bundle.read(info))
+            partial.replace(target)
+    return cached
+
+
+#: What the .NET adapter's managed half ships as: the collector, probe and planner in one assembly,
+#: and the runtime config `dotnet` needs to run its planner.
+DOTNET_ADAPTER = ("PlumbSpec.Adapter.dll", "PlumbSpec.Adapter.runtimeconfig.json")
+
+
+def _bundled_collector(archive: Path | None = None) -> str:
     """The .NET collector that shipped with this tool, or nothing.
 
-    A checkout keeps it where `dotnet build` leaves it. Inside the artifact it is not carried yet,
-    so an installation without it says so rather than looking anywhere else.
+    A checkout keeps it where `dotnet build` leaves it; the artifact carries it under
+    `plumb/adapters/dotnet/`, and it is unpacked on first use (`dev00-1-1-sr4`).
     """
-    here = Path(__file__).resolve()
-    if any(parent.is_file() for parent in here.parents):
-        return ""
-    candidate = here.parents[2] / "adapters" / "dotnet" / "build" / "PlumbSpec.Adapter.dll"
-    return str(candidate) if candidate.is_file() else ""
+    archive = archive or _archive()
+    if archive is None:
+        candidate = Path(__file__).resolve().parents[2] / "adapters" / "dotnet" / "build" / DOTNET_ADAPTER[0]
+        return str(candidate) if candidate.is_file() else ""
+    folder = _unpacked(archive, "plumb/adapters/dotnet", DOTNET_ADAPTER)
+    return str(folder / DOTNET_ADAPTER[0]) if folder else ""
 
 
-def _bundled_instrumenter(rid: str) -> Path | None:
+def _instrumenter_files(rid: str) -> tuple[str, str]:
+    """The instrumenter's native library for a platform, and the config the engine finds it by."""
+    library = {"linux": ".so", "osx": ".dylib", "win": ".dll"}[rid.split("-")[0]]
+    return f"PlumbInstrumenter{library}", "PlumbInstrumenter.config"
+
+
+def _bundled_instrumenter(rid: str, archive: Path | None = None) -> Path | None:
     """The instrumenter for this platform that shipped with this tool, with its config beside it,
-    or nothing. A checkout keeps it where `dotnet publish` leaves it; inside the artifact it is not
-    carried yet."""
-    here = Path(__file__).resolve()
-    if any(parent.is_file() for parent in here.parents):
-        return None
-    folder = here.parents[2] / "adapters" / "dotnet" / "build" / "instrumenter" / rid
-    built = next((folder / f"PlumbInstrumenter{ext}" for ext in (".so", ".dylib", ".dll")
-                  if (folder / f"PlumbInstrumenter{ext}").is_file()), None)
-    return built if built and (folder / "PlumbInstrumenter.config").is_file() else None
+    or nothing. A checkout keeps it where `dotnet publish` leaves it; the artifact carries one per
+    platform under `plumb/adapters/dotnet/instrumenter/<rid>/`, unpacked on first use."""
+    library, config = _instrumenter_files(rid)
+    archive = archive or _archive()
+    if archive is None:
+        folder = Path(__file__).resolve().parents[2] / "adapters" / "dotnet" / "build" / "instrumenter" / rid
+        return folder / library if (folder / library).is_file() and (folder / config).is_file() else None
+    folder = _unpacked(archive, f"plumb/adapters/dotnet/instrumenter/{rid}", (library, config))
+    return folder / library if folder else None

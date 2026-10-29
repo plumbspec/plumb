@@ -129,5 +129,18 @@ read from what it reported: if it met no production assembly, every fact read fr
 ## Not yet
 
 Reads (`inert`), setup code run before a test's own window opens (`dev07-1-3-u08`), progress
-(`dev07-1-5`), mutation, plumb coverage, and the adapter riding inside the shipped artifact. Until it does, an installed plumb refuses a .NET project by naming its
-own install.
+(`dev07-1-5`), mutation and plumb coverage.
+
+## In the artifact
+
+The artifact carries the adapter built (`dev00-1-1-sr4`), and the tool unpacks it on first use to
+`~/.cache/plumb/<version>/dotnet/`, checking each file against the size the artifact records:
+
+    plumb/adapters/dotnet/PlumbSpec.Adapter.dll
+    plumb/adapters/dotnet/PlumbSpec.Adapter.runtimeconfig.json
+    plumb/adapters/dotnet/instrumenter/<rid>/PlumbInstrumenter.so|.dylib|.dll
+    plumb/adapters/dotnet/instrumenter/<rid>/PlumbInstrumenter.config
+
+One instrumenter per platform the engine is shipped for: `linux-x64`, `linux-musl-x64`, `osx-x64`,
+`win-x64`, `win-x86`, `win-arm64`. A platform the artifact carries no instrumenter for is refused
+by naming the install as the fault (`dev00-1-1-ur7`).

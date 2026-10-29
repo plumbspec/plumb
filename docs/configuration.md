@@ -32,9 +32,9 @@ the board, and the run carries on.
 
 | Key | Default | What it is |
 |---|---|---|
-| `adapter` | `"python"` | which language adapter runs your tests: `"python"` or `"java"`. Not allowed beside `[[adapters]]` blocks |
-| `production` | `[]` | the code you are proving — not your tests, not your libraries. Python: paths to the directories (or files) holding it. Java: package patterns such as `"com.acme.orders.*"`. With none declared, grounding cannot run and passing stories read `passed-wiring-not-verified` |
-| `entry_points` | `[]` | the few places a real request enters your system. Python: `"module:function"`, the module named as your code imports it. Java: `"com.acme.Api#handle"`. With none declared, grounding cannot run |
+| `adapter` | `"python"` | which language adapter runs your tests: `"python"`, `"java"` or `"dotnet"`. Not allowed beside `[[adapters]]` blocks |
+| `production` | `[]` | the code you are proving — not your tests, not your libraries. Python: paths to the directories (or files) holding it. Java: package patterns such as `"com.acme.orders.*"`. .NET: assembly names such as `"Acme.Orders"` or `"Acme.*"`. With none declared, grounding cannot run and passing stories read `passed-wiring-not-verified` |
+| `entry_points` | `[]` | the few places a real request enters your system. Python: `"module:function"`, the module named as your code imports it. Java: `"com.acme.Api#handle"`. .NET: `"Acme.Orders.Api.Handle"`. With none declared, grounding cannot run |
 | `sources` | same as `production` | where the source files behind `production` live. Read only by Java mutation, which mutates the `.java` files under the first entry. The Python adapter ignores it |
 | `mutation` | `false` | run mutation on every board. `--mutation` turns it on for one run; nothing turns it off for one run |
 | `specs` | `[]` | your story-id namespaces — see [below](#specs) |
@@ -59,6 +59,7 @@ first-run mistake:
 | how many | all of it | a handful |
 | Python | a **path**: `["src/orders"]` | a **module and function**: `["orders.cli:main"]` — not `src.orders.cli` |
 | Java | a **package pattern**: `["com.acme.orders.*"]` | a **class and method**: `["com.acme.orders.Api#handleRequest"]` |
+| .NET | an **assembly name**: `["Acme.Orders"]` | a **type and method**: `["Acme.Orders.Api.Handle"]`, a nested type as `Outer+Inner` |
 
 A test **grounds** when its execution runs under one of the entry points; production code is what
 Plumb watches for. Declaring a function as an entry point because a test calls it makes that test
@@ -104,6 +105,16 @@ whose ids are all `ORD-…` — is named rather than read as a real story.
 | `check_classpath` | `true` | compare the classpath against what your build declares and refuse a run that differs. `false` turns the check off |
 | `plumb_classpath` | none | where Plumb's own Java classes are, for running from a source checkout. An installed Plumb supplies them itself |
 | `work` | Plumb's cache | the directory for the run's own scratch files. Defaults to the per-project directory under `~/.cache/plumb/runs/` |
+
+## `[dotnet]`
+
+| Key | Default | What it is |
+|---|---|---|
+| `tests` | **required** | the test project's built assembly, as `dotnet build` leaves it, e.g. `"tests/Acme.Tests/bin/Debug/net8.0/Acme.Tests.dll"`. Plumb runs it where it is and never writes there |
+| `check_runtime` | `true` | refuse a run whose output is missing an assembly its `deps.json` declares, or holds an older build of a project it references. `false` turns the check off |
+
+The .NET adapter observes through the CLR Instrumentation Engine your test SDK already restores, so
+it runs where Microsoft ships that engine: Windows x86, x64 and arm64, Linux x64 and macOS x64.
 
 ## Tables keyed by story id
 
