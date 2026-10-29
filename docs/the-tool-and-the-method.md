@@ -40,7 +40,7 @@ Some projects want the opposite of a blank page — particularly those that have
 architecture decision records, design notes and half-current documents that no longer agree with
 each other. For those, the methodology exists as its own product:
 
-**[goldspec](https://plumbspec.org/gold/)** — process flows whose every step is a person's story, with what it
+**[goldspec](https://gold.plumbspec.org/)** — process flows whose every step is a person's story, with what it
 moves, its requirements, decisions and unknowns, and the gates that keep them honest. Installed separately, run as
 `goldspec`, and entirely optional.
 

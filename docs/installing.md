@@ -8,7 +8,7 @@ summary: Install Plumb, verify what you installed, pin a version or a channel, o
 
 **For programmers and DevOps.** One command, one file, nothing added to your project.
 
-    curl -fsSL https://plumbspec.org/install.sh | sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | sh
 
 Then, in your project:
 
@@ -35,7 +35,7 @@ Two files, into `~/.local/bin`:
 Nothing is added to your project's dependencies, there is no package index involved, and no account
 is needed. To install somewhere else, set `PLUMB_BIN_DIR`:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_BIN_DIR=/usr/local/bin sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | PLUMB_BIN_DIR=/usr/local/bin sh
 
 The installer tells you if the directory it used is not on your `PATH`.
 
@@ -107,11 +107,11 @@ Releases are signed. The installer always checks the artifact's checksum, checks
 
 To refuse to install unless the signature verifies:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_REQUIRE_SIGNATURE=1 sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | PLUMB_REQUIRE_SIGNATURE=1 sh
 
 To install without checking a signature at all:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_NO_SIGNATURE=1 sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | PLUMB_NO_SIGNATURE=1 sh
 
 The checksum is still checked — that one needs nothing installed and is never skipped. Turning
 verification off is a flag with a name because **emptying `PLUMB_KEY_FINGERPRINT` is not a way to
@@ -140,7 +140,7 @@ what a defect report is taken against. You do not have to do anything to be on i
 `edge` carries a **candidate**: a build published so it can be tested before it is recommended. It
 may be broken, and it is where a change goes to be found wrong by somebody who is not its author.
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_VERSION=edge PLUMB_REQUIRE_SIGNATURE=1 sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | PLUMB_VERSION=edge PLUMB_REQUIRE_SIGNATURE=1 sh
 
 A channel is a **signed pointer to a version**, not a separate download. The pointer is verified
 before anything is fetched from the version it names, so choosing a channel is authenticated the

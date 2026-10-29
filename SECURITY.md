@@ -6,16 +6,16 @@ Plumb ships as a single file, `plumb.pyz`, published beside a `SHA256SUMS` and a
 `SHA256SUMS.asc`. The signature is over the **checksums**, so one signature
 covers everything a release contains and the cheap check and the strong check read the same file.
 
-    curl -fsSL https://plumbspec.org/install.sh | sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | sh
 
 The installer always verifies the checksum, verifies the signature when `gpg` is available, and
 **says which of those it did**. To refuse installation unless the signature verifies:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_REQUIRE_SIGNATURE=1 sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | PLUMB_REQUIRE_SIGNATURE=1 sh
 
 To install without checking a signature — the checksum is still checked:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_NO_SIGNATURE=1 sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | PLUMB_NO_SIGNATURE=1 sh
 
 That is a named flag rather than something you reach by emptying `PLUMB_KEY_FINGERPRINT`. An empty
 pin is a pin the installer cannot use, and it refuses and tells you the flag instead of silently
@@ -23,13 +23,13 @@ restoring its own.
 
 To pin a version rather than take the current one:
 
-    curl -fsSL https://plumbspec.org/install.sh | PLUMB_VERSION=0.8.3 sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | PLUMB_VERSION=0.8.3 sh
 
 By hand, if you would rather not pipe anything to a shell:
 
-    curl -fsSLO https://plumbspec.org/latest/plumb.pyz
-    curl -fsSLO https://plumbspec.org/latest/SHA256SUMS
-    curl -fsSLO https://plumbspec.org/latest/SHA256SUMS.asc
+    curl -fsSLO https://plumb.plumbspec.org/latest/plumb.pyz
+    curl -fsSLO https://plumb.plumbspec.org/latest/SHA256SUMS
+    curl -fsSLO https://plumb.plumbspec.org/latest/SHA256SUMS.asc
     gpg --keyserver hkps://keys.openpgp.org --recv-keys 208BC1279656FEEA7C2F9A1D830604D51CA7D4FB
     gpg --verify SHA256SUMS.asc SHA256SUMS
     sha256sum --check SHA256SUMS

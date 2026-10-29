@@ -831,7 +831,7 @@ def _require_adapter_on(classpath: str, root: Path) -> None:
         "missing when Plumb was installed in a way that does not carry it — a wheel or "
         "`pip install` rather than the published zipapp — or when the extracted copy was removed "
         "or truncated.\n\n"
-        "Reinstall from https://plumbspec.org/install.sh, or set PLUMB_JAVA_CLASSPATH to a "
+        "Reinstall from https://plumb.plumbspec.org/install.sh, or set PLUMB_JAVA_CLASSPATH to a "
         "plumb-java.jar you already have.")
 
 

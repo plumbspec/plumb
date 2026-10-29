@@ -26,7 +26,7 @@ The PM runs a closed, agile loop that still keeps a schedule.
 
 ## Getting it
 
-    curl -fsSL https://plumbspec.org/install.sh | sh
+    curl -fsSL https://plumb.plumbspec.org/install.sh | sh
     plumb board
 
 **New here?** [Getting started](docs/getting-started.md) walks from install to your first
@@ -88,7 +88,7 @@ check.
 If you would rather not start from a blank page, the methodology is a **separate product**, and it is
 the one we recommend:
 
-**[goldspec](https://plumbspec.org/gold/)** — process flows whose every step is a person's story, with what it
+**[goldspec](https://gold.plumbspec.org/)** — process flows whose every step is a person's story, with what it
 moves, its requirements, decisions and unknowns, and the gates that keep them honest. Installed separately, run as `goldspec`,
 and what Plumb uses for its own specification.
 
