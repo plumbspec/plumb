@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-10-26 v8
+**Last updated** 2026-10-29 v9
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered when plumb is run, carrying the
 configuration, the annotations and the working tree. Exits to `dev07-3 · collect what the run
@@ -52,18 +52,18 @@ flowchart TD
 
 #### User Requirements
   * dev07-1-1-ur1 - the adapter's runtime matches the project's own — for a JVM project, the
-    classpath
+    classpath; for a .NET project, the assemblies its build resolved for the test project
   * dev07-1-1-ur2 - a run missing something the build has is refused by name, before the suite
     is launched
   * dev07-1-1-ur3 - a run wider than the build's is noted and runs
 
 #### System Requirements
   * dev07-1-1-sr1 - the adapter borrows the build's own runtime rather than reconstructing it,
-    and each build tool is told how to produce its own classpath
+    and each build tool is asked for that runtime in its own terms
   * dev07-1-1-sr2 - order is part of the runtime: the run's order is the build's, and equal
     members in another order are refused
-  * dev07-1-1-sr3 - the diagnosis names the missing module alone; the remedy is the whole
-    classpath in the build's order, ready to use, never an instruction to add to what is there
+  * dev07-1-1-sr3 - the diagnosis names the missing module alone; the remedy is the build's whole
+    runtime, in its order, ready to use, never an instruction to add to what is there
   * dev07-1-1-sr4 - a module answered by an installed artifact of itself is said as that, and
     never as a missing directory
   * dev07-1-1-sr5 - the check reads a declared build tool; a project with none is asked nothing
@@ -147,7 +147,8 @@ flowchart TD
   * dev07-1-3-sr04 - what is production and what is a test is decided by where its code was
     loaded from, never by its name
   * dev07-1-3-sr05 - the window follows the work to a thread it started and a task it queued, and
-    is kept per thread
+    is kept per thread — or per logical flow, where the runtime carries one across its own
+    hand-offs, as .NET carries its execution context across an `await`
   * dev07-1-3-sr08 - one naming rule serves the whole adapter: what a trace records, what an entry
     point is matched against and what mutation may scope to are the same names
   * dev07-1-3-sr09 - a frame with no source to place it in keeps the name its runtime gave it
@@ -170,6 +171,10 @@ flowchart TD
     its host, and whether the host is a sufficient name is unsettled
   * dev07-1-3-u4 - a thread that predates the window and takes work by accepting a connection
     is seen by neither adapter; a corpus that needs those threads needs a collector outside them
+  * dev07-1-3-u5 - whether .NET can weave an assembly as it loads, in managed code, into a test
+    process the adapter did not start — xUnit v3 runs each suite as its own program — is
+    unsettled; the runtime's own hook for it, the profiling interface, is native and ships per
+    platform
 
 
 ---
@@ -239,8 +244,8 @@ flowchart TD
     entry point holds whichever runtime observed it
 
 #### System Requirements
-  * dev07-1-4-sr1 - `grounded` is read from the per-thread window: production code is recorded
-    only while the window is open
+  * dev07-1-4-sr1 - `grounded` is read from the window, kept as dev07-1-3-sr05 keeps it:
+    production code is recorded only while the window is open
   * dev07-1-4-sr2 - a hand-off is observed on the side that knows the window: a started thread
     is marked by its starter, and a queued task carries the window and releases it on every
     exit path

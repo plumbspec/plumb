@@ -1,6 +1,6 @@
 # dev00-1 · bring plumb to a project
 
-**Last updated** 2026-10-26 v13
+**Last updated** 2026-10-29 v14
 
 What a team does to get plumb, point it at their project, and keep the install accounted for —
 without ever reading plumb's repository. Exits to [A developer's workflow](developer-day.md),
@@ -56,6 +56,8 @@ flowchart TD
   * dev00-1-1-ur1 - installing runs from a built artifact, and never requires reading, cloning or
     reaching plumb's source
   * dev00-1-1-ur2 - one artifact carries every adapter it supports
+  * dev00-1-1-ur8 - an adopter installs nothing beyond the tool's own runtime and what their
+    project already builds with; an adapter for another language asks nothing of them
   * dev00-1-1-ur3 - which verification ran is said; one is skipped only when the adopter asks for that
     by name, and an emptied key fingerprint is refused by name rather than replaced
   * dev00-1-1-ur4 - a contradiction — a verified signature and no signature at once — is refused
@@ -71,6 +73,8 @@ flowchart TD
   * dev00-1-1-sr2 - an install that stops part-way leaves nothing of its download behind
   * dev00-1-1-sr3 - every shipped document is reachable from one index and leads with what the
     reader gets
+  * dev00-1-1-sr4 - every adapter ships built, so the toolchain that builds it is the publisher's
+    and never the adopter's, and only the adapter a project declares is ever loaded
 
 #### Non-Functional Requirements
   * dev00-1-1-nfr1 - the checksum runs always and the signature runs when it can; silence about not
