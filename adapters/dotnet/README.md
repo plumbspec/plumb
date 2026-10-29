@@ -12,6 +12,14 @@ build output to its own scratch, outside your tree, weaves the copy, and runs VS
 (`dev07-1-3-sr11`). Your `bin/` is never written to. It has to be a copy: the .NET host settles which
 assemblies it loads from `deps.json` before any code of plumb's could run.
 
+The copy sits at the end of a mirror of the path to your output: each directory on that path is a
+real directory in plumb's scratch, and everything beside it is a link to yours. So a test that goes
+up from `AppContext.BaseDirectory`, or from its working directory, to reach `../../../TestData`
+finds your files exactly as under `dotnet test` (`dev07-1-3-sr14`). Writing is where the two differ:
+a file written into a directory on the path to your output — `../../../out.txt` — lands in the
+mirror, not in your tree, and one written into anything beside that path goes through the link
+into your tree, as it would under `dotnet test`. Whether the links hold on Windows is not yet measured (`dev07-1-3-u9`).
+
 **Your build's runtime, checked first** (`dev07-1-1`). Before anything is copied, the build's own
 `<tests>.deps.json` is read: an assembly it declares that is not in the output is refused by name,
 and so is a referenced project rebuilt after the tests — `dotnet test` would build first and run the

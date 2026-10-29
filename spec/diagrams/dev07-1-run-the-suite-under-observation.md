@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-10-29 v12
+**Last updated** 2026-10-29 v13
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered when plumb is run, carrying the
 configuration, the annotations and the working tree. Exits to `dev07-3 · collect what the run
@@ -163,6 +163,9 @@ flowchart TD
   * dev07-1-3-sr13 - where the runner reports a test on a thread other than the one running it, as
     VSTest does, the test's own code opens its window, so tests the runner runs at once keep a
     window each
+  * dev07-1-3-sr14 - a path a test takes relative to the build's output or to its working directory
+    reaches from the copy what it reaches from the build's own output, so where the copy lives is
+    never a failure the build does not have
 
 #### Non-Functional Requirements
   * dev07-1-3-nfr1 - running under observation costs about what the tests already cost
@@ -185,6 +188,8 @@ flowchart TD
     is withheld there
   * dev07-1-3-u8 - code a test's setup runs before the test's own code opens the window is
     attributed to no test, and whether that loses a fact a reader needs is unsettled
+  * dev07-1-3-u9 - whether a copy reached through links holds on Windows, where linking a file needs
+    a privilege a developer may not have, is unmeasured
 
 
 ---

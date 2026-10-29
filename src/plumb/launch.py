@@ -1195,9 +1195,7 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
             "the .NET adapter's collector is not in this installation, which was built "
             "without it. In a checkout, build it with `dotnet build adapters/dotnet/adapter`")
 
-    copy = work / "output"
-    shutil.rmtree(copy, ignore_errors=True)
-    shutil.copytree(built.parent, copy)
+    copy = _mirror(work / "tree", built.parent)
 
     run_file = runfile.write(config, work / RUN_FILE)
     dotnet = shutil.which("dotnet") or "dotnet"
@@ -1241,6 +1239,45 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
             "probe in nothing, so no grounding was observed. Check that `production` names the "
             "production assemblies, by assembly name")
     return Manifest.read(manifest_path), blind
+
+
+def _mirror(tree: Path, output: Path) -> Path:
+    """A copy of the build's output, made afresh where every relative path reaches what it reaches
+    from the output itself (`dev07-1-3-sr11`, `sr14`) — and the copy's directory.
+
+    Tests find their project's files by going up: from `AppContext.BaseDirectory`, or from the
+    working directory, which VSTest sets to the output. A copy at some other place in the
+    filesystem sends `../../../TestData` somewhere else, and the test fails on the board and passes
+    under `dotnet test` — measured — which `dev07-1-1` refuses: a failure the build does not have.
+
+    So the copy is put at the end of a mirror of the path to the output. Every directory from the
+    root down to the output is a real directory here, and everything beside that path is a link
+    to the original, so going up walks real directories and coming down leaves through a link into
+    the project's own tree. Going up has to walk real directories: a kernel resolves `..` from where
+    a directory actually is, and .NET resolves it by text, and only real directories make the two
+    land in the same place. The copy itself is real files, and the only thing ever woven.
+
+    Cleared with `shutil.rmtree`, which removes a link and never follows it — what keeps clearing
+    this mirror from ever reaching the tree it mirrors. A directory that cannot be listed keeps no
+    links beside the path, so a test going up through it finds what it could have named and nothing
+    it could not.
+    """
+    shutil.rmtree(tree, ignore_errors=True)
+    output = output.resolve()
+    chain = [*reversed(output.parents), output]
+    for level, below in zip(chain, chain[1:]):
+        here = tree / level.relative_to(level.anchor)
+        here.mkdir(parents=True, exist_ok=True)
+        try:
+            entries = list(os.scandir(level))
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.name != below.name:
+                (here / entry.name).symlink_to(entry.path)
+    copy = tree / output.relative_to(output.anchor)
+    shutil.copytree(output, copy, symlinks=True)
+    return copy
 
 
 def _weave(dotnet: str, adapter: str, copy: Path, tests: str, run_file: Path, report: Path,

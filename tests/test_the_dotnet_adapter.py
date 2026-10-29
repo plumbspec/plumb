@@ -94,9 +94,9 @@ def board():
     output's digest taken either side of it."""
     subprocess.run(["dotnet", "build", str(DOTNET / "sample" / "Tests")],
                    capture_output=True, timeout=600, env=_environment())
-    before = _tree_digest(SAMPLE_OUTPUT)
+    before = _tree_digest(DOTNET / "sample")
     ran = _board(DOTNET, DOTNET / "sample" / "Tests")
-    return {**ran, "before": before, "after": _tree_digest(SAMPLE_OUTPUT)}
+    return {**ran, "before": before, "after": _tree_digest(DOTNET / "sample")}
 
 
 def _written(board) -> dict:
@@ -140,6 +140,11 @@ def test_the_dotnet_adapter_runs_a_suite_and_reports_what_the_runner_said(board)
     assert {sid: results.get(sid) for sid in handed} == {sid: ["passed"] for sid in handed}, (
         "a test whose work was handed off through the weave's shims no longer passes — the shim "
         f"changed what the hand-off did: {results}")
+
+    # A path taken relative to the output or the working directory reaches what it reaches under
+    # `dotnet test`, though the run is a copy outside the tree (`dev07-1-3-sr14`).
+    assert results.get("REL-1") == ["passed"] and results.get("REL-2") == ["passed"], (
+        f"a test reading its project's files by a relative path fails only under plumb: {results}")
 
     # A citation on the class is a citation on every test in it, as `@Proves` on a type is.
     assert len(stories.get("CM-106", {}).get("citations", ())) == 2, stories.get("CM-106")
@@ -205,6 +210,8 @@ EXPECTED = {
     "Sample.Tests.WindowTests.WaitsOnAnAsyncEntryPoint": "grounded",
     "Sample.Tests.WindowTests.RunsProductionAfterAnEntryPointThrew": "grounded",
     "Sample.Tests.WindowTests.AwaitsAndTouchesNothing": "untouched",
+    "Sample.Tests.RelativeTests.ReadsAFileUpFromTheOutputDirectory": "untouched",
+    "Sample.Tests.RelativeTests.ReadsAFileUpFromTheWorkingDirectory": "untouched",
     "Sample.Tests.SampleSpecTests.RoutesAnOrderToAQueue": "grounded",
     "Sample.Tests.SampleSpecTests.OneTestCitingTwoStories": "untouched",
     # Skipped: its body never ran, so its window never opened and nothing could be asked.
@@ -282,15 +289,16 @@ def test_every_test_the_run_saw_is_counted_cited_or_not(board):
 @needs_dotnet
 @pytest.mark.proves("dev07-1-3", depth="unit")
 def test_the_build_output_is_never_written_to(board):
-    """`dev07-1-3-sr11`: the run happens in a copy outside the project's tree.
+    """`dev07-1-3-sr11`: the run happens in a copy outside the project's tree, and nothing in the
+    tree changes — its output, or anything the copy reaches through a link.
 
-    Held now, before there is a weave to write anything, because the copy is the seam the weave
-    will use — and a run that writes into somebody's `bin` once is a run that will one day leave a
-    woven assembly there for their next `dotnet test`.
+    The copy is reached through links into the real tree (`dev07-1-3-sr14`), and is cleared and
+    made again every run. Clearing a link must remove the link and never what it points at; this
+    is what notices if it ever does.
     """
     _written(board)
     assert board["before"] == board["after"], (
-        "the board changed the build's own output — the run must happen in a copy of it")
+        "the board changed the project's tree — the run must happen in a copy of it")
 
 
 @needs_dotnet
@@ -410,6 +418,31 @@ def test_the_runtime_check_can_be_turned_off_and_says_it_was(tmp_path):
         "check_runtime = false\n")
     said = _parity(root)
     assert any("not checked" in line and "check_runtime = false" in line for line in said), said
+
+
+@pytest.mark.proves("dev07-1-3", depth="unit")
+def test_the_copy_is_reached_through_links_and_clearing_it_never_follows_one(tmp_path):
+    """The mirror (`dev07-1-3-sr14`): up from the copy reaches the project's files, and clearing the
+    last run's mirror — every run clears it — removes links and never what they point at."""
+    sys.path.insert(0, str(REPO / "src"))
+    from plumb.launch import _mirror
+
+    project = tmp_path / "repo" / "proj"
+    (project / "bin" / "Debug").mkdir(parents=True)
+    (project / "bin" / "Debug" / "Tests.dll").write_bytes(b"MZ")
+    (project / "Data.txt").write_text("beside")
+    (project / "fixtures").mkdir()
+    (project / "fixtures" / "one.json").write_text("{}")
+
+    for _ in range(2):
+        copy = _mirror(tmp_path / "scratch" / "tree", project / "bin" / "Debug")
+    assert (copy / "Tests.dll").read_bytes() == b"MZ" and not (copy / "Tests.dll").is_symlink(), (
+        "the output is copied, so the weave writes to the copy and never through a link")
+    assert (copy / ".." / ".." / "Data.txt").read_text() == "beside"
+    assert (Path(os.path.normpath(copy / ".." / ".." / "fixtures" / "one.json"))).read_text() == "{}", (
+        "resolved by text, as .NET resolves `..`, it lands on the same file")
+    assert (project / "Data.txt").read_text() == "beside" and (project / "fixtures" / "one.json").is_file(), (
+        "clearing the previous mirror reached through a link into the tree it mirrors")
 
 
 def test_the_citation_the_collector_reads_is_the_one_the_vocabulary_declares():
