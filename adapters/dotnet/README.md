@@ -12,6 +12,12 @@ build output to its own scratch, outside your tree, weaves the copy, and runs VS
 (`dev07-1-3-sr11`). Your `bin/` is never written to. It has to be a copy: the .NET host settles which
 assemblies it loads from `deps.json` before any code of plumb's could run.
 
+**Your build's runtime, checked first** (`dev07-1-1`). Before anything is copied, the build's own
+`<tests>.deps.json` is read: an assembly it declares that is not in the output is refused by name,
+and so is a referenced project rebuilt after the tests — `dotnet test` would build first and run the
+new one, so plumb would otherwise observe code that is no longer yours. The remedy is
+`dotnet build` of the test project. `check_runtime = false` under `[dotnet]` turns it off.
+
 **One collector, every framework.** An in-process data collector rides in the testhost and hears
 each test start and end from VSTest itself, so xUnit, NUnit and MSTest are one road. It needs only
 the `Microsoft.NET.Test.Sdk` your test project already references (`dev00-1-1-ur8`), and it is
@@ -106,7 +112,6 @@ method that uses `jmp`, is left exactly as built and named on the run (`dev07-1-
 
 ## Not yet
 
-Reads (`inert`), setup code run before a test's own window opens (`dev07-1-3-u8`), the runtime check against
-`deps.json` (`dev07-1-1`), progress (`dev07-1-5`), mutation, plumb coverage, and the adapter riding
-inside the shipped artifact. Until it does, an installed plumb refuses a .NET project by naming its
+Reads (`inert`), setup code run before a test's own window opens (`dev07-1-3-u8`), progress
+(`dev07-1-5`), mutation, plumb coverage, and the adapter riding inside the shipped artifact. Until it does, an installed plumb refuses a .NET project by naming its
 own install.

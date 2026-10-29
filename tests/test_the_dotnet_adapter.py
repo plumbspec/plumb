@@ -320,6 +320,98 @@ def test_every_framework_vstest_runs_reads_the_same(framework):
     assert groundings["FW-6"] == ["grounded"] and groundings["FW-1"] == ["untouched"], groundings
 
 
+def _built_sample(root: Path) -> Path:
+    """The sample's projects, as `dotnet build` left them, at the same relative places — the test
+    project's restore records its references by relative path, so they have to stay where it put
+    them."""
+    for part in ("sample/App", "sample/Tests", "annotations"):
+        shutil.copytree(DOTNET / part, root / part, symlinks=True)
+    (root / "plumb.toml").write_text(
+        'adapter = "dotnet"\n[dotnet]\ntests = "sample/Tests/bin/Debug/net6.0/Tests.dll"\n')
+    return root
+
+
+def _parity(root: Path):
+    sys.path.insert(0, str(REPO / "src"))
+    from plumb.config import Config
+    from plumb.launch import _runtime_parity
+
+    config = Config.find(root)
+    said: list[str] = []
+    _runtime_parity(config, (root / config.options["tests"]).resolve(), said.append)
+    return said
+
+
+needs_built_sample = pytest.mark.skipif(
+    not (SAMPLE_OUTPUT / "Tests.deps.json").is_file(),
+    reason="the sample is not built (`dotnet build adapters/dotnet/sample/Tests`)")
+
+
+@needs_built_sample
+@pytest.mark.proves("dev07-1-1", depth="component")
+def test_a_runtime_missing_an_assembly_its_build_declares_is_refused_by_name(tmp_path):
+    """`deps.json` is the build's own word for the test runtime, and the host loads exactly it
+    (`dev07-1-1-sr1`). An assembly it declares that is not there fails a run partway, inside the
+    testhost, as a test the build passes — so it is refused before anything is launched (`ur2`),
+    naming the missing assembly alone (`sr3`), with how to go on anyway (`nfr1`)."""
+    sys.path.insert(0, str(REPO / "src"))
+    from plumb.launch import LaunchFailed
+
+    root = _built_sample(tmp_path)
+    (root / "sample/Tests/bin/Debug/net6.0/xunit.assert.dll").unlink()
+    with pytest.raises(LaunchFailed) as refused:
+        _parity(root)
+    said = str(refused.value)
+    diagnosis = said.split("dotnet build")[0]
+    assert "xunit.assert.dll" in diagnosis, "it names the assembly the run would not have"
+    assert "xunit.core.dll" not in diagnosis, "and not one that is there"
+    assert f"dotnet build {root / 'sample/Tests'}" in said, (
+        "the remedy is the build's whole runtime, ready to use: rebuild the test project")
+    assert "check_runtime = false" in said, "and how to proceed anyway, knowing what it costs"
+
+
+@needs_built_sample
+@pytest.mark.proves("dev07-1-1", depth="component")
+def test_a_referenced_project_rebuilt_after_the_tests_is_refused_as_an_older_build(tmp_path):
+    """The .NET form of the failure `dev07-1-1` was written for: a project the tests reference was
+    rebuilt and the test project was not, so the test output still holds the last build of it.
+    `dotnet test` would build first and run the new one; plumb builds nothing, so it would observe
+    code that is no longer the project's. Said as what answered instead (`sr4`)."""
+    sys.path.insert(0, str(REPO / "src"))
+    from plumb.launch import LaunchFailed
+
+    root = _built_sample(tmp_path)
+    compiled = root / "sample/App/obj/Debug/net6.0/App.dll"
+    compiled.write_bytes(compiled.read_bytes() + b"\0")  # a later build of App, not yet copied over
+    later = compiled.stat().st_mtime + 60
+    os.utime(compiled, (later, later))
+    with pytest.raises(LaunchFailed) as refused:
+        _parity(root)
+    said = str(refused.value)
+    assert "App.dll" in said and "older build" in said, said
+    assert "PlumbSpec.Annotations" not in said.split("dotnet build")[0], (
+        "only the reference that is stale is named")
+
+
+@needs_built_sample
+@pytest.mark.proves("dev07-1-1", depth="component")
+def test_a_runtime_that_is_the_builds_passes_and_says_so(tmp_path):
+    said = _parity(_built_sample(tmp_path))
+    assert any("runtime parity ok" in line for line in said), said
+
+
+@needs_built_sample
+@pytest.mark.proves("dev07-1-1", depth="component")
+def test_the_runtime_check_can_be_turned_off_and_says_it_was(tmp_path):
+    root = _built_sample(tmp_path)
+    (root / "sample/Tests/bin/Debug/net6.0/xunit.assert.dll").unlink()
+    (root / "plumb.toml").write_text(
+        'adapter = "dotnet"\n[dotnet]\ntests = "sample/Tests/bin/Debug/net6.0/Tests.dll"\n'
+        "check_runtime = false\n")
+    said = _parity(root)
+    assert any("not checked" in line and "check_runtime = false" in line for line in said), said
+
+
 def test_the_citation_the_collector_reads_is_the_one_the_vocabulary_declares():
     """The collector reads a citation by its type's NAME, never by reference.
 

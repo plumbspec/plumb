@@ -1180,6 +1180,9 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
     """
     say = report or (lambda line: None)
     built = _dotnet_tests(config)
+    # Before anything is copied or launched: a divergence found afterwards arrives as a test the
+    # build passes failing inside the testhost, and reads as the project's defect (`dev07-1-1`).
+    _runtime_parity(config, built, say)
     work = _scratch(config)
     manifest_path = work / "manifest.json"
     _clear_stale(manifest_path)
@@ -1285,6 +1288,118 @@ def _dotnet_tests(config: Config) -> Path:
         raise InvalidConfig(f"plumb.toml: [dotnet] `tests` names {built}, which does not exist — "
                             "the project has not been built yet, or the path is wrong")
     return built
+
+
+def _runtime_parity(config: Config, built: Path, say: Callable[[str], None]) -> None:
+    """Refuse to observe a run the build would not perform (``dev07-1-1``).
+
+    The runtime is borrowed rather than reconstructed (`dev07-1-1-sr1`): the SDK writes the test
+    project's runtime into its output as ``<tests>.deps.json``, the host loads exactly what that
+    file declares, and the copy that is run carries it unchanged. So the two questions left are the
+    ones the build's own declaration can answer:
+
+    **Is everything it declares there?** An assembly ``deps.json`` names that is in neither the
+    output nor a probing path the build declared fails the run inside the testhost (`ur2`).
+
+    **Is each project it references the latest build of itself?** `dotnet test` builds first, so it
+    runs what the compiler last wrote. Plumb builds nothing, so a referenced project rebuilt after
+    the test project — `dotnet build` of one project, or an IDE building only what changed — leaves
+    the test output holding an older build of it, and the board would report code that is no
+    longer the project's. That is the Maven case `_classpath_parity` describes, in .NET's form,
+    and it is said as what answered instead (`sr4`).
+
+    Order is not asked (`sr2`): the host's assembly list is keyed by name, not position. Nothing
+    can be wider than the build's run (`ur3`), because the host loads what ``deps.json`` declares
+    and nothing else.
+    """
+    import json
+
+    if not config.options.get("check_runtime", True):
+        say("dotnet: runtime parity not checked — [dotnet] check_runtime = false")
+        return
+    declared = built.with_name(built.stem + ".deps.json")
+    if not declared.is_file():
+        return  # no runtime declared by the build; nothing to hold this to (`sr5`)
+    deps = json.loads(declared.read_text())
+    probing = _probing_paths(built)
+    target = deps.get("targets", {}).get(deps.get("runtimeTarget", {}).get("name", ""), {})
+    missing = []
+    for library, assets in sorted(target.items()):
+        described = deps.get("libraries", {}).get(library, {})
+        for asset in assets.get("runtime", {}):
+            if (built.parent / Path(asset).name).is_file():
+                continue
+            if described.get("type") == "package" and any(
+                    (root / described.get("path", "") / asset).is_file() for root in probing):
+                continue
+            missing.append(f"{Path(asset).name} ({library.replace('/', ' ')})")
+
+    project, stale = _test_project(built), []
+    if project is not None:
+        for name, compiled, copied in _references(project, built):
+            if copied.read_bytes() != compiled.read_bytes() and \
+                    compiled.stat().st_mtime > copied.stat().st_mtime:
+                stale.append(f"{copied.name} — answered by an older build of {name} than "
+                             f"{name}'s own, at {compiled}")
+
+    if not missing and not stale:
+        say("dotnet: runtime parity ok — every assembly this build's runtime declares is in its "
+            "output, and each project it references is its latest build")
+        return
+    rebuild = (f"dotnet build {project}" if project is not None
+               else "dotnet build <the test project>")
+    raise LaunchFailed(
+        "the runtime Plumb would observe is not the one your build runs on, and observing it "
+        "would charge your project with failures your build does not have.\n\n"
+        + ("  This build's runtime declares these, and they are not in its output:\n    "
+           + "\n    ".join(missing) + "\n\n" if missing else "")
+        + ("  These are not the latest build of the project they come from:\n    "
+           + "\n    ".join(stale) + "\n\n" if stale else "")
+        + "  Rebuild the test project, and its output is the build's whole runtime again:\n\n"
+        f"    {rebuild}\n\n"
+        "  If this is wrong for your project, turn it off with `check_runtime = false` under "
+        "[dotnet] — and read the board knowing the run behind it is not the run your build "
+        "performs.")
+
+
+def _probing_paths(built: Path) -> list[Path]:
+    """Where the host also looks for a package's assemblies: the build's own
+    ``runtimeconfig.dev.json``, which an SDK writes when it leaves packages in the NuGet cache."""
+    import json
+
+    dev = built.with_name(built.stem + ".runtimeconfig.dev.json")
+    if not dev.is_file():
+        return []
+    paths = json.loads(dev.read_text()).get("runtimeOptions", {}).get("additionalProbingPaths", [])
+    return [Path(p.replace("|arch|", "x64").replace("|tfm|", "")) for p in paths]
+
+
+def _test_project(built: Path) -> Path | None:
+    """The test project's directory: the nearest above its output holding its restore."""
+    for parent in built.parents:
+        if (parent / "obj" / "project.assets.json").is_file():
+            return parent
+    return None
+
+
+def _references(project: Path, built: Path):
+    """Each project the tests reference, as ``(name, compiled, copied)``: what its compiler last
+    wrote, and the copy of it in the test output. A reference whose compiler output cannot be
+    found is not asked about — absent, never reported as current."""
+    import json
+
+    assets = json.loads((project / "obj" / "project.assets.json").read_text())
+    for library, described in sorted(assets.get("libraries", {}).items()):
+        if described.get("type") != "project" or "path" not in described:
+            continue
+        name = library.split("/")[0]
+        referenced = (project / described["path"]).resolve().parent
+        copied = built.parent / f"{name}.dll"
+        compiled = [c for pattern in (f"*/*/{name}.dll", f"*/*/*/{name}.dll")
+                    for c in (referenced / "obj").glob(pattern)
+                    if c.parent.name not in ("ref", "refint")]
+        if copied.is_file() and compiled:
+            yield name, max(compiled, key=lambda c: c.stat().st_mtime), copied
 
 
 def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path,
