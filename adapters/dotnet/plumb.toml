@@ -3,7 +3,7 @@ adapter = "dotnet"
 
 # Where the wired system begins (dev07-1-3), as Namespace.Type.Method.
 entry_points = ["Sample.App.HandleRequest", "Sample.App.Shapes", "Sample.App.Echo",
-                "Sample.App.Record", "Sample.App.FailingRequest"]
+                "Sample.App.Record", "Sample.App.FailingRequest", "Sample.App.HandleAsync"]
 production   = ["App"]                        # the assemblies that are production code
 
 [archetypes]

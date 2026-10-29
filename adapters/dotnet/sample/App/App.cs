@@ -53,6 +53,17 @@ namespace Sample
         /// <summary>An entry point that returns nothing.</summary>
         public static void Record(List<int> into) => into.Add(Work(1));
 
+        /// <summary>
+        /// An async entry point: it yields, so the rest runs on whichever thread resumes it, after
+        /// the method has returned to its caller. The production code and the inner entry point it
+        /// reaches then are still inside its window.
+        /// </summary>
+        public static async System.Threading.Tasks.Task<int> HandleAsync(int n)
+        {
+            await System.Threading.Tasks.Task.Yield();
+            return Work(n) + HandleRequest(0);
+        }
+
         /// <summary>Production that hands its own work to the pool — not an entry point, so a test
         /// calling it reaches the entry point only through the hand-off.</summary>
         public static int Dispatch(int n) => System.Threading.Tasks.Task.Run(() => HandleRequest(n)).Result;

@@ -201,6 +201,10 @@ EXPECTED = {
     "Sample.Tests.HandOffTests.ATimerTheWeaveCannotSeeDrivesTheEntryPoint": "dispatched",
     "Sample.Tests.HandOffTests.CallsProductionThatHandsTheEntryPointOff": "dispatched",
     "Sample.Tests.HandOffTests.AwaitsThenDrivesTheEntryPoint": "grounded",
+    "Sample.Tests.WindowTests.AwaitsAnAsyncEntryPoint": "grounded",
+    "Sample.Tests.WindowTests.WaitsOnAnAsyncEntryPoint": "grounded",
+    "Sample.Tests.WindowTests.RunsProductionAfterAnEntryPointThrew": "grounded",
+    "Sample.Tests.WindowTests.AwaitsAndTouchesNothing": "untouched",
     "Sample.Tests.SampleSpecTests.RoutesAnOrderToAQueue": "grounded",
     "Sample.Tests.SampleSpecTests.OneTestCitingTwoStories": "untouched",
     # Skipped: its body never ran, so its window never opened and nothing could be asked.
@@ -234,6 +238,32 @@ def test_every_test_reads_the_fact_its_shape_produces(board):
         "per-test grounding differs from each test's shape:\n" + "\n".join(
             f"  {t}: expected {EXPECTED.get(t)!r}, said {said.get(t)!r}"
             for t in sorted(set(said) | set(EXPECTED)) if said.get(t) != EXPECTED.get(t)))
+
+
+@needs_dotnet
+@pytest.mark.proves("dev07-1-4", depth="unit")
+def test_the_window_lasts_as_long_as_the_entry_points_own_work(board):
+    """The doors a test came in through, outermost (`dev07-1-4-ur3`), and whether it also ran
+    production no entry point reached (`ur4`) — both read from the window.
+
+    `HandleAsync` yields before it runs `Work` and the inner entry point `HandleRequest`, so both run
+    after the method has returned to its caller, on whichever thread resumes it. A window kept per
+    thread closes at that first await: `Work` would read as reached outside every entry point, and
+    `HandleRequest` as a second outermost door. Kept per logical flow (`dev07-1-3-sr05`), neither.
+    """
+    window = {sid: (c["grounding"], c["entered_through"], c["reached_outside_entry"])
+              for sid, s in _written(board)["stories"].items() for c in s["citations"]}
+    expected = {
+        "APP-1": ("grounded", ["Sample.App.HandleRequest"], False),
+        "APP-3": ("ungrounded", [], True),
+        "ASY-1": ("grounded", ["Sample.App.HandleAsync"], False),
+        "ASY-2": ("grounded", ["Sample.App.HandleAsync"], False),
+        # The window closed on the throw, so what ran after it is outside every entry point.
+        "WIN-1": ("grounded", ["Sample.App.FailingRequest"], True),
+        # Skipped: nothing ran, so nothing is reported — absent, never `none entered`.
+        "CM-104": ("not-checked", None, None),
+    }
+    assert {sid: window.get(sid) for sid in expected} == expected
 
 
 @needs_dotnet

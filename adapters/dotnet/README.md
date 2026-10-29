@@ -58,7 +58,9 @@ The weave is the adapter's own, on the runtime's own metadata reader (`dev07-1-3
 
 - every production method's first instruction reports that it ran;
 - each declared entry point is wrapped in `try { … } finally { … }`, so its window closes on a throw
-  as on a return;
+  as on a return. The window is kept per logical flow, not per thread (`dev07-1-3-sr05`): an async
+  entry point's `finally` runs when it first yields and closes the window only for its caller, and
+  the work it awaits stays inside it until that work is done, on whichever thread resumes it;
 - each test's first instruction opens the test's own window;
 - each async step (`MoveNext` of a compiler-made state machine) says whose flow it resumes;
 - each call to a hand-off primitive is pointed at a shim that sees it and carries the window.
@@ -70,7 +72,10 @@ runs test classes at once (`dev07-1-3-sr13`).
 
 A test then reads `grounded` (its own flow entered an entry point), `dispatched` (work it handed to
 another thread entered one, or a hand-off was seen leaving), `ungrounded` (it ran production and no
-entry point), or `untouched` (it ran none).
+entry point), or `untouched` (it ran none). Beside it, each citation names the outermost entry points
+the test's work came in through (`entered_through`, `dev07-1-4-ur3`) and says whether it also ran
+production with no window open (`reached_outside_entry`, `ur4`); where no window could be read,
+both are `null`, not reported.
 
 ## Following a hand-off
 
@@ -101,7 +106,7 @@ method that uses `jmp`, is left exactly as built and named on the run (`dev07-1-
 
 ## Not yet
 
-Reads (`inert`), async entry points (the window is kept per thread inside an entry point), setup code run before a test's own window opens (`dev07-1-3-u8`), the runtime check against
+Reads (`inert`), setup code run before a test's own window opens (`dev07-1-3-u8`), the runtime check against
 `deps.json` (`dev07-1-1`), progress (`dev07-1-5`), mutation, plumb coverage, and the adapter riding
 inside the shipped artifact. Until it does, an installed plumb refuses a .NET project by naming its
 own install.

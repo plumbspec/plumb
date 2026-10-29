@@ -15,8 +15,12 @@ namespace PlumbSpec
     {
         public const string SchemaVersion = "9.0";
 
+        /// <summary>One citing test's facts. <c>EnteredThrough</c> and <c>ReachedOutsideEntry</c>
+        /// are null where the window could not be read: <em>not reported</em>, never <em>none</em>
+        /// (dev07-3-3).</summary>
         public sealed record Citation(string Test, string Depth, string Result, string Grounding,
-                                      string? Ref, string? About, string When);
+                                      string? Ref, string? About, string When,
+                                      IReadOnlyList<string>? EnteredThrough, bool? ReachedOutsideEntry);
 
         public sealed record Provenance(string Adapter, string Version, string Runtime,
                                         string Mechanism);
@@ -66,7 +70,11 @@ namespace PlumbSpec
                      .Append(", \"grounding\": ").Append(Quote(c.Grounding))
                      .Append(", \"ref\": ").Append(c.Ref == null ? "null" : Quote(c.Ref))
                      .Append(", \"about\": ").Append(c.About == null ? "null" : Quote(c.About))
-                     .Append(", \"when\": ").Append(Quote(c.When));
+                     .Append(", \"when\": ").Append(Quote(c.When))
+                     .Append(", \"entered_through\": ").Append(c.EnteredThrough == null ? "null"
+                         : "[" + string.Join(", ", c.EnteredThrough.Select(Quote)) + "]")
+                     .Append(", \"reached_outside_entry\": ").Append(c.ReachedOutsideEntry switch
+                         { null => "null", true => "true", false => "false" });
                     // On the fact, never the document (dev07-3-2): a board may carry this adapter's
                     // measurements beside another's, comparable only by who made them (dev07-3-1).
                     if (Observer != null)

@@ -40,9 +40,19 @@ namespace PlumbSpec
 
         [ThreadStatic] private static int resuming;
 
-        /// <summary>How deep this thread is inside entry points. Per thread, so an entry point is the
-        /// outermost on the thread it is entered on (dev07-1-4-sr3).</summary>
-        [ThreadStatic] private static int depth;
+        /// <summary>
+        /// The entry points this flow is inside, innermost first — the window (dev07-1-4-sr1).
+        /// </summary>
+        /// <remarks>
+        /// Per logical flow, not per thread (dev07-1-3-sr05). An entry point pushes on entry and its
+        /// <c>finally</c> pops, so a synchronous one is a window exactly as long as its call. An async
+        /// one's <c>finally</c> runs when it first yields, and pops the window only from the caller's
+        /// flow: the work it awaits captured the flow with the window open, and keeps it open until
+        /// that work is done, on whichever thread resumes it.
+        /// </remarks>
+        private static readonly AsyncLocal<Window?> Open = new AsyncLocal<Window?>();
+
+        private sealed record Window(Window? Outer, string EntryPoint);
 
         private static readonly ConcurrentDictionary<string, ConcurrentQueue<Scope>> Begun =
             new ConcurrentDictionary<string, ConcurrentQueue<Scope>>(StringComparer.Ordinal);
@@ -61,16 +71,23 @@ namespace PlumbSpec
         public static void Ran()
         {
             var scope = Current.Value;
-            if (scope != null && !scope.Closed) scope.Ran = true;
+            if (scope == null || scope.Closed) return;
+            scope.Ran = true;
+            if (Open.Value == null) scope.Outside = true;
         }
 
         /// <summary>The first instruction of a declared entry point.</summary>
         public static void Enter(string entryPoint)
         {
-            if (depth++ != 0) { Ran(); return; }
+            var outer = Open.Value;
+            Open.Value = new Window(outer, entryPoint);
+            // Only the outermost is an arrival (dev07-1-4-sr3): a door inside an open window is a room
+            // the test was already in.
+            if (outer != null) { Ran(); return; }
             var scope = Current.Value;
             if (scope == null || scope.Closed) return;
             scope.Ran = true;
+            scope.Through(entryPoint);
             var own = !Hopped.Value &&
                       (Environment.CurrentManagedThreadId == scope.Thread || resumed == scope);
             if (own) scope.Entered(entryPoint);
@@ -81,7 +98,8 @@ namespace PlumbSpec
         /// thread now resumes.</summary>
         public static void Resume()
         {
-            Ran();
+            // Not a production fact: a test's own async steps resume too, and production steps are
+            // woven to report `Ran` before this.
             if (resuming++ == 0) resumed = Hopped.Value ? null : Current.Value;
         }
 
@@ -145,7 +163,8 @@ namespace PlumbSpec
         /// <summary>The <c>finally</c> of a declared entry point, on every way out of it.</summary>
         public static void Exit()
         {
-            if (depth > 0) depth--;
+            var open = Open.Value;
+            if (open != null) Open.Value = open.Outer;
         }
 
         /// <summary>
@@ -171,7 +190,23 @@ namespace PlumbSpec
             /// <summary>The thread the test's own code began on.</summary>
             public int Thread { get; }
 
-            private volatile bool elsewhere, handedOff;
+            private volatile bool elsewhere, handedOff, outside;
+            private readonly List<string> through = new List<string>();
+
+            /// <summary>Production code ran with no window open (dev07-1-4-ur4).</summary>
+            public bool Outside { get => outside; set => outside = value; }
+
+            /// <summary>Every outermost entry point the test's work came in through, own or sent, in
+            /// the order first entered (dev07-1-4-ur3).</summary>
+            public void Through(string entryPoint)
+            {
+                lock (gate) if (!through.Contains(entryPoint)) through.Add(entryPoint);
+            }
+
+            public IReadOnlyList<string> EnteredThroughAll()
+            {
+                lock (gate) return through.ToArray();
+            }
 
             /// <summary>An entry point reached by work the test sent elsewhere.</summary>
             public bool Elsewhere { get => elsewhere; set => elsewhere = value; }

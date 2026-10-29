@@ -77,11 +77,15 @@ namespace PlumbSpec
             var name = NameOf(test);
             var result = Outcome(testCaseEndArgs.TestOutcome);
             var (type, method) = Citations.Split(test.FullyQualifiedName);
-            var grounding = Grounding(Probe.Take(type + "." + method));
+            var scope = Probe.Take(type + "." + method);
+            var grounding = Grounding(scope);
             groundingByTest.Add((name, grounding));
+            // The window's two facts, where a window was read; where it was not, not reported.
+            var read = grounding != NotChecked ? scope : null;
             foreach (var claim in Citations.On(test.Source, test.FullyQualifiedName))
                 manifest.Add(claim.Id, new Manifest.Citation(
-                    name, claim.Depth, result, grounding, claim.Ref, claim.About, measuredAt));
+                    name, claim.Depth, result, grounding, claim.Ref, claim.About, measuredAt,
+                    read?.EnteredThroughAll(), read?.Outside));
         }
 
         public void TestSessionEnd(TestSessionEndArgs testSessionEndArgs)
