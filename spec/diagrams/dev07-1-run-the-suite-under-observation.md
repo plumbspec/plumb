@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-10-29 v10
+**Last updated** 2026-10-29 v11
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered when plumb is run, carrying the
 configuration, the annotations and the working tree. Exits to `dev07-3 · collect what the run
@@ -160,6 +160,9 @@ flowchart TD
     afresh each run outside the project's tree, and the build's own output is never written to
   * dev07-1-3-sr12 - the weaving is the adapter's own, on the runtime's own reader and writer — no
     third-party rewriter, no version matrix
+  * dev07-1-3-sr13 - where the runner reports a test on a thread other than the one running it, as
+    VSTest does, the test's own code opens its window, so tests the runner runs at once keep a
+    window each
 
 #### Non-Functional Requirements
   * dev07-1-3-nfr1 - running under observation costs about what the tests already cost
@@ -177,6 +180,11 @@ flowchart TD
   * dev07-1-3-u4 - a thread that predates the window and takes work by accepting a connection
     is seen by neither adapter; a corpus that needs those threads needs a collector outside them
   * dev07-1-3-u6 - what copying the build's output costs a large .NET suite is unmeasured
+  * dev07-1-3-u7 - how a .NET test's read of the artifact is observed is open: nothing in the
+    process hears a file or reflection read without weaving the runtime's own libraries, so `inert`
+    is withheld there
+  * dev07-1-3-u8 - code a test's setup runs before the test's own code opens the window is
+    attributed to no test, and whether that loses a fact a reader needs is unsettled
 
 
 ---

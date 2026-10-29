@@ -1,15 +1,16 @@
 """The third runtime, exercised — .NET at its floor, through VSTest (`dev07-3-3`, `dev07-1-3`).
 
-**A prototype that is a test**, and the first slice of it. What runs is the whole road an adopter
-takes: their build has already happened, `plumb board` copies the test project's output out of their
-tree, VSTest runs the copy with plumb's in-process collector loaded, and the collector writes the
-manifest. One collector serves xUnit, NUnit and MSTest, because it hears each test start and end
-from VSTest rather than from any one framework.
+**A prototype that is a test.** What runs is the whole road an adopter takes: their build has already
+happened, `plumb board` copies the test project's output out of their tree, weaves the copy, VSTest
+runs it with plumb's in-process collector loaded, and the collector writes the manifest. One
+collector serves xUnit, NUnit and MSTest, because it hears each test start and end from VSTest
+rather than from any one framework.
 
-What this slice does **not** do yet is observe grounding: the weave (`dev07-1-3-sr11`, `sr12`) is the
-next slice, and until it lands every citation reads `not-checked` and the run says it ran blind.
-That is asserted below rather than left unsaid, so the day the weave arrives this file has to
-change with it.
+**The weave** (`dev07-1-3-sr11`, `sr12`, `sr13`) puts a probe at the top of every production method,
+wraps each declared entry point so its window closes on every way out, and opens each test's window
+in the test's own code — VSTest reports a test from another thread than the one running it, and
+xUnit runs test classes at once. Reads are not observed (`dev07-1-3-u7`), so a test that reads the
+artifact reads `untouched` rather than `inert` until they are.
 
 The sample targets `net6.0`, so its testhost runs on the floor runtime (`dev07-1-1-ur1`) whatever
 SDK built it — the floor is held by running there, not by reading a version.
@@ -127,6 +128,11 @@ def test_the_dotnet_adapter_runs_a_suite_and_reports_what_the_runner_said(board)
     assert stories["CM-101"]["citations"][0]["ref"] == "JIRA-4412", (
         "the consumer's own key is carried through untouched (`dev07-3-1`)")
 
+    # Woven code answers as built: every shape of entry point, and the one that throws.
+    assert results.get("APP-6") == ["passed"] and results.get("APP-7") == ["passed"], (
+        f"a woven entry point no longer answers as it was built — the weave changed the program: "
+        f"{results}")
+
     # A citation on the class is a citation on every test in it, as `@Proves` on a type is.
     assert len(stories.get("CM-106", {}).get("citations", ())) == 2, stories.get("CM-106")
 
@@ -151,12 +157,8 @@ def test_each_row_of_a_theory_is_its_own_citation(board):
 @needs_dotnet
 @pytest.mark.proves("dev07-3-1", depth="unit")
 def test_the_facts_name_the_runtime_and_the_instrument_that_made_them(board):
-    """Provenance on every citation (`dev07-3-1`), and an honest one for this slice.
-
-    The runtime is the floor's, because the sample targets `net6.0`. The mechanism says grounding
-    was not observed, because nothing observes it yet, and the board says the run went blind
-    rather than prompting the reader to declare entry points the project already declared.
-    """
+    """Provenance on every citation (`dev07-3-1`). The runtime is the floor's, because the sample
+    targets `net6.0`, and the mechanism names the probes, because they made the facts."""
     written = _written(board)
     observers = {json.dumps(c["observer"], sort_keys=True)
                  for s in written["stories"].values() for c in s["citations"]}
@@ -165,14 +167,54 @@ def test_the_facts_name_the_runtime_and_the_instrument_that_made_them(board):
     assert observer["adapter"] == "plumb-dotnet", observer
     assert observer["runtime"].startswith(".NET 6.0."), (
         f"the sample targets the floor, so its tests must have run on it: {observer}")
-    assert observer["mechanism"].startswith("none"), observer
+    assert "probes" in observer["mechanism"], observer
+    assert "observation.failed" not in board["done"].stdout, (
+        "the weave ran and the probes reported, so the run did not go blind")
 
-    groundings = {c["grounding"] for s in written["stories"].values() for c in s["citations"]}
-    assert groundings == {"not-checked"}, (
-        f"nothing observes grounding yet, so nothing may claim an answer to it: {groundings}")
-    assert "observation.failed" in board["done"].stdout, (
-        "entry points are declared and nothing watched them — the board must say the instrument "
-        "did not run, not that the project declared nothing (`dev07-1-4-ur5`)")
+
+#: Every test in the sample and the fact its shape produces (`dev07-1-4-ur1`).
+EXPECTED = {
+    "Sample.Tests.GroundingTests.DrivesTheEntryPointDirectly": "grounded",
+    "Sample.Tests.GroundingTests.ExercisesCodeNoEntryPointReaches": "ungrounded",
+    # `inert` once a read is observable (`dev07-1-3-u7`); never `inert` from the absence alone.
+    "Sample.Tests.GroundingTests.TheEntryPointTypeIsWhereWeSayItIs": "untouched",
+    "Sample.Tests.GroundingTests.AnEntryPointOfEveryShapeStillAnswersAsBuilt": "grounded",
+    "Sample.Tests.GroundingTests.AnEntryPointThatThrowsStillGrounds": "grounded",
+    "Sample.Tests.DrivingAlongside.DrivesTheEntryPointWhileAnotherTestWaits": "grounded",
+    "Sample.Tests.WaitingAlongside.TouchesNothingWhileAnotherTestDrives": "untouched",
+    "Sample.Tests.SampleSpecTests.RoutesAnOrderToAQueue": "grounded",
+    "Sample.Tests.SampleSpecTests.OneTestCitingTwoStories": "untouched",
+    # Skipped: its body never ran, so its window never opened and nothing could be asked.
+    "Sample.Tests.SampleSpecTests.NotBuiltYet": "not-checked",
+    "Sample.Tests.SampleSpecTests.Regressed": "untouched",
+    "Sample.Tests.SampleSpecTests.DoublesEveryRow(n: 2, doubled: 4)": "ungrounded",
+    "Sample.Tests.SampleSpecTests.DoublesEveryRow(n: 3, doubled: 7)": "ungrounded",
+    "Sample.Tests.ClassCitedTests.First": "untouched",
+    "Sample.Tests.ClassCitedTests.Second": "untouched",
+    "Sample.Tests.UncitedTests.CitesNothingAndTouchesNothing": "untouched",
+}
+
+
+@needs_dotnet
+@pytest.mark.proves("dev07-1-4", depth="unit")
+def test_every_test_reads_the_fact_its_shape_produces(board):
+    """Each test's own window, read per test — under xUnit, which runs these classes at once.
+
+    `DrivingAlongside` and `WaitingAlongside` meet at a barrier, so one is inside an entry point
+    while the other waits touching nothing. A window kept per process would hand the waiting test
+    the driving one's grounding; a window opened by the test's own code keeps them apart
+    (`dev07-1-3-sr13`).
+    """
+    _written(board)
+    # The per-test lines are indented under the count; the row arguments carry spaces, so the name
+    # is read to the end of the line.
+    said = {test: fact for fact, test in re.findall(
+        r"^dotnet: {4}(grounded|ungrounded|inert|untouched|dispatched|not-checked)\s+(.+)$",
+        board["done"].stderr, re.M)}
+    assert said == EXPECTED, (
+        "per-test grounding differs from each test's shape:\n" + "\n".join(
+            f"  {t}: expected {EXPECTED.get(t)!r}, said {said.get(t)!r}"
+            for t in sorted(set(said) | set(EXPECTED)) if said.get(t) != EXPECTED.get(t)))
 
 
 @needs_dotnet
@@ -183,8 +225,9 @@ def test_every_test_the_run_saw_is_counted_cited_or_not(board):
     Counted per test case VSTest ran, so each row of a theory is one.
     """
     written = _written(board)
-    assert written["observed_tests"] == 9, (
-        f"the sample runs nine test cases and the run reported {written['observed_tests']}")
+    assert written["observed_tests"] == len(EXPECTED), (
+        f"the sample runs {len(EXPECTED)} test cases and the run reported "
+        f"{written['observed_tests']}")
 
 
 @needs_dotnet
@@ -217,10 +260,15 @@ def test_every_framework_vstest_runs_reads_the_same(framework):
     results = {sid: sorted(c["result"] for c in s["citations"])
                for sid, s in written["stories"].items()}
     assert results == {"FW-1": ["passed"], "FW-2": ["skipped"], "FW-3": ["skipped"],
-                       "FW-4": ["failed", "passed"], "FW-5": ["failed"]}, results
+                       "FW-4": ["failed", "passed"], "FW-5": ["failed"], "FW-6": ["passed"]}, results
     rows = [c["test"] for c in written["stories"]["FW-4"]["citations"]]
     assert len(set(rows)) == 2, f"{framework}: each row must be named apart: {rows}"
-    assert written["observed_tests"] == 6, written["observed_tests"]
+    assert written["observed_tests"] == 7, written["observed_tests"]
+    # NUnit runs a test's body on another thread than the one VSTest reports it from; MSTest on the
+    # same one. The window opens in the test's own code, so both ground alike (`dev07-1-3-sr13`).
+    groundings = {sid: [c["grounding"] for c in s["citations"]]
+                  for sid, s in written["stories"].items()}
+    assert groundings["FW-6"] == ["grounded"] and groundings["FW-1"] == ["untouched"], groundings
 
 
 def test_the_citation_the_collector_reads_is_the_one_the_vocabulary_declares():

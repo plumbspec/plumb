@@ -1,5 +1,7 @@
 # The MSTest half of the framework check (tests/test_the_dotnet_adapter.py).
 adapter = "dotnet"
+entry_points = ["Sample.App.HandleRequest"]
+production = ["App"]
 
 [dotnet]
 tests = "bin/Debug/net6.0/MSTestTests.dll"

@@ -1170,8 +1170,9 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
     **A copy, made afresh, outside the project's tree** (`dev07-1-3-sr11`). The .NET host settles
     which assemblies it loads from the build's `deps.json` before any code of ours runs, so the
     weave that observes production has to be in the files the host loads — and those files are the
-    adopter's build output, which this never writes to. The copy is where the weave will happen; in
-    this slice nothing is woven yet and the copy is run as it was built.
+    adopter's build output, which this never writes to. The copy is woven by the adapter's own
+    writer (`dev07-1-3-sr12`) — probes in production, a window round each entry point, and a line in
+    each test that opens its own — and then run.
 
     **VSTest, not a framework.** The collector hears every test start and end from VSTest itself, so
     xUnit, NUnit and MSTest are one road, and the test SDK the project already references is all a
@@ -1195,14 +1196,13 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
     shutil.rmtree(copy, ignore_errors=True)
     shutil.copytree(built.parent, copy)
 
-    # Nothing observes grounding yet, so the surface is not named to the collector: `inert` is read
-    # from an absence, and an absence nothing watched for proves nothing (`runfile.write`).
-    run_file = runfile.write(config, work / RUN_FILE, surface=False)
-    settings = work / "plumb.runsettings"
-    settings.write_text(_runsettings(collector, manifest_path, run_file, work / "results"))
-
+    run_file = runfile.write(config, work / RUN_FILE)
     dotnet = shutil.which("dotnet") or "dotnet"
     say(f"dotnet: {built.name}, a copy at {copy}")
+    woven = _weave(dotnet, collector, copy, built.name, run_file, work / "weave.txt", config, say)
+    settings = work / "plumb.runsettings"
+    settings.write_text(_runsettings(collector, manifest_path, run_file, work / "results", woven))
+
     with (work / "run.out").open("w") as out:
         try:
             subprocess.run([dotnet, "test", str(copy / built.name), "--settings", str(settings)],
@@ -1232,11 +1232,44 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
 
     # Declared and not watched is a run that went blind, which is a different `not-checked` from
     # nobody having declared anything, and the reader's next move differs (`dev07-1-4-ur5`).
-    blind = bool(config.entry_points or config.production)
+    blind = bool(config.entry_points or config.production) and not woven
     if blind:
-        say("dotnet: entry points and production are declared, and this adapter does not observe "
-            "grounding yet — every citation reads not-checked")
+        say(f"{NOTHING_INSTRUMENTED} — production or entry points are declared and the weave put a "
+            "probe in nothing, so no grounding was observed. Check that `production` names the "
+            "production assemblies, by assembly name")
     return Manifest.read(manifest_path), blind
+
+
+def _weave(dotnet: str, adapter: str, copy: Path, tests: str, run_file: Path, report: Path,
+           config: Config, say: Callable[[str], None]) -> int:
+    """Weave the copy, and say what was woven and what was left as built (`dev07-1-3-nfr3`).
+
+    How many production methods and entry points carry a probe; the tests' own windows are not
+    counted, because a run that put a probe in no production code has nothing to observe with.
+    A weave that fails costs the wiring fact and never the run (`dev07-1-3-nfr2`).
+    """
+    report.unlink(missing_ok=True)
+    done = subprocess.run([dotnet, adapter, "weave", str(copy), tests, str(run_file), str(report)],
+                          cwd=config.root, capture_output=True, text=True, timeout=SUITE_TIMEOUT)
+    if done.returncode != 0 or not report.is_file():
+        say(f"dotnet: the weave did not run (exit {done.returncode}): "
+            f"{(done.stderr or done.stdout).strip()[-500:]}")
+        return 0
+    woven = 0
+    for line in report.read_text().splitlines():
+        kind, *fields = line.split("\t")
+        if kind == "woven":
+            name, methods, entries, tests_ = fields
+            woven += int(methods) + int(entries)
+            what = (f"{tests_} tests" if int(tests_) else f"{methods} methods, {entries} entry points")
+            say(f"dotnet: woven {name}: {what}")
+        elif kind == "left":
+            say(f"dotnet: left as built — {': '.join(fields)}")
+        elif kind == "unfound":
+            say(f"dotnet: entry point {fields[0]} is in no production assembly")
+        elif kind == "failed":
+            say(f"dotnet: the weave failed, and the copy runs as built — {fields[0]}")
+    return woven
 
 
 def _dotnet_tests(config: Config) -> Path:
@@ -1253,7 +1286,8 @@ def _dotnet_tests(config: Config) -> Path:
     return built
 
 
-def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path) -> str:
+def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path,
+                 woven: int) -> str:
     """The run settings that load the collector and tell it where the run's files are."""
     from xml.sax.saxutils import quoteattr, escape
 
@@ -1266,7 +1300,7 @@ def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path) 
         f"assemblyQualifiedName={quoteattr(DOTNET_COLLECTOR)} enabled=\"True\" "
         f"codebase={quoteattr(collector)}>\n"
         f"      <Configuration><Manifest>{escape(str(manifest))}</Manifest>"
-        f"<RunFile>{escape(str(run_file))}</RunFile></Configuration>\n"
+        f"<RunFile>{escape(str(run_file))}</RunFile><Woven>{woven}</Woven></Configuration>\n"
         "    </InProcDataCollector>\n"
         "  </InProcDataCollectors></InProcDataCollectionRunSettings>\n"
         "</RunSettings>\n")

@@ -1,9 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- The collector VSTest loads into the testhost: a run in, a manifest out (dev07-3-3). Built by
-       the publisher and shipped inside the artifact (dev00-1-1-sr4), into build/, where the
-       launcher finds it in a checkout. -->
+  <!-- The weaver the launcher runs over the copy, and the collector and probe VSTest loads into
+       the testhost: a run in, a manifest out (dev07-3-3). One assembly, so the probe woven code
+       calls is the one the collector reads. Built by the publisher and shipped inside the artifact
+       (dev00-1-1-sr4), into build/, where the launcher finds it in a checkout. -->
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <!-- The weaver runs on whatever runtime runs the project's tests, at the floor or above. -->
+    <RollForward>LatestMajor</RollForward>
+    <UseAppHost>false</UseAppHost>
     <RootNamespace>PlumbSpec</RootNamespace>
     <AssemblyName>PlumbSpec.Adapter</AssemblyName>
     <Nullable>enable</Nullable>

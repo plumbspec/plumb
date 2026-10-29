@@ -1,8 +1,13 @@
 # The whole declaration, in one file the core reads for every language.
 adapter = "dotnet"
 
-entry_points = ["Sample.App.HandleRequest"]   # where the wired system begins (dev07-1-3)
-production   = ["Sample"]                     # what counts as production code
+# Where the wired system begins (dev07-1-3), as Namespace.Type.Method.
+entry_points = ["Sample.App.HandleRequest", "Sample.App.Shapes", "Sample.App.Echo",
+                "Sample.App.Record", "Sample.App.FailingRequest"]
+production   = ["App"]                        # the assemblies that are production code
+
+[archetypes]
+"APP-4" = "structural"
 
 [dotnet]
 # The test project's build output, as `dotnet build` left it. Plumb runs a copy and never writes here.

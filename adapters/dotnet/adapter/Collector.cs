@@ -25,7 +25,6 @@ namespace PlumbSpec
     /// </remarks>
     public sealed class Collector : InProcDataCollection
     {
-        /// <summary>No observation yet, so grounding is honestly unanswered (dev07-1-4).</summary>
         private const string NotChecked = "not-checked";
 
         private readonly Manifest manifest = new Manifest();
@@ -46,6 +45,12 @@ namespace PlumbSpec
 
         private string? manifestPath, runFile;
 
+        /// <summary>How many production methods and entry points the weave put a probe in. Zero is
+        /// a run with nothing to observe with, whatever was declared (dev07-1-3).</summary>
+        private int woven;
+
+        private bool entryPointsDeclared;
+
         public void Initialize(IDataCollectionSink dataCollectionSink) { }
 
         public void TestSessionStart(TestSessionStartArgs testSessionStartArgs)
@@ -55,6 +60,7 @@ namespace PlumbSpec
             // has already resolved it, so this keeps no copy and reads no config.
             foreach (var fact in RunFile.Read(runFile, "archetype"))
                 if (fact.Length == 2) manifest.DeclareArchetype(fact[0], fact[1]);
+            entryPointsDeclared = RunFile.Read(runFile, "entrypoint").Count > 0;
             // The moment "not reported" becomes a real zero: from here an empty count means this
             // run looked and found nothing (dev07-3-2).
             manifest.ObservedTests = 0;
@@ -70,10 +76,12 @@ namespace PlumbSpec
             manifest.ObservedTests = seen.Count;
             var name = NameOf(test);
             var result = Outcome(testCaseEndArgs.TestOutcome);
-            groundingByTest.Add((name, NotChecked));
+            var (type, method) = Citations.Split(test.FullyQualifiedName);
+            var grounding = Grounding(Probe.Take(type + "." + method));
+            groundingByTest.Add((name, grounding));
             foreach (var claim in Citations.On(test.Source, test.FullyQualifiedName))
                 manifest.Add(claim.Id, new Manifest.Citation(
-                    name, claim.Depth, result, NotChecked, claim.Ref, claim.About, measuredAt));
+                    name, claim.Depth, result, grounding, claim.Ref, claim.About, measuredAt));
         }
 
         public void TestSessionEnd(TestSessionEndArgs testSessionEndArgs)
@@ -85,9 +93,29 @@ namespace PlumbSpec
             manifest.Observer = new Manifest.Provenance(
                 "plumb-dotnet", version.Count == 0 ? "unreported" : version[0][0],
                 RuntimeInformation.FrameworkDescription,
-                "none — citations only, grounding not observed");
+                woven > 0
+                    ? "IL probes, woven into a copy of the build's output (production surface and entry points)"
+                    : "none — citations only, grounding not observed");
             manifest.Write(manifestPath);
             Report();
+        }
+
+        /// <summary>
+        /// What this run is entitled to say about the test that just ended (dev07-1-4), read from the
+        /// window its own code opened.
+        /// </summary>
+        /// <remarks>
+        /// No window is a test whose body never ran — skipped before it began, or marked by an
+        /// attribute the weave does not know — and nothing could be asked of it. A read of the
+        /// artifact is not observed (dev07-1-3-u7), so <c>inert</c> is never said: a test that ran
+        /// nothing is <c>untouched</c>, which grants nothing, rather than <c>inert</c> on the
+        /// strength of an absence.
+        /// </remarks>
+        private string Grounding(Probe.Scope? scope)
+        {
+            if (woven == 0 || !entryPointsDeclared || scope == null) return NotChecked;
+            if (scope.EnteredThrough().Count > 0) return "grounded";
+            return scope.Ran ? "ungrounded" : "untouched";
         }
 
         /// <summary>
@@ -131,6 +159,8 @@ namespace PlumbSpec
             document.LoadXml(configuration);
             manifestPath = document.SelectSingleNode("//Manifest")?.InnerText;
             runFile = document.SelectSingleNode("//RunFile")?.InnerText;
+            int.TryParse(document.SelectSingleNode("//Woven")?.InnerText, NumberStyles.Integer,
+                         CultureInfo.InvariantCulture, out woven);
         }
 
         /// <summary>

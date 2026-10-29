@@ -3,7 +3,7 @@ using PlumbSpec;
 
 namespace Sample.NUnit
 {
-    /// <summary>Each of NUnit's own spellings of a result, cited once.</summary>
+    /// <summary>Each of NUnit's own spellings of a result, cited once, and a test that drives the entry point.</summary>
     public class FrameworkTests
     {
         [Test, Proves("FW-1", "unit")]
@@ -20,5 +20,8 @@ namespace Sample.NUnit
 
         [Test, Proves("FW-5", "unit")]
         public void Fails() => Assert.Fail("a claimed-done story that broke");
+
+        [Test, Proves("FW-6", "wiring")]
+        public void DrivesTheEntryPoint() => Assert.That(App.HandleRequest(2), Is.EqualTo(4));
     }
 }

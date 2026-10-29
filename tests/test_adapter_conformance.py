@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -26,6 +27,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 JAVA = REPO / "adapters" / "java"
+DOTNET = REPO / "adapters" / "dotnet"
 
 #: What every adapter must answer, whatever it observes. The key is the shape of the test; the
 #: value is the fact chapter 3 says that shape produces.
@@ -133,6 +135,44 @@ def test_the_java_adapter_answers_the_shared_scenario(shape):
     story = JAVA_CITES[shape]
     assert facts.get(story) == CONFORMANCE[shape], (
         f"java: a test that {shape} must ground as {CONFORMANCE[shape]!r}, "
+        f"and this run said {facts.get(story)!r}")
+
+
+DOTNET_CITES = {
+    "drives a declared entry point": "APP-1",
+    "runs production under no entry point": "APP-3",
+    "reads the artifact and runs none of it": "APP-4",
+    "neither runs nor reads the artifact": "CM-102",
+}
+
+needs_dotnet = pytest.mark.skipif(
+    shutil.which("dotnet") is None or not (DOTNET / "build" / "PlumbSpec.Adapter.dll").is_file(),
+    reason="no dotnet on PATH, or the .NET adapter is not built on this machine")
+
+
+def _dotnet_groundings() -> dict:
+    """The sample after its own build, which is the adopter's step and never plumb's."""
+    env = {**os.environ, "DOTNET_CLI_TELEMETRY_OPTOUT": "1", "DOTNET_NOLOGO": "1"}
+    if not env.get("DOTNET_ROOT"):
+        env["DOTNET_ROOT"] = str(Path(shutil.which("dotnet")).resolve().parent)
+    built = subprocess.run(["dotnet", "build", str(DOTNET / "sample" / "Tests")],
+                           capture_output=True, text=True, timeout=600, env=env)
+    assert built.returncode == 0, built.stdout[-3000:]
+    return _groundings(DOTNET, env)
+
+
+@needs_dotnet
+@pytest.mark.proves("dev07-1-4", depth="standards-integration")
+@pytest.mark.parametrize("shape", [
+    pytest.param(shape, marks=pytest.mark.xfail(
+        strict=True, reason="a .NET read of the artifact is not observed yet (dev07-1-3-u7)"))
+    if shape == "reads the artifact and runs none of it" else shape
+    for shape in CONFORMANCE])
+def test_the_dotnet_adapter_answers_the_shared_scenario(shape):
+    facts = _dotnet_groundings()
+    story = DOTNET_CITES[shape]
+    assert facts.get(story) == CONFORMANCE[shape], (
+        f"dotnet: a test that {shape} must ground as {CONFORMANCE[shape]!r}, "
         f"and this run said {facts.get(story)!r}")
 
 

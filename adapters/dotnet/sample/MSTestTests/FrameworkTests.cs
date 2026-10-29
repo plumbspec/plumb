@@ -3,7 +3,7 @@ using PlumbSpec;
 
 namespace Sample.MSTest
 {
-    /// <summary>Each of MSTest's own spellings of a result, cited once.</summary>
+    /// <summary>Each of MSTest's own spellings of a result, cited once, and a test that drives the entry point.</summary>
     [TestClass]
     public class FrameworkTests
     {
@@ -21,5 +21,8 @@ namespace Sample.MSTest
 
         [TestMethod, Proves("FW-5", "unit")]
         public void Fails() => Assert.Fail("a claimed-done story that broke");
+
+        [TestMethod, Proves("FW-6", "wiring")]
+        public void DrivesTheEntryPoint() => Assert.AreEqual(4, App.HandleRequest(2));
     }
 }
