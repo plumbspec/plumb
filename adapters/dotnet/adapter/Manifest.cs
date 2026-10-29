@@ -43,6 +43,13 @@ namespace PlumbSpec
             cited.Add(citation);
         }
 
+        /// <summary>Every citation replaced by what <paramref name="settled"/> makes of it, once the run's
+        /// own facts are in.</summary>
+        public void Settle(System.Func<Citation, Citation> settled)
+        {
+            foreach (var story in byStory.Keys.ToList()) byStory[story] = byStory[story].Select(settled).ToList();
+        }
+
         /// <summary>Read off the spec, never the run (dev07-3-2).</summary>
         public void DeclareArchetype(string story, string archetype) => archetypes[story] = archetype;
 

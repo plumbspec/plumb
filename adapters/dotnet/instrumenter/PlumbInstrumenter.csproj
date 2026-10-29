@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- A prototype (rule 4): plumb's instrumentation method for the CLR Instrumentation Engine,
+  <!-- Plumb's instrumentation method for the CLR Instrumentation Engine,
        compiled to a native library so the engine can load it beside Microsoft's coverage. Its own
        runtime is NativeAOT's; the process it instruments runs whatever runtime the tests target. -->
   <PropertyGroup>
@@ -16,9 +16,13 @@
   <ItemGroup>
     <!-- One reading of an assembly for both weaves: what is production, a test, an async step or a
          hand-off is decided by the same code that decides it for the adapter. -->
-    <Compile Include="../../adapters/dotnet/adapter/Planning.cs" Link="Shared/Planning.cs" />
-    <Compile Include="../../adapters/dotnet/adapter/HandoffMatch.cs" Link="Shared/HandoffMatch.cs" />
-    <Compile Include="../../adapters/dotnet/adapter/Signature.cs" Link="Shared/Signature.cs" />
-    <Compile Include="../../adapters/dotnet/adapter/Il.cs" Link="Shared/Il.cs" />
+    <Compile Include="../adapter/Planning.cs" Link="Shared/Planning.cs" />
+    <Compile Include="../adapter/HandoffMatch.cs" Link="Shared/HandoffMatch.cs" />
+    <Compile Include="../adapter/Signature.cs" Link="Shared/Signature.cs" />
+    <Compile Include="../adapter/Il.cs" Link="Shared/Il.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The engine finds the instrumenter by the config beside it. -->
+    <None Include="PlumbInstrumenter.config" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

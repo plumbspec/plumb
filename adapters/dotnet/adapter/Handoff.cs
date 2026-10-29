@@ -27,8 +27,8 @@ namespace PlumbSpec
     /// </summary>
     /// <remarks>
     /// <para>The JVM adapter weaves <c>Thread.start</c> and <c>ThreadPoolExecutor.execute</c> where they
-    /// are defined. .NET's are defined in its own libraries, which are not in the copy and are not
-    /// woven, so the aspect goes on the call instead: a short fixed list, matched on the call's exact
+    /// are defined. .NET's are defined in its own libraries, which the weave does not reach yet, so
+    /// the aspect goes on the call instead: a short fixed list, matched on the call's exact
     /// signature, and anything else left as it was. A hand-off made inside a library is not seen
     /// here (dev07-1-4-u5); if its work reaches an entry point, the probe still reads that as sent
     /// elsewhere.</para>

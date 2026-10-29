@@ -1165,14 +1165,18 @@ DOTNET_COLLECTOR = "PlumbSpec.Collector, PlumbSpec.Adapter, Version=1.0.0.0, Cul
 
 def _dotnet(config: Config, *, report: Callable[[str], None] | None,
             tests: bool = False) -> tuple[Manifest, bool]:
-    """A copy of the build's output, run by VSTest with plumb's collector in the testhost.
+    """The build's output, run by VSTest where the build wrote it, woven as the runtime compiles.
 
-    **A copy, made afresh, outside the project's tree** (`dev07-1-3-sr11`). The .NET host settles
-    which assemblies it loads from the build's `deps.json` before any code of ours runs, so the
-    weave that observes production has to be in the files the host loads — and those files are the
-    adopter's build output, which this never writes to. The copy is woven by the adapter's own
-    writer (`dev07-1-3-sr12`) — probes in production, a window round each entry point, and a line in
-    each test that opens its own — and then run.
+    **Woven in place, through the host the project already carries** (`dev07-1-3-sr11`, `sr12`).
+    The runtime gives its code-rewriting hook to one profiler alone, and Microsoft's code coverage
+    takes it through the CLR Instrumentation Engine, which every VSTest project restores. Plumb's
+    instrumenter is loaded into that engine beside whatever else it hosts, so nothing the project
+    runs is displaced and nothing is copied or written: the files that run are the files the build
+    wrote, and a path a test takes from them reaches what it always reaches (`sr14`).
+
+    **What to weave is declared, never tokens** (`sr03`, `sr16`). The adapter names the tests, the
+    production assemblies, the entry points and the hand-off shims; the instrumenter reads each
+    module's tokens as the runtime loads it, because another tool may rewrite the file first.
 
     **VSTest, not a framework.** The collector hears every test start and end from VSTest itself, so
     xUnit, NUnit and MSTest are one road, and the test SDK the project already references is all a
@@ -1180,13 +1184,14 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
     """
     say = report or (lambda line: None)
     built = _dotnet_tests(config)
-    # Before anything is copied or launched: a divergence found afterwards arrives as a test the
-    # build passes failing inside the testhost, and reads as the project's defect (`dev07-1-1`).
+    # Before anything is launched: a divergence found afterwards arrives as a test the build passes
+    # failing inside the testhost, and reads as the project's defect (`dev07-1-1`).
     _runtime_parity(config, built, say)
     work = _scratch(config)
     manifest_path = work / "manifest.json"
     _clear_stale(manifest_path)
-    (work / "report.txt").unlink(missing_ok=True)
+    for stale in ("report.txt", "instrumenter.log", "plan.tsv"):
+        (work / stale).unlink(missing_ok=True)
 
     collector = _bundled_collector()
     if not collector:
@@ -1194,19 +1199,37 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
         raise LaunchFailed(
             "the .NET adapter's collector is not in this installation, which was built "
             "without it. In a checkout, build it with `dotnet build adapters/dotnet/adapter`")
-
-    copy = _mirror(work / "tree", built.parent)
+    where = _engine_platform()
+    instrumenter = _bundled_instrumenter(where.rid)
+    if not instrumenter:
+        raise LaunchFailed(
+            f"the .NET adapter's instrumenter for {where.rid} is not in this installation, which "
+            "was built without it. In a checkout, publish it with `dotnet publish "
+            f"adapters/dotnet/instrumenter -r {where.rid} -c Release -o "
+            f"adapters/dotnet/build/instrumenter/{where.rid}`")
+    engine = _engine(built, where)
 
     run_file = runfile.write(config, work / RUN_FILE)
     dotnet = shutil.which("dotnet") or "dotnet"
-    say(f"dotnet: {built.name}, a copy at {copy}")
-    woven = _weave(dotnet, collector, copy, built.name, run_file, work / "weave.txt", config, say)
+    log = work / "instrumenter.log"
+    variables = _profiler_variables(engine, instrumenter, where, work / "plan.tsv", log, say)
+    if variables:
+        planned = subprocess.run(
+            [dotnet, collector, "plan", str(built.parent), built.name, str(run_file),
+             str(work / "plan.tsv")], capture_output=True, text=True, timeout=SUITE_TIMEOUT)
+        if planned.returncode != 0 or not (work / "plan.tsv").is_file():
+            # An instrument failure costs the wiring fact and never the run (`dev07-1-3-nfr2`).
+            say(f"dotnet: the weave could not be declared, and the suite runs unobserved: "
+                f"{(planned.stderr or planned.stdout).strip()[-500:]}")
+            variables = {}
     settings = work / "plumb.runsettings"
-    settings.write_text(_runsettings(collector, manifest_path, run_file, work / "results", woven))
+    settings.write_text(_runsettings(collector, manifest_path, run_file, work / "results", log,
+                                     variables))
 
+    say(f"dotnet: {built.name}, where the build wrote it")
     with (work / "run.out").open("w") as out:
         try:
-            subprocess.run([dotnet, "test", str(copy / built.name), "--settings", str(settings)],
+            subprocess.run([dotnet, "test", str(built), "--settings", str(settings)],
                            cwd=config.root, stdout=out, stderr=subprocess.STDOUT,
                            timeout=SUITE_TIMEOUT)
         except subprocess.TimeoutExpired:
@@ -1231,86 +1254,134 @@ def _dotnet(config: Config, *, report: Callable[[str], None] | None,
         say("dotnet: " + " · ".join(f"{count} {word}" for word, count in sorted(tally.items()))
             + "   (--tests names them)")
 
+    reached = _instrumenter_said(log, say)
     # Declared and not watched is a run that went blind, which is a different `not-checked` from
     # nobody having declared anything, and the reader's next move differs (`dev07-1-4-ur5`).
-    blind = bool(config.entry_points or config.production) and not woven
+    blind = bool(config.entry_points or config.production) and not reached
     if blind:
-        say(f"{NOTHING_INSTRUMENTED} — production or entry points are declared and the weave put a "
-            "probe in nothing, so no grounding was observed. Check that `production` names the "
-            "production assemblies, by assembly name")
+        say(f"{NOTHING_INSTRUMENTED} — production or entry points are declared and the "
+            "instrumenter met no production assembly, so no grounding was observed. Check that "
+            "`production` names the production assemblies, by assembly name")
     return Manifest.read(manifest_path), blind
 
 
-def _mirror(tree: Path, output: Path) -> Path:
-    """A copy of the build's output, made afresh where every relative path reaches what it reaches
-    from the output itself (`dev07-1-3-sr11`, `sr14`) — and the copy's directory.
+#: The CLR Instrumentation Engine's class id, as the profiler variables name it.
+ENGINE_CLASS = "{324F817A-7420-4E6D-B3C1-143FBED6D855}"
 
-    Tests find their project's files by going up: from `AppContext.BaseDirectory`, or from the
-    working directory, which VSTest sets to the output. A copy at some other place in the
-    filesystem sends `../../../TestData` somewhere else, and the test fails on the board and passes
-    under `dotnet test` — measured — which `dev07-1-1` refuses: a failure the build does not have.
 
-    So the copy is put at the end of a mirror of the path to the output. Every directory from the
-    root down to the output is a real directory here, and everything beside that path is a link
-    to the original, so going up walks real directories and coming down leaves through a link into
-    the project's own tree. Going up has to walk real directories: a kernel resolves `..` from where
-    a directory actually is, and .NET resolves it by text, and only real directories make the two
-    land in the same place. The copy itself is real files, and the only thing ever woven.
+class _Platform:
+    """Where the engine is in its package, and which instrumenter this platform loads."""
 
-    Cleared with `shutil.rmtree`, which removes a link and never follows it — what keeps clearing
-    this mirror from ever reaching the tree it mirrors. A directory that cannot be listed keeps no
-    links beside the path, so a test going up through it finds what it could have named and nothing
-    it could not.
+    def __init__(self, rid: str, engine: str, bits: str):
+        self.rid, self.engine, self.bits = rid, engine, bits
+
+
+def _engine_platform() -> "_Platform":
+    """This machine, as the engine is shipped for it — or refused by name (`dev07-1-3-sr15`).
+
+    The engine ships with `Microsoft.CodeCoverage` for Windows x86, x64 and arm64, Linux x64 (glibc
+    and musl) and macOS x64, and for nothing else — measured in 17.8 and 17.14.1. A platform it is
+    not shipped for cannot be woven at all, and a run there would report a project as untested
+    when it was never looked at, so it is refused before anything is launched, as machinery the
+    tool cannot supply is (`dev00-1-1-ur7`).
     """
-    shutil.rmtree(tree, ignore_errors=True)
-    output = output.resolve()
-    chain = [*reversed(output.parents), output]
-    for level, below in zip(chain, chain[1:]):
-        here = tree / level.relative_to(level.anchor)
-        here.mkdir(parents=True, exist_ok=True)
-        try:
-            entries = list(os.scandir(level))
-        except OSError:
-            continue
-        for entry in entries:
-            if entry.name != below.name:
-                (here / entry.name).symlink_to(entry.path)
-    copy = tree / output.relative_to(output.anchor)
-    shutil.copytree(output, copy, symlinks=True)
-    return copy
+    import platform
+
+    system = platform.system()
+    arch = {"x86_64": "x64", "amd64": "x64", "aarch64": "arm64", "arm64": "arm64",
+            "i386": "x86", "i686": "x86", "x86": "x86"}.get(platform.machine().lower(),
+                                                              platform.machine().lower())
+    if system == "Linux" and arch == "x64":
+        musl = any(Path("/lib").glob("ld-musl-*"))
+        return _Platform("linux-musl-x64" if musl else "linux-x64",
+                         f"{'alpine' if musl else 'ubuntu'}/x64/libInstrumentationEngine.so", "64")
+    if system == "Darwin" and arch == "x64":
+        return _Platform("osx-x64", "macos/x64/libInstrumentationEngine.dylib", "64")
+    if system == "Windows" and arch in ("x64", "x86", "arm64"):
+        return _Platform(f"win-{arch}", f"{arch}/MicrosoftInstrumentationEngine_{arch}.dll",
+                         "32" if arch == "x86" else "64")
+    named = {"Linux": "linux", "Darwin": "osx", "Windows": "win"}.get(system, system.lower())
+    raise LaunchFailed(
+        f"the .NET adapter observes a run through Microsoft's CLR Instrumentation Engine, which "
+        f"your test SDK carries, and Microsoft ships no build of it for {named}-{arch} — so there "
+        "is nothing on this machine to weave through, and a board here would report your "
+        "tests as unobserved when they were never looked at.\n\n"
+        "  Board the project on an x64 machine or runner; the engine ships for Windows, Linux and "
+        "macOS on x64, and for Windows on arm64.")
 
 
-def _weave(dotnet: str, adapter: str, copy: Path, tests: str, run_file: Path, report: Path,
-           config: Config, say: Callable[[str], None]) -> int:
-    """Weave the copy, and say what was woven and what was left as built (`dev07-1-3-nfr3`).
+def _engine(built: Path, where: "_Platform") -> Path:
+    """The engine the test project restored with its test SDK — never one this tool brings
+    (`dev00-1-1-ur8`). Searched for, because the package moved it between versions."""
+    import json
 
-    How many production methods and entry points carry a probe; the tests' own windows are not
-    counted, because a run that put a probe in no production code has nothing to observe with.
-    A weave that fails costs the wiring fact and never the run (`dev07-1-3-nfr2`).
+    project = _test_project(built)
+    assets_file = project / "obj" / "project.assets.json" if project else None
+    if assets_file is None or not assets_file.is_file():
+        raise LaunchFailed(
+            f"the test project's restore is not where its output says it is ({built}), so the "
+            "CLR Instrumentation Engine it restored cannot be found. Rebuild the test project.")
+    assets = json.loads(assets_file.read_text())
+    root = Path(assets.get("project", {}).get("restore", {}).get("packagesPath", ""))
+    versions = [name.split("/")[1] for name in assets.get("libraries", {})
+                if name.lower().startswith("microsoft.codecoverage/")]
+    found = sorted(p for v in versions
+                   for p in (root / "microsoft.codecoverage" / v).rglob(where.engine.split("/")[-1])
+                   if p.as_posix().endswith(where.engine))
+    if not found:
+        raise LaunchFailed(
+            "the test project did not restore Microsoft.CodeCoverage, which carries the CLR "
+            "Instrumentation Engine the .NET adapter weaves through. Microsoft.NET.Test.Sdk brings "
+            "it; reference that, or Microsoft.CodeCoverage, and restore.")
+    return found[0]
+
+
+def _profiler_variables(engine: Path, instrumenter: Path, where: "_Platform", plan: Path,
+                        log: Path, say: Callable[[str], None]) -> dict[str, str]:
+    """What the testhost is given to load the engine with plumb's instrumenter in it.
+
+    **A profiler already set in this environment is never displaced** (`dev07-1-3-sr12`). If it is
+    the engine, it is joined; if it is anything else, the suite runs as it would have, unobserved,
+    and says why — the wiring fact is lost and the run is not (`dev07-1-3-nfr2`).
     """
-    report.unlink(missing_ok=True)
-    done = subprocess.run([dotnet, adapter, "weave", str(copy), tests, str(run_file), str(report)],
-                          cwd=config.root, capture_output=True, text=True, timeout=SUITE_TIMEOUT)
-    if done.returncode != 0 or not report.is_file():
-        say(f"dotnet: the weave did not run (exit {done.returncode}): "
-            f"{(done.stderr or done.stdout).strip()[-500:]}")
-        return 0
-    woven = 0
-    for line in report.read_text().splitlines():
+    for prefix in ("CORECLR", "DOTNET"):
+        enabled = os.environ.get(f"{prefix}_ENABLE_PROFILING") == "1"
+        current = os.environ.get(f"{prefix}_PROFILER", "")
+        if enabled and current and current.upper() != ENGINE_CLASS:
+            say(f"dotnet: a profiler is already configured in this environment ({prefix}_PROFILER="
+                f"{current}), and it is not displaced — grounding is not observed this run")
+            return {}
+    return {
+        "CORECLR_ENABLE_PROFILING": "1",
+        "CORECLR_PROFILER": ENGINE_CLASS,
+        "CORECLR_PROFILER_PATH": str(engine),
+        f"MicrosoftInstrumentationEngine_ConfigPath{where.bits}_Plumb":
+            str(instrumenter.with_name("PlumbInstrumenter.config")),
+        # The engine checks an instrumenter's signature on Windows; Microsoft's coverage turns that
+        # off for its own, and plumb's is not signed.
+        "MicrosoftInstrumentationEngine_DisableCodeSignatureValidation": "1",
+        "PLUMB_PLAN": str(plan),
+        "PLUMB_INSTRUMENTER_LOG": str(log),
+    }
+
+
+def _instrumenter_said(log: Path, say: Callable[[str], None]) -> bool:
+    """What the instrumenter reported, relayed, and whether it met a production assembly.
+
+    A method left as compiled is named, never hidden (`dev07-1-3-nfr3`)."""
+    if not log.is_file():
+        return False
+    reached = False
+    for line in log.read_text().splitlines():
         kind, *fields = line.split("\t")
-        if kind == "woven":
-            name, methods, entries, tests_, handoffs, steps = fields
-            woven += int(methods) + int(entries)
-            what = (f"{tests_} tests, {steps} async steps" if int(tests_)
-                    else f"{methods} methods, {entries} entry points")
-            say(f"dotnet: woven {name}: {what}, {handoffs} hand-offs")
-        elif kind == "left":
-            say(f"dotnet: left as built — {': '.join(fields)}")
-        elif kind == "unfound":
-            say(f"dotnet: entry point {fields[0]} is in no production assembly")
-        elif kind == "failed":
-            say(f"dotnet: the weave failed, and the copy runs as built — {fields[0]}")
-    return woven
+        if kind == "planned" and len(fields) >= 2:
+            reached = reached or fields[1] == "production"
+            say(f"dotnet: woven {Path(fields[0]).name} as the runtime loaded it ({fields[1]})")
+        elif kind == "left" and fields:
+            say(f"dotnet: left as compiled — {': '.join(fields)}")
+        elif kind in ("unread", "failed") and fields:
+            say(f"dotnet: the instrumenter could not weave — {': '.join(fields)}")
+    return reached
 
 
 def _dotnet_tests(config: Config) -> Path:
@@ -1332,7 +1403,7 @@ def _runtime_parity(config: Config, built: Path, say: Callable[[str], None]) -> 
 
     The runtime is borrowed rather than reconstructed (`dev07-1-1-sr1`): the SDK writes the test
     project's runtime into its output as ``<tests>.deps.json``, the host loads exactly what that
-    file declares, and the copy that is run carries it unchanged. So the two questions left are the
+    file declares, and the run uses it where the build wrote it. So the two questions left are the
     ones the build's own declaration can answer:
 
     **Is everything it declares there?** An assembly ``deps.json`` names that is in neither the
@@ -1439,21 +1510,24 @@ def _references(project: Path, built: Path):
             yield name, max(compiled, key=lambda c: c.stat().st_mtime), copied
 
 
-def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path,
-                 woven: int) -> str:
-    """The run settings that load the collector and tell it where the run's files are."""
+def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path, log: Path,
+                 variables: dict[str, str]) -> str:
+    """The run settings: the collector and where the run's files are, and the testhost's variables
+    that load the engine."""
     from xml.sax.saxutils import quoteattr, escape
 
+    environment = "".join(f"<{name}>{escape(value)}</{name}>" for name, value in variables.items())
     return (
         "<RunSettings>\n"
         f"  <RunConfiguration><ResultsDirectory>{escape(str(results))}</ResultsDirectory>"
-        "</RunConfiguration>\n"
+        f"<EnvironmentVariables>{environment}</EnvironmentVariables></RunConfiguration>\n"
         "  <InProcDataCollectionRunSettings><InProcDataCollectors>\n"
         '    <InProcDataCollector friendlyName="plumb" uri="InProcDataCollector://plumbspec/1" '
         f"assemblyQualifiedName={quoteattr(DOTNET_COLLECTOR)} enabled=\"True\" "
         f"codebase={quoteattr(collector)}>\n"
         f"      <Configuration><Manifest>{escape(str(manifest))}</Manifest>"
-        f"<RunFile>{escape(str(run_file))}</RunFile><Woven>{woven}</Woven></Configuration>\n"
+        f"<RunFile>{escape(str(run_file))}</RunFile>"
+        f"<InstrumenterLog>{escape(str(log))}</InstrumenterLog></Configuration>\n"
         "    </InProcDataCollector>\n"
         "  </InProcDataCollectors></InProcDataCollectionRunSettings>\n"
         "</RunSettings>\n")
@@ -1470,3 +1544,16 @@ def _bundled_collector() -> str:
         return ""
     candidate = here.parents[2] / "adapters" / "dotnet" / "build" / "PlumbSpec.Adapter.dll"
     return str(candidate) if candidate.is_file() else ""
+
+
+def _bundled_instrumenter(rid: str) -> Path | None:
+    """The instrumenter for this platform that shipped with this tool, with its config beside it,
+    or nothing. A checkout keeps it where `dotnet publish` leaves it; inside the artifact it is not
+    carried yet."""
+    here = Path(__file__).resolve()
+    if any(parent.is_file() for parent in here.parents):
+        return None
+    folder = here.parents[2] / "adapters" / "dotnet" / "build" / "instrumenter" / rid
+    built = next((folder / f"PlumbInstrumenter{ext}" for ext in (".so", ".dylib", ".dll")
+                  if (folder / f"PlumbInstrumenter{ext}").is_file()), None)
+    return built if built and (folder / "PlumbInstrumenter.config").is_file() else None

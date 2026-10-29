@@ -29,7 +29,7 @@ namespace PlumbSpec
         /// One call to a hand-off primitive: the token it calls, the shim that stands in for it and
         /// the shim's signature; for a generic hand-off, the instantiation it is called through and
         /// the member reference it instantiates. Found without writing anything, so the same finding
-        /// serves a weave into a copy and a weave as the runtime compiles.
+        /// serves the planner and the instrumenter alike.
         /// </summary>
         internal sealed record Site(int Call, string Shim, byte[] ShimSignature,
                                     BlobHandle? Instantiation, int Through);

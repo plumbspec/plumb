@@ -15,13 +15,12 @@ What this prototype holds, in order:
 2. with Microsoft's coverage collected as well, both still run;
 
 3. the whole weave, carried out as the runtime compiles, gives every test of the reference suite the
-   fact the static weave gives it — every shape of `grounded`, `ungrounded`, `untouched` and
+   fact its shape produces — every shape of `grounded`, `ungrounded`, `untouched` and
    `dispatched` — on .NET 6 and .NET 10, under two versions of the engine, and still does with
    coverage instrumenting the same methods.
 
 What to weave is a plan the adapter makes from the build's output (`PlumbSpec.Adapter plan`); the
-instrumenter carries it out and decides nothing (`dev07-1-3-sr03`). It lives beside this file until
-it is proven, and moves to the adapter after.
+instrumenter carries it out and decides nothing (`dev07-1-3-sr03`).
 """
 
 from __future__ import annotations
@@ -38,8 +37,8 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 COLLECTOR = REPO / "adapters" / "dotnet" / "build" / "PlumbSpec.Adapter.dll"
-INSTRUMENTER = Path(__file__).resolve().parent / "dotnet_instrumenter"
-BUILT = REPO / "build" / "dotnet-instrumenter"
+INSTRUMENTER = REPO / "adapters" / "dotnet" / "instrumenter"
+BUILT = REPO / "adapters" / "dotnet" / "build" / "instrumenter" / "linux-x64"
 SAMPLE = REPO / "adapters" / "dotnet" / "sample" / "Tests"
 
 #: The engine's own class id, as Microsoft's coverage names it in the profiler variables.
@@ -79,7 +78,6 @@ def instrumenter() -> Path:
         ["dotnet", "publish", str(INSTRUMENTER), "-r", "linux-x64", "-c", "Release", "-o", str(BUILT)],
         capture_output=True, text=True, timeout=900, env=_environment())
     assert published.returncode == 0, published.stdout[-3000:]
-    shutil.copy(INSTRUMENTER / "PlumbInstrumenter.config", BUILT)
     built = subprocess.run(["dotnet", "build", str(SAMPLE)], capture_output=True, text=True,
                            timeout=600, env=_environment())
     assert built.returncode == 0, built.stdout[-3000:]
@@ -92,8 +90,8 @@ ENTRY_POINTS = ("Sample.App.HandleRequest", "Sample.App.Shapes", "Sample.App.Ech
 
 
 def _expected() -> dict:
-    """Every test's fact under the static weave — one table, held by the static weave's own test,
-    so the two weaves are held to the same answers and never to two copies of them."""
+    """Every test's fact by its shape — one table, held by the board's own test, so this run is held
+    to the same answers and never to a second copy of them."""
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from test_the_dotnet_adapter import EXPECTED
@@ -134,7 +132,7 @@ def _run(config: Path, work: Path, *extra: str, project: Path = SAMPLE
         'assemblyQualifiedName="PlumbSpec.Collector, PlumbSpec.Adapter, Version=1.0.0.0, '
         f'Culture=neutral, PublicKeyToken=null" enabled="True" codebase="{COLLECTOR}">'
         f"<Configuration><Manifest>{work / 'manifest.json'}</Manifest><RunFile>{run_file}</RunFile>"
-        "<Woven>1</Woven></Configuration></InProcDataCollector>"
+        f"<InstrumenterLog>{log}</InstrumenterLog></Configuration></InProcDataCollector>"
         "</InProcDataCollectors></InProcDataCollectionRunSettings></RunSettings>")
     done = subprocess.run(
         ["dotnet", "test", "--no-build", "--settings", str(settings),
@@ -218,15 +216,15 @@ def _assert_parity(facts: dict, where: str) -> None:
     expected = _expected()
     differ = {t: (expected.get(t), facts.get(t)) for t in set(expected) | set(facts)
               if expected.get(t) != facts.get(t)}
-    assert not differ, f"{where}: the engine's weave and the static weave disagree:\n" + "\n".join(
-        f"  {t}: static {e!r}, engine {g!r}" for t, (e, g) in sorted(differ.items()))
+    assert not differ, f"{where}: facts differ from each test's shape:\n" + "\n".join(
+        f"  {t}: expected {e!r}, said {g!r}" for t, (e, g) in sorted(differ.items()))
 
 
 @needs_engine_platform
 @pytest.mark.parametrize("runtime", ["net6.0", "net10.0"])
 def test_the_whole_weave_as_the_runtime_compiles_gives_every_test_its_fact(
         instrumenter, net10_sample, tmp_path, runtime):
-    """Point 3: every test of the reference suite reads what the static weave reads, and the suite
+    """Point 3: every test of the reference suite reads the fact its shape produces, and the suite
     reports what it reports unwoven. Nothing is copied: what runs is what the build wrote."""
     project = SAMPLE if runtime == "net6.0" else net10_sample
     done, said, facts = _run(instrumenter, tmp_path, project=project)

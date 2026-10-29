@@ -1,12 +1,13 @@
 """The third runtime, exercised — .NET at its floor, through VSTest (`dev07-3-3`, `dev07-1-3`).
 
 **A prototype that is a test.** What runs is the whole road an adopter takes: their build has already
-happened, `plumb board` copies the test project's output out of their tree, weaves the copy, VSTest
-runs it with plumb's in-process collector loaded, and the collector writes the manifest. One
-collector serves xUnit, NUnit and MSTest, because it hears each test start and end from VSTest
-rather than from any one framework.
+happened, and `plumb board` runs VSTest over the test project's output where the build wrote it, with
+plumb's instrumenter loaded into the CLR Instrumentation Engine the project restored and plumb's
+in-process collector writing the manifest. One collector serves xUnit, NUnit and MSTest, because it
+hears each test start and end from VSTest rather than from any one framework.
 
-**The weave** (`dev07-1-3-sr11`, `sr12`, `sr13`) puts a probe at the top of every production method,
+**The weave** (`dev07-1-3-sr11`, `sr12`, `sr13`), carried out as the runtime compiles, puts a probe
+at the top of every production method,
 wraps each declared entry point so its window closes on every way out, and opens each test's window
 in the test's own code — VSTest reports a test from another thread than the one running it, and
 xUnit runs test classes at once. Hand-offs are retargeted to shims that carry the window, and each
@@ -34,11 +35,14 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 DOTNET = REPO / "adapters" / "dotnet"
 COLLECTOR = DOTNET / "build" / "PlumbSpec.Adapter.dll"
+INSTRUMENTER = DOTNET / "build" / "instrumenter" / "linux-x64" / "PlumbInstrumenter.so"
 SAMPLE_OUTPUT = DOTNET / "sample" / "Tests" / "bin" / "Debug" / "net6.0"
 
 needs_dotnet = pytest.mark.skipif(
-    shutil.which("dotnet") is None or not COLLECTOR.is_file(),
-    reason="no dotnet on PATH, or the .NET adapter is not built (`dotnet build adapters/dotnet`)")
+    shutil.which("dotnet") is None or not COLLECTOR.is_file() or not INSTRUMENTER.is_file(),
+    reason="no dotnet on PATH, or the .NET adapter is not built: `dotnet build adapters/dotnet/adapter` "
+           "and `dotnet publish adapters/dotnet/instrumenter -r linux-x64 -c Release -o "
+           "adapters/dotnet/build/instrumenter/linux-x64`")
 
 
 def _environment() -> dict:
@@ -289,13 +293,8 @@ def test_every_test_the_run_saw_is_counted_cited_or_not(board):
 @needs_dotnet
 @pytest.mark.proves("dev07-1-3", depth="unit")
 def test_the_build_output_is_never_written_to(board):
-    """`dev07-1-3-sr11`: the run happens in a copy outside the project's tree, and nothing in the
-    tree changes — its output, or anything the copy reaches through a link.
-
-    The copy is reached through links into the real tree (`dev07-1-3-sr14`), and is cleared and
-    made again every run. Clearing a link must remove the link and never what it points at; this
-    is what notices if it ever does.
-    """
+    """`dev07-1-3-sr11`: the build's output runs where the build wrote it, unchanged — woven in
+    memory as the runtime compiles, so nothing in the project's tree is written, before or after."""
     _written(board)
     assert board["before"] == board["after"], (
         "the board changed the project's tree — the run must happen in a copy of it")
@@ -420,29 +419,81 @@ def test_the_runtime_check_can_be_turned_off_and_says_it_was(tmp_path):
     assert any("not checked" in line and "check_runtime = false" in line for line in said), said
 
 
+@needs_dotnet
+@pytest.mark.proves("dev07-1-4", depth="unit")
+def test_a_run_whose_instrument_met_no_production_withdraws_what_it_read_from_absence(tmp_path):
+    """Whether the instrument met the project is read from what the instrumenter reported, after
+    the run — never from what was declared before it. A `production` that names no assembly weaves
+    nothing: `untouched` and `ungrounded` were read from an absence and become `not-checked`, and
+    the board says the run went blind rather than that the tests touched nothing."""
+    root = _built_sample(tmp_path)
+    (root / "plumb.toml").write_text(
+        'adapter = "dotnet"\nentry_points = ["Sample.App.HandleRequest"]\nproduction = ["NoSuchAssembly"]\n'
+        '[dotnet]\ntests = "sample/Tests/bin/Debug/net6.0/Tests.dll"\n')
+    written = _written(_board(root, root / "sample" / "Tests"))
+    groundings = {c["grounding"] for s in written["stories"].values() for c in s["citations"]}
+    assert groundings <= {"not-checked", "grounded", "dispatched"} and "not-checked" in groundings, groundings
+    observers = {c["observer"]["mechanism"] for s in written["stories"].values() for c in s["citations"]}
+    assert all(m.startswith("none") for m in observers), observers
+
+
 @pytest.mark.proves("dev07-1-3", depth="unit")
-def test_the_copy_is_reached_through_links_and_clearing_it_never_follows_one(tmp_path):
-    """The mirror (`dev07-1-3-sr14`): up from the copy reaches the project's files, and clearing the
-    last run's mirror — every run clears it — removes links and never what they point at."""
+@pytest.mark.parametrize("system, machine", [("Linux", "aarch64"), ("Darwin", "arm64")])
+def test_a_platform_the_engine_is_not_shipped_for_is_refused_by_name(monkeypatch, system, machine):
+    """`dev07-1-3-sr15`: no engine, nothing to weave through — refused before the suite is launched,
+    rather than a board that reports every test unobserved when none was looked at."""
+    import platform
+
     sys.path.insert(0, str(REPO / "src"))
-    from plumb.launch import _mirror
+    from plumb.launch import LaunchFailed, _engine_platform
 
-    project = tmp_path / "repo" / "proj"
-    (project / "bin" / "Debug").mkdir(parents=True)
-    (project / "bin" / "Debug" / "Tests.dll").write_bytes(b"MZ")
-    (project / "Data.txt").write_text("beside")
-    (project / "fixtures").mkdir()
-    (project / "fixtures" / "one.json").write_text("{}")
+    monkeypatch.setattr(platform, "system", lambda: system)
+    monkeypatch.setattr(platform, "machine", lambda: machine)
+    with pytest.raises(LaunchFailed) as refused:
+        _engine_platform()
+    named = {"Linux": "linux", "Darwin": "osx"}[system]
+    assert f"{named}-arm64" in str(refused.value) and "Instrumentation Engine" in str(refused.value)
 
-    for _ in range(2):
-        copy = _mirror(tmp_path / "scratch" / "tree", project / "bin" / "Debug")
-    assert (copy / "Tests.dll").read_bytes() == b"MZ" and not (copy / "Tests.dll").is_symlink(), (
-        "the output is copied, so the weave writes to the copy and never through a link")
-    assert (copy / ".." / ".." / "Data.txt").read_text() == "beside"
-    assert (Path(os.path.normpath(copy / ".." / ".." / "fixtures" / "one.json"))).read_text() == "{}", (
-        "resolved by text, as .NET resolves `..`, it lands on the same file")
-    assert (project / "Data.txt").read_text() == "beside" and (project / "fixtures" / "one.json").is_file(), (
-        "clearing the previous mirror reached through a link into the tree it mirrors")
+
+@needs_built_sample
+@pytest.mark.proves("dev07-1-3", depth="unit")
+def test_a_restore_without_the_engine_is_refused_by_name(tmp_path):
+    """The engine comes with the test SDK the project restores (`dev00-1-1-ur8`); a restore that
+    lacks it is named, with what brings it, rather than found missing inside the testhost."""
+    sys.path.insert(0, str(REPO / "src"))
+    from plumb.launch import LaunchFailed, _engine, _engine_platform
+
+    root = _built_sample(tmp_path)
+    assets = root / "sample" / "Tests" / "obj" / "project.assets.json"
+    restored = json.loads(assets.read_text())
+    restored["libraries"] = {k: v for k, v in restored["libraries"].items()
+                             if not k.lower().startswith("microsoft.codecoverage/")}
+    assets.write_text(json.dumps(restored))
+    with pytest.raises(LaunchFailed) as refused:
+        _engine(root / "sample/Tests/bin/Debug/net6.0/Tests.dll", _engine_platform())
+    assert "Microsoft.CodeCoverage" in str(refused.value) and "Microsoft.NET.Test.Sdk" in str(refused.value)
+
+
+@pytest.mark.proves("dev07-1-3", depth="unit")
+def test_a_profiler_already_configured_is_never_displaced(monkeypatch, tmp_path):
+    """`dev07-1-3-sr12`: an engine already configured is joined; any other profiler is left as it
+    is, and the run goes unobserved and says so (`nfr2`), rather than plumb taking its place."""
+    sys.path.insert(0, str(REPO / "src"))
+    from plumb.launch import ENGINE_CLASS, _Platform, _profiler_variables
+
+    where = _Platform("linux-x64", "ubuntu/x64/libInstrumentationEngine.so", "64")
+    args = (tmp_path / "engine.so", tmp_path / "PlumbInstrumenter.so", where, tmp_path / "plan",
+            tmp_path / "log")
+    monkeypatch.setenv("CORECLR_ENABLE_PROFILING", "1")
+    monkeypatch.setenv("CORECLR_PROFILER", "{11111111-2222-3333-4444-555555555555}")
+    said: list[str] = []
+    assert _profiler_variables(*args, said.append) == {}, "another profiler would be displaced"
+    assert any("is not displaced" in line for line in said), said
+
+    monkeypatch.setenv("CORECLR_PROFILER", ENGINE_CLASS.lower())
+    joined = _profiler_variables(*args, said.append)
+    assert joined["CORECLR_PROFILER"] == ENGINE_CLASS and "MicrosoftInstrumentationEngine_ConfigPath64_Plumb" in joined, (
+        "the engine already configured is joined, with plumb's instrumenter added to it")
 
 
 def test_the_citation_the_collector_reads_is_the_one_the_vocabulary_declares():

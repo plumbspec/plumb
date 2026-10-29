@@ -9,8 +9,8 @@ using System.Runtime.InteropServices;
 namespace PlumbSpec.Instrumenter
 {
     /// <summary>
-    /// The weave, carried out as the runtime compiles: the same probes the static weave wrote into a
-    /// copy, written now into each method's instruction graph, in the build's own output.
+    /// The weave, carried out as the runtime compiles: each method's probes written into its
+    /// instruction graph, in the build's own output.
     /// </summary>
     /// <remarks>
     /// <para>What to weave is declared by the adapter (<c>PLUMB_PLAN</c>): the tests assembly, the
@@ -111,11 +111,14 @@ namespace PlumbSpec.Instrumenter
                 foreach (var site in read.Handoffs)
                     plan.Handoffs.Add((site.Call, site.Shim, site.ShimSignature,
                                        site.Instantiation is { } spec ? md.GetBlobBytes(spec) : null));
+                // What the run reached, said as it is reached: the collector and the launcher read
+                // this to know the instrument met the project, rather than assuming it did.
+                Log.Say($"planned\t{path}\t{(isTests ? "tests" : "production")}\t{read.Entries.Count}");
                 return plan;
             }
             catch (Exception failed) when (failed is IOException or BadImageFormatException or UnauthorizedAccessException)
             {
-                Log.Say($"unread {path}: {failed.Message}");
+                Log.Say($"unread\t{path}\t{failed.Message}");
                 return null;
             }
         }

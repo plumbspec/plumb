@@ -43,11 +43,7 @@ namespace PlumbSpec
         private readonly string measuredAt =
             DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
-        private string? manifestPath, runFile;
-
-        /// <summary>How many production methods and entry points the weave put a probe in. Zero is
-        /// a run with nothing to observe with, whatever was declared (dev07-1-3).</summary>
-        private int woven;
+        private string? manifestPath, runFile, instrumenterLog;
 
         private bool entryPointsDeclared;
 
@@ -94,11 +90,13 @@ namespace PlumbSpec
             var version = RunFile.Read(runFile, "version");
             // After the run, as the JVM adapter records it: what made the measurements is only
             // known once they have been made (dev07-3-1).
+            var reached = ReachedProduction();
+            if (!reached) Settle();
             manifest.Observer = new Manifest.Provenance(
                 "plumb-dotnet", version.Count == 0 ? "unreported" : version[0][0],
                 RuntimeInformation.FrameworkDescription,
-                woven > 0
-                    ? "IL probes, woven into a copy of the build's output (production surface and entry points)"
+                reached
+                    ? "IL probes, woven by the CLR Instrumentation Engine as the runtime compiled (production surface and entry points)"
                     : "none — citations only, grounding not observed");
             manifest.Write(manifestPath);
             Report();
@@ -119,13 +117,46 @@ namespace PlumbSpec
         /// </remarks>
         private string Grounding(Probe.Scope? scope)
         {
-            if (woven == 0 || !entryPointsDeclared || scope == null) return NotChecked;
+            if (!entryPointsDeclared || scope == null) return NotChecked;
             if (scope.EnteredThrough().Count > 0) return "grounded";
             // An arrival is the better fact and is checked first: work the test sent reached an entry
             // point elsewhere. What is left is a hand-off seen leaving, whose work may arrive after
             // the window closed — not a definite negative, because we stopped looking (dev07-1-4).
             if (scope.Elsewhere || scope.HandedOff) return "dispatched";
             return scope.Ran ? "ungrounded" : "untouched";
+        }
+
+        /// <summary>
+        /// Whether the instrument met the project: the instrumenter says so of each production module
+        /// as the runtime loads it, and nothing said is nothing woven, whatever was declared
+        /// (dev07-1-3). Read once the run is over, because no test can know it while it finishes — a
+        /// test that touches nothing may finish before any production module has loaded.
+        /// </summary>
+        private bool ReachedProduction()
+        {
+            if (instrumenterLog == null || !File.Exists(instrumenterLog)) return false;
+            foreach (var line in File.ReadAllLines(instrumenterLog))
+            {
+                var fields = line.Split('\t');
+                if (fields.Length >= 3 && fields[0] == "planned" && fields[2] == "production") return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// With nothing woven, every fact read from an absence is withdrawn: <c>ungrounded</c> and
+        /// <c>untouched</c> become <c>not-checked</c>, and the window facts go unreported. What a
+        /// probe positively saw — <c>grounded</c>, <c>dispatched</c> — stands, though with no
+        /// production probe it cannot have been seen.
+        /// </summary>
+        private void Settle()
+        {
+            static string Withdrawn(string grounding) =>
+                grounding == "grounded" || grounding == "dispatched" ? grounding : NotChecked;
+            manifest.Settle(c => Withdrawn(c.Grounding) == c.Grounding ? c
+                : c with { Grounding = NotChecked, EnteredThrough = null, ReachedOutsideEntry = null });
+            for (var i = 0; i < groundingByTest.Count; i++)
+                groundingByTest[i] = (groundingByTest[i].Test, Withdrawn(groundingByTest[i].Grounding));
         }
 
         /// <summary>
@@ -169,8 +200,7 @@ namespace PlumbSpec
             document.LoadXml(configuration);
             manifestPath = document.SelectSingleNode("//Manifest")?.InnerText;
             runFile = document.SelectSingleNode("//RunFile")?.InnerText;
-            int.TryParse(document.SelectSingleNode("//Woven")?.InnerText, NumberStyles.Integer,
-                         CultureInfo.InvariantCulture, out woven);
+            instrumenterLog = document.SelectSingleNode("//InstrumenterLog")?.InnerText;
         }
 
         /// <summary>

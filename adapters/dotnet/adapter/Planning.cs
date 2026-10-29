@@ -14,8 +14,8 @@ namespace PlumbSpec
     /// off an assembly's metadata — and the plan for one module that follows from it.
     /// </summary>
     /// <remarks>
-    /// Compiled into the adapter, which weaves a copy, and into the instrumenter, which weaves as the
-    /// runtime compiles, so both read an assembly the same way. The instrumenter reads the module as
+    /// Compiled into the adapter and into the instrumenter, which weaves as the runtime compiles, so
+    /// both read an assembly the same way. The instrumenter reads the module as
     /// it is loaded, never as it was before the run: another tool may rewrite it on disk first —
     /// measured, Microsoft's coverage does, for the length of its run — and a token read before is
     /// then a token of something else.

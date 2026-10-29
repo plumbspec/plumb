@@ -3,22 +3,25 @@
 A VSTest run in, a manifest out (`dev07-3-3`). The core reads the manifest and derives every status
 from it, so nothing here decides anything.
 
-    dotnet build adapters/dotnet/adapter      # the collector, into build/ — the publisher's step
+    dotnet build adapters/dotnet/adapter      # collector, probe and planner, into build/
+    dotnet publish adapters/dotnet/instrumenter -r linux-x64 -c Release \
+        -o adapters/dotnet/build/instrumenter/linux-x64   # the instrumenter — both the publisher's step
     dotnet build adapters/dotnet/sample/Tests # the sample's own build — the adopter's step
     plumb board --project adapters/dotnet     # one command, as for any project
 
-**Your build, then a copy of it.** Plumb does not build your project. It copies the test project's
-build output to its own scratch, outside your tree, weaves the copy, and runs VSTest over it
-(`dev07-1-3-sr11`). Your `bin/` is never written to. It has to be a copy: the .NET host settles which
-assemblies it loads from `deps.json` before any code of plumb's could run.
+**Your build, run where it was written.** Plumb does not build your project, and it does not copy or
+write it: VSTest runs the test project's output where the build left it, and the weave happens in
+memory, as the runtime compiles each method (`dev07-1-3-sr11`). So a test that goes up from
+`AppContext.BaseDirectory` or its working directory to reach `../../../TestData` finds what it finds
+under `dotnet test` (`sr14`).
 
-The copy sits at the end of a mirror of the path to your output: each directory on that path is a
-real directory in plumb's scratch, and everything beside it is a link to yours. So a test that goes
-up from `AppContext.BaseDirectory`, or from its working directory, to reach `../../../TestData`
-finds your files exactly as under `dotnet test` (`dev07-1-3-sr14`). Writing is where the two differ:
-a file written into a directory on the path to your output — `../../../out.txt` — lands in the
-mirror, not in your tree, and one written into anything beside that path goes through the link
-into your tree, as it would under `dotnet test`. Whether the links hold on Windows is not measured.
+**Woven through the engine your test SDK already carries** (`dev07-1-3-sr12`). The runtime lets one
+profiler rewrite code, and Microsoft's code coverage takes that hook through the CLR Instrumentation
+Engine, which every project restores with `Microsoft.NET.Test.Sdk`. Plumb's instrumenter loads into
+that engine as one more instrumenter, so it runs beside coverage rather than instead of it. A
+profiler already set in your environment is never displaced: if it is the engine, plumb joins it;
+otherwise the run goes unobserved and says why. Microsoft ships the engine for Windows x86, x64 and
+arm64, Linux x64 and macOS x64; on Linux or macOS arm64 the board is refused by name (`sr15`).
 
 **Your build's runtime, checked first** (`dev07-1-1`). Before anything is copied, the build's own
 `<tests>.deps.json` is read: an assembly it declares that is not in the output is refused by name,
@@ -33,7 +36,8 @@ compiled against the oldest object model that has the in-process collector, so i
 one your test SDK brings.
 
 Three parts: `annotations` — the citation vocabulary alone, `PlumbSpec.Annotations` — `adapter`,
-the weaver, the collector and the probe in one assembly, and `sample`, the fixtures `tests/test_the_dotnet_adapter.py` boards: an xUnit suite
+the collector, the probe and the planner in one assembly — `instrumenter`, the native library the
+engine loads, built from the same planning sources — and `sample`, the fixtures `tests/test_the_dotnet_adapter.py` boards: an xUnit suite
 under `sample/Tests` with `App` as its production, and `NUnitTests` and `MSTestTests`, each citing
 one test per way its framework spells a result. All target
 `net6.0`, the floor, so the sample's tests run on the floor runtime whatever SDK built them;
@@ -68,7 +72,8 @@ test (`dev07-1-3-sr04`); the test assembly is the one `tests` names.
 
 ## Grounding
 
-The weave is the adapter's own, on the runtime's own metadata reader (`dev07-1-3-sr12`). In the copy:
+The weave is the adapter's own, carried out through the engine's instruction graph as each method
+compiles:
 
 - every production method's first instruction reports that it ran;
 - each declared entry point is wrapped in `try { … } finally { … }`, so its window closes on a throw
@@ -97,8 +102,8 @@ both are `null`, not reported.
 alike, so the flow alone cannot say whether the test is still the one running. Two aspects tell
 them apart:
 
-- **The hand-off, at the call.** .NET's primitives are in its own libraries, which are not in the
-  copy, so the aspect goes on the call: `Task.Run`, `TaskFactory.StartNew`, `new Thread(…)` and
+- **The hand-off, at the call.** .NET's primitives are in its own libraries, which the weave does
+  not reach yet, so the aspect goes on the call: `Task.Run`, `TaskFactory.StartNew`, `new Thread(…)` and
   `ThreadPool.QueueUserWorkItem` (and `UnsafeQueueUserWorkItem`) in woven code call a shim instead,
   matched on the exact signature. The shim marks the window as having sent work and wraps the
   delegate, which carries the window, says it is handed-off work across its own awaits, and restores
@@ -113,10 +118,13 @@ whose work never arrives is not seen (`dev07-1-4-u5`). `inert` is never said: a 
 observed yet (`dev07-1-3-u07`), and `inert` is not claimed from an absence. A test whose body never ran
 — skipped, or marked by a test attribute the weave does not know — reads `not-checked`.
 
-**What is woven is appended, never re-encoded.** New names, signatures and rows go after what is
-there, so every existing offset and token keeps its meaning; new bodies and metadata go in one added
-section. An assembly that would need an index widened, that is ReadyToRun or mixed-mode, or a
-method that uses `jmp`, is left exactly as built and named on the run (`dev07-1-3-nfr3`).
+**Read as loaded, never before** (`dev07-1-3-sr16`). The adapter declares only names — the tests,
+the production assemblies, the entry points, the hand-off shims. The instrumenter reads each module's
+tokens from it as the runtime loads it, because another tool may rewrite the file first: Microsoft's
+coverage does, in place, for the length of its run. Whether the instrument met your project at all is
+read from what it reported: if it met no production assembly, every fact read from an absence becomes
+`not-checked` and the board says the run went blind. A method the weave cannot wrap — one using
+`jmp`, or returning by reference — is compiled as it was and named (`dev07-1-3-nfr3`).
 
 ## Not yet
 

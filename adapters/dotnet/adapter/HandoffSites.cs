@@ -10,15 +10,11 @@ using System.Reflection.Metadata.Ecma335;
 namespace PlumbSpec
 {
     /// <summary>
-    /// Which calls in one assembly are hand-offs, and the token each is retargeted to.
+    /// The shims, as the matcher reads them: each by the signature of the call it stands in for,
+    /// spelled from the shim's reflection the same way <see cref="HandoffMatch"/> spells a call
+    /// from metadata.
     /// </summary>
-    /// <remarks>
-    /// A call matches a shim only on its exact signature, spelled the same way on both sides — from
-    /// the call's metadata here and from the shim's reflection below — so a call with no shim of
-    /// its exact shape is left alone rather than pointed at something that is not there, which would
-    /// be a <c>MissingMethodException</c> inside their code.
-    /// </remarks>
-    internal sealed class HandoffSites
+    internal static class HandoffSites
     {
         /// <summary>Every shim, by the signature of the call it stands in for.</summary>
         internal static readonly Dictionary<string, (MethodInfo Shim, Call Call)> Shims = typeof(Handoff)
@@ -34,23 +30,6 @@ namespace PlumbSpec
         /// how the call stands.</summary>
         internal static readonly Dictionary<string, (string Shim, Call Call)> Table =
             Shims.ToDictionary(s => s.Key, s => (s.Value.Shim.Name, s.Value.Call), StringComparer.Ordinal);
-
-        public readonly Dictionary<int, int> Retarget = new Dictionary<int, int>();
-
-        public HandoffSites(Rewriter rewriter, Func<int> handoffType)
-        {
-            int? type = null;
-            var minted = new Dictionary<int, int>();
-            foreach (var site in HandoffMatch.Find(rewriter.Md, Table))
-            {
-                type ??= handoffType();
-                if (site.Instantiation is null)
-                    Retarget[site.Call] = minted[site.Call] =
-                        rewriter.MemberRef(type.Value, site.Shim, site.ShimSignature);
-                else
-                    Retarget[site.Call] = rewriter.MethodSpec(minted[site.Through], site.Instantiation.Value);
-            }
-        }
 
         /// <summary>A parameter's type, as <see cref="SignatureNames"/> spells it from metadata.</summary>
         private static string Name(Type type)

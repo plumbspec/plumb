@@ -119,7 +119,7 @@ namespace PlumbSpec.Instrumenter
         {
             *instrument = 0;
             try { *instrument = Weave.Wanted(method) ? 1 : 0; }
-            catch (Exception failed) { Log.Say($"failed {failed.Message}"); }
+            catch (Exception failed) { Log.Say($"failed\t{failed.Message}"); }
             return Com.S_OK;
         }
 
@@ -129,7 +129,7 @@ namespace PlumbSpec.Instrumenter
         private static int InstrumentMethod(void* self, void* method, int isRejit)
         {
             try { Weave.Instrument(method); }
-            catch (Exception failed) { Log.Say($"left {Weave.FullName(method)}: {failed.Message}"); }
+            catch (Exception failed) { Log.Say($"left\t{Weave.FullName(method)}\t{failed.Message}"); }
             return Com.S_OK;
         }
 
