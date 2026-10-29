@@ -20,7 +20,7 @@ namespace Sample.Tests
         public void ExercisesCodeNoEntryPointReaches() => Assert.Equal(4, App.Work(2));
 
         /// <summary>Reads the artifact and runs none of it — `inert`, once a read is observable
-        /// (dev07-1-3-u7).</summary>
+        /// (dev07-1-3-u07).</summary>
         [Fact]
         [Proves("APP-4", "unit")]
         public void TheEntryPointTypeIsWhereWeSayItIs()

@@ -11,7 +11,7 @@ wraps each declared entry point so its window closes on every way out, and opens
 in the test's own code — VSTest reports a test from another thread than the one running it, and
 xUnit runs test classes at once. Hand-offs are retargeted to shims that carry the window, and each
 async step says whose flow it resumes, so work sent elsewhere reads `dispatched` and work awaited
-stays the test's own. Reads are not observed (`dev07-1-3-u7`), so a test that reads the
+stays the test's own. Reads are not observed (`dev07-1-3-u07`), so a test that reads the
 artifact reads `untouched` rather than `inert` until they are.
 
 The sample targets `net6.0`, so its testhost runs on the floor runtime (`dev07-1-1-ur1`) whatever
@@ -189,7 +189,7 @@ def test_the_facts_name_the_runtime_and_the_instrument_that_made_them(board):
 EXPECTED = {
     "Sample.Tests.GroundingTests.DrivesTheEntryPointDirectly": "grounded",
     "Sample.Tests.GroundingTests.ExercisesCodeNoEntryPointReaches": "ungrounded",
-    # `inert` once a read is observable (`dev07-1-3-u7`); never `inert` from the absence alone.
+    # `inert` once a read is observable (`dev07-1-3-u07`); never `inert` from the absence alone.
     "Sample.Tests.GroundingTests.TheEntryPointTypeIsWhereWeSayItIs": "untouched",
     "Sample.Tests.GroundingTests.AnEntryPointOfEveryShapeStillAnswersAsBuilt": "grounded",
     "Sample.Tests.GroundingTests.AnEntryPointThatThrowsStillGrounds": "grounded",

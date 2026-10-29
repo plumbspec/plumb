@@ -18,7 +18,7 @@ up from `AppContext.BaseDirectory`, or from its working directory, to reach `../
 finds your files exactly as under `dotnet test` (`dev07-1-3-sr14`). Writing is where the two differ:
 a file written into a directory on the path to your output — `../../../out.txt` — lands in the
 mirror, not in your tree, and one written into anything beside that path goes through the link
-into your tree, as it would under `dotnet test`. Whether the links hold on Windows is not yet measured (`dev07-1-3-u9`).
+into your tree, as it would under `dotnet test`. Whether the links hold on Windows is not measured.
 
 **Your build's runtime, checked first** (`dev07-1-1`). Before anything is copied, the build's own
 `<tests>.deps.json` is read: an assembly it declares that is not in the output is refused by name,
@@ -110,7 +110,7 @@ them apart:
 Anything else reaching an entry point with the test's flow — a timer, or a hand-off a library made —
 is work the test sent somewhere, and reads `dispatched` (`dev07-1-4-sr4`). A hand-off a library makes
 whose work never arrives is not seen (`dev07-1-4-u5`). `inert` is never said: a read of the artifact is not
-observed yet (`dev07-1-3-u7`), and `inert` is not claimed from an absence. A test whose body never ran
+observed yet (`dev07-1-3-u07`), and `inert` is not claimed from an absence. A test whose body never ran
 — skipped, or marked by a test attribute the weave does not know — reads `not-checked`.
 
 **What is woven is appended, never re-encoded.** New names, signatures and rows go after what is
@@ -120,6 +120,6 @@ method that uses `jmp`, is left exactly as built and named on the run (`dev07-1-
 
 ## Not yet
 
-Reads (`inert`), setup code run before a test's own window opens (`dev07-1-3-u8`), progress
+Reads (`inert`), setup code run before a test's own window opens (`dev07-1-3-u08`), progress
 (`dev07-1-5`), mutation, plumb coverage, and the adapter riding inside the shipped artifact. Until it does, an installed plumb refuses a .NET project by naming its
 own install.

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- A prototype (rule 4): plumb's instrumentation method for the CLR Instrumentation Engine,
+       compiled to a native library so the engine can load it beside Microsoft's coverage. Its own
+       runtime is NativeAOT's; the process it instruments runs whatever runtime the tests target. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <PublishAot>true</PublishAot>
+    <NativeLib>Shared</NativeLib>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PlumbInstrumenter</AssemblyName>
+    <!-- The machine that builds the prototype has gcc and no clang. -->
+    <CppCompilerAndLinker>gcc</CppCompilerAndLinker>
+  </PropertyGroup>
+</Project>

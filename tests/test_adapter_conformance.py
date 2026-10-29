@@ -165,7 +165,7 @@ def _dotnet_groundings() -> dict:
 @pytest.mark.proves("dev07-1-4", depth="standards-integration")
 @pytest.mark.parametrize("shape", [
     pytest.param(shape, marks=pytest.mark.xfail(
-        strict=True, reason="a .NET read of the artifact is not observed yet (dev07-1-3-u7)"))
+        strict=True, reason="a .NET read of the artifact is not observed yet (dev07-1-3-u07)"))
     if shape == "reads the artifact and runs none of it" else shape
     for shape in CONFORMANCE])
 def test_the_dotnet_adapter_answers_the_shared_scenario(shape):

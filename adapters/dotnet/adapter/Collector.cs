@@ -113,7 +113,7 @@ namespace PlumbSpec
         /// thread reaching one, or a hand-off seen and not arrived, is <c>dispatched</c>.
         /// No window is a test whose body never ran — skipped before it began, or marked by an
         /// attribute the weave does not know — and nothing could be asked of it. A read of the
-        /// artifact is not observed (dev07-1-3-u7), so <c>inert</c> is never said: a test that ran
+        /// artifact is not observed (dev07-1-3-u07), so <c>inert</c> is never said: a test that ran
         /// nothing is <c>untouched</c>, which grants nothing, rather than <c>inert</c> on the
         /// strength of an absence.
         /// </remarks>

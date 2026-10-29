@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-10-29 v13
+**Last updated** 2026-10-29 v14
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered when plumb is run, carrying the
 configuration, the annotations and the working tree. Exits to `dev07-3 · collect what the run
@@ -156,16 +156,20 @@ flowchart TD
     carries or by the declaration naming what encloses it — is named for the source member that
     contains it, and never by matching what it is called
   * dev07-1-3-sr11 - where the runtime settles which assemblies it loads before any code of the
-    adapter's can run, as .NET does, production is woven into a copy of the build's output made
-    afresh each run outside the project's tree, and the build's own output is never written to
-  * dev07-1-3-sr12 - the weaving is the adapter's own, on the runtime's own reader and writer — no
-    third-party rewriter, no version matrix
+    adapter's can run, as .NET does, production is woven as the runtime compiles it, and the
+    build's output is run where the build wrote it, unchanged
+  * dev07-1-3-sr12 - the weaving is the adapter's own; where the runtime gives the hook that
+    rewrites code to one tool alone, as .NET does, the adapter takes it through the host the
+    project's own test toolchain carries for sharing it, so it never displaces a tool the project
+    already runs
   * dev07-1-3-sr13 - where the runner reports a test on a thread other than the one running it, as
     VSTest does, the test's own code opens its window, so tests the runner runs at once keep a
     window each
   * dev07-1-3-sr14 - a path a test takes relative to the build's output or to its working directory
-    reaches from the copy what it reaches from the build's own output, so where the copy lives is
-    never a failure the build does not have
+    reaches what it reaches under the build's own runner, so where the run happens is never a
+    failure the build does not have
+  * dev07-1-3-sr15 - a platform the sharing host is not shipped for is refused by name before the
+    suite is launched, as dev00-1-1-ur7 refuses machinery the tool cannot supply
 
 #### Non-Functional Requirements
   * dev07-1-3-nfr1 - running under observation costs about what the tests already cost
@@ -174,22 +178,21 @@ flowchart TD
   * dev07-1-3-nfr3 - code the adapter cannot instrument is left exactly as it was, and named
 
 #### Unknowns
-  * dev07-1-3-u1 - what tracing costs on Python tracks the traced window rather than the
+  * dev07-1-3-u01 - what tracing costs on Python tracks the traced window rather than the
     codebase, and no bound is claimable
-  * dev07-1-3-u2 - a runtime-generated class reports the origin of its host, so every one is
+  * dev07-1-3-u02 - a runtime-generated class reports the origin of its host, so every one is
     instrumented, and what that costs on a large suite is unmeasured
-  * dev07-1-3-u3 - a runtime-made class that declares no enclosing member can be placed only in
+  * dev07-1-3-u03 - a runtime-made class that declares no enclosing member can be placed only in
     its host, and whether the host is a sufficient name is unsettled
-  * dev07-1-3-u4 - a thread that predates the window and takes work by accepting a connection
+  * dev07-1-3-u04 - a thread that predates the window and takes work by accepting a connection
     is seen by neither adapter; a corpus that needs those threads needs a collector outside them
-  * dev07-1-3-u6 - what copying the build's output costs a large .NET suite is unmeasured
-  * dev07-1-3-u7 - how a .NET test's read of the artifact is observed is open: nothing in the
+  * dev07-1-3-u07 - how a .NET test's read of the artifact is observed is open: nothing in the
     process hears a file or reflection read without weaving the runtime's own libraries, so `inert`
     is withheld there
-  * dev07-1-3-u8 - code a test's setup runs before the test's own code opens the window is
+  * dev07-1-3-u08 - code a test's setup runs before the test's own code opens the window is
     attributed to no test, and whether that loses a fact a reader needs is unsettled
-  * dev07-1-3-u9 - whether a copy reached through links holds on Windows, where linking a file needs
-    a privilege a developer may not have, is unmeasured
+  * dev07-1-3-u10 - whether the sharing host builds for the platforms its project does not ship it
+    for is unchecked
 
 
 ---
