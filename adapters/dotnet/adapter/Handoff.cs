@@ -21,8 +21,6 @@ namespace PlumbSpec
         public Call Call { get; }
     }
 
-    internal enum Call { Static, Instance, Constructor }
-
     /// <summary>
     /// The hand-off primitives, as the weave sees them: each call to one, in code the weave rewrote,
     /// is retargeted to the shim here that stands in for it (dev07-1-4-sr2).

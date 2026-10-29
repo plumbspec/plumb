@@ -1,6 +1,6 @@
 # dev07-1 · run the suite under observation
 
-**Last updated** 2026-10-29 v14
+**Last updated** 2026-10-29 v15
 
 A sub-flow of [dev07 · run plumb](dev07-run-plumb.md). Entered when plumb is run, carrying the
 configuration, the annotations and the working tree. Exits to `dev07-3 · collect what the run
@@ -170,6 +170,8 @@ flowchart TD
     failure the build does not have
   * dev07-1-3-sr15 - a platform the sharing host is not shipped for is refused by name before the
     suite is launched, as dev00-1-1-ur7 refuses machinery the tool cannot supply
+  * dev07-1-3-sr16 - each module is read as the runtime loaded it, never as it was before the run,
+    because another tool may rewrite the build's output in between
 
 #### Non-Functional Requirements
   * dev07-1-3-nfr1 - running under observation costs about what the tests already cost

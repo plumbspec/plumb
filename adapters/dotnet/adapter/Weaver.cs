@@ -21,29 +21,18 @@ namespace PlumbSpec
     /// </remarks>
     public static class Weaver
     {
-        /// <summary>The test attributes VSTest's frameworks mark a test with, by name. A test whose
-        /// attribute derives from one of these in another assembly is not seen, and reads
-        /// <c>not-checked</c>: its window never opened, so nothing could be asked.</summary>
-        private static readonly HashSet<string> TestAttributes = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "Xunit.FactAttribute", "Xunit.TheoryAttribute",
-            "NUnit.Framework.TestAttribute", "NUnit.Framework.TestCaseAttribute",
-            "NUnit.Framework.TestCaseSourceAttribute", "NUnit.Framework.TheoryAttribute",
-            "Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute",
-            "Microsoft.VisualStudio.TestTools.UnitTesting.DataTestMethodAttribute",
-        };
-
         public static int Main(string[] args)
         {
-            if (args.Length != 5 || args[0] != "weave")
+            if (args.Length != 5 || (args[0] != "weave" && args[0] != "plan"))
             {
-                Console.Error.WriteLine("usage: PlumbSpec.Adapter weave <copy> <tests> <run file> <report>");
+                Console.Error.WriteLine("usage: PlumbSpec.Adapter weave|plan <output> <tests> <run file> <report>");
                 return 2;
             }
             var report = new List<string>();
             try
             {
-                Weave(args[1], args[2], args[3], report);
+                if (args[0] == "weave") Weave(args[1], args[2], args[3], report);
+                else Declare(args[2], args[3], report);
             }
             catch (Exception failed)
             {
@@ -74,7 +63,7 @@ namespace PlumbSpec
                 {
                     continue; // native, or not an assembly at all: nothing of ours
                 }
-                if (!isTests && !production.Any(p => Matches(name, p))) continue;
+                if (!isTests && !production.Any(p => Planning.Matches(name, p))) continue;
                 try
                 {
                     var rewriter = new Rewriter(File.ReadAllBytes(path));
@@ -95,10 +84,20 @@ namespace PlumbSpec
                 report.Add($"unfound\t{missing}");
         }
 
-        private static bool Matches(string name, string pattern) =>
-            pattern.EndsWith("*", StringComparison.Ordinal)
-                ? name.StartsWith(pattern.Substring(0, pattern.Length - 1), StringComparison.Ordinal)
-                : string.Equals(name, pattern, StringComparison.Ordinal);
+        /// <summary>
+        /// What the instrumenter needs to weave as the runtime compiles (dev07-1-3-sr11, sr03): which
+        /// assembly is the tests, which are production, the entry points, and the shims — and no
+        /// token. Tokens are read by the instrumenter from each module as it loads, because another
+        /// tool may rewrite the file between now and then (<see cref="Planning"/>).
+        /// </summary>
+        private static void Declare(string tests, string runFile, List<string> report)
+        {
+            report.Add($"tests\t{tests}");
+            foreach (var production in RunFile.Read(runFile, "production")) report.Add($"production\t{production[0]}");
+            foreach (var entry in RunFile.Read(runFile, "entrypoint")) report.Add($"entrypoint\t{entry[0]}");
+            foreach (var (key, (shim, call)) in HandoffSites.Table.OrderBy(s => s.Key, StringComparer.Ordinal))
+                report.Add($"shim\t{key}\t{shim}\t{call}");
+        }
 
         private static int ProbeType(Rewriter rewriter, string name)
         {
@@ -126,7 +125,7 @@ namespace PlumbSpec
             var begin = Member(nameof(Probe.Begin), 0x00, 0x03, 0x01, 0x1C, 0x0E, 0x0E);
             var handoffs = new HandoffSites(rewriter, () => ProbeType(rewriter, nameof(Handoff))).Retarget;
             var counts = new Counts();
-            foreach (var (type, handle, def, name) in Methods(md))
+            foreach (var (type, handle, def, name) in Planning.Methods(md))
             {
                 try
                 {
@@ -143,7 +142,7 @@ namespace PlumbSpec
                         found.Add(name);
                         counts.Entries++;
                     }
-                    else if (IsAsyncStep(md, type, def))
+                    else if (Planning.IsAsyncStep(md, type, def))
                     {
                         var prologue = isTests ? Il.Op(0x28, resume)
                             : Il.Op(0x28, ran).Concat(Il.Op(0x28, resume)).ToArray();
@@ -156,7 +155,7 @@ namespace PlumbSpec
                         rewriter.SetBody(handle, Il.Encode(Il.Prefix(body, Il.Op(0x28, ran), 0)));
                         counts.Methods++;
                     }
-                    else if (IsTest(md, def))
+                    else if (Planning.IsTest(md, def))
                     {
                         rewriter.SetBody(handle, Il.Encode(Il.Prefix(body, BeginPrologue(rewriter, def, name, begin), 3)));
                         counts.Tests++;
@@ -192,86 +191,6 @@ namespace PlumbSpec
             prologue.AddRange(Il.Op(0x72, rewriter.UserString(md.GetString(def.Name))));
             prologue.AddRange(Il.Op(0x28, begin));
             return prologue.ToArray();
-        }
-
-        /// <summary>A step of an async method or iterator: the <c>MoveNext</c> of a type the compiler
-        /// made to implement <c>IAsyncStateMachine</c>.</summary>
-        private static bool IsAsyncStep(MetadataReader md, TypeDefinitionHandle type, MethodDefinition def)
-        {
-            if (!md.GetString(def.Name).EndsWith("MoveNext", StringComparison.Ordinal)) return false;
-            foreach (var handle in md.GetTypeDefinition(type).GetInterfaceImplementations())
-            {
-                var implemented = md.GetInterfaceImplementation(handle).Interface;
-                if (implemented.Kind != HandleKind.TypeReference) continue;
-                var reference = md.GetTypeReference((TypeReferenceHandle)implemented);
-                if (md.GetString(reference.Namespace) == "System.Runtime.CompilerServices" &&
-                    md.GetString(reference.Name) == "IAsyncStateMachine")
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>Every method with an IL body, named as an entry point is declared:
-        /// <c>Namespace.Type.Method</c>, a nested type joined to its parent by <c>+</c>.</summary>
-        private static IEnumerable<(TypeDefinitionHandle, MethodDefinitionHandle, MethodDefinition, string)> Methods(
-            MetadataReader md)
-        {
-            foreach (var typeHandle in md.TypeDefinitions)
-            {
-                var typeName = TypeName(md, typeHandle);
-                foreach (var handle in md.GetTypeDefinition(typeHandle).GetMethods())
-                {
-                    var def = md.GetMethodDefinition(handle);
-                    if (def.RelativeVirtualAddress == 0) continue;
-                    if ((def.ImplAttributes & MethodImplAttributes.CodeTypeMask) != MethodImplAttributes.IL) continue;
-                    yield return (typeHandle, handle, def, typeName + "." + md.GetString(def.Name));
-                }
-            }
-        }
-
-        private static string TypeName(MetadataReader md, TypeDefinitionHandle handle)
-        {
-            var type = md.GetTypeDefinition(handle);
-            var name = md.GetString(type.Name);
-            var declaring = type.GetDeclaringType();
-            if (!declaring.IsNil) return TypeName(md, declaring) + "+" + name;
-            var ns = md.GetString(type.Namespace);
-            return ns.Length == 0 ? name : ns + "." + name;
-        }
-
-        private static bool IsTest(MetadataReader md, MethodDefinition def)
-        {
-            foreach (var handle in def.GetCustomAttributes())
-            {
-                var constructor = md.GetCustomAttribute(handle).Constructor;
-                EntityHandle type = constructor.Kind switch
-                {
-                    HandleKind.MemberReference => md.GetMemberReference((MemberReferenceHandle)constructor).Parent,
-                    HandleKind.MethodDefinition => md.GetMethodDefinition((MethodDefinitionHandle)constructor).GetDeclaringType(),
-                    _ => default,
-                };
-                if (IsTestAttribute(md, type)) return true;
-            }
-            return false;
-        }
-
-        /// <summary>The attribute's own name, or a base class's while the chain stays inside this
-        /// assembly — a project's own <c>[MyFact]</c> deriving from <c>[Fact]</c> is a test.</summary>
-        private static bool IsTestAttribute(MetadataReader md, EntityHandle type)
-        {
-            for (var depth = 0; depth < 16 && !type.IsNil; depth++)
-            {
-                if (type.Kind == HandleKind.TypeReference)
-                {
-                    var r = md.GetTypeReference((TypeReferenceHandle)type);
-                    return TestAttributes.Contains(md.GetString(r.Namespace) + "." + md.GetString(r.Name));
-                }
-                if (type.Kind != HandleKind.TypeDefinition) return false;
-                var d = (TypeDefinitionHandle)type;
-                if (TestAttributes.Contains(TypeName(md, d))) return true;
-                type = md.GetTypeDefinition(d).BaseType;
-            }
-            return false;
         }
 
         /// <summary>The local a wrapped entry point holds its result in, and the new local

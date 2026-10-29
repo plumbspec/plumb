@@ -14,12 +14,14 @@ What this prototype holds, in order:
    at the floor runtime;
 2. with Microsoft's coverage collected as well, both still run;
 
-3. a production method and a test, woven as the runtime compiles them, report into the same probe
-   the collector reads — on .NET 6 and on .NET 10, under two versions of the engine — and still do
-   with coverage instrumenting the same method.
+3. the whole weave, carried out as the runtime compiles, gives every test of the reference suite the
+   fact the static weave gives it — every shape of `grounded`, `ungrounded`, `untouched` and
+   `dispatched` — on .NET 6 and .NET 10, under two versions of the engine, and still does with
+   coverage instrumenting the same methods.
 
-The instrumenter lives beside this file until it is proven, and moves to the adapter after. For
-now what is production and what is a test arrives by name; recognising them moves with it.
+What to weave is a plan the adapter makes from the build's output (`PlumbSpec.Adapter plan`); the
+instrumenter carries it out and decides nothing (`dev07-1-3-sr03`). It lives beside this file until
+it is proven, and moves to the adapter after.
 """
 
 from __future__ import annotations
@@ -84,10 +86,18 @@ def instrumenter() -> Path:
     return BUILT / "PlumbInstrumenter.config"
 
 
-#: What the prototype weaves, by name, until recognising production and tests moves into it.
-PRODUCTION = "Sample.App.Work"
-CALLS_WORK = "Sample.Tests.GroundingTests.ExercisesCodeNoEntryPointReaches"
-READS_ONLY = "Sample.Tests.GroundingTests.TheEntryPointTypeIsWhereWeSayItIs"
+#: The reference project's declaration, as the launcher resolves it into a run file.
+ENTRY_POINTS = ("Sample.App.HandleRequest", "Sample.App.Shapes", "Sample.App.Echo",
+                "Sample.App.Record", "Sample.App.FailingRequest", "Sample.App.HandleAsync")
+
+
+def _expected() -> dict:
+    """Every test's fact under the static weave — one table, held by the static weave's own test,
+    so the two weaves are held to the same answers and never to two copies of them."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from test_the_dotnet_adapter import EXPECTED
+    return EXPECTED
 
 
 def _run(config: Path, work: Path, *extra: str, project: Path = SAMPLE
@@ -97,7 +107,13 @@ def _run(config: Path, work: Path, *extra: str, project: Path = SAMPLE
     log = work / "plumb.log"
     settings = work / "engine.runsettings"
     run_file = work / "run.tsv"
-    run_file.write_text("entrypoint\tSample.App.HandleRequest\nversion\tprototype\n")
+    run_file.write_text("".join(f"entrypoint\t{e}\n" for e in ENTRY_POINTS)
+                        + "production\tApp\nversion\tprototype\n")
+    output = next((project / "bin" / "Debug").iterdir())
+    planned = subprocess.run(["dotnet", str(COLLECTOR), "plan", str(output), "Tests.dll", str(run_file),
+                              str(work / "plan.tsv")], capture_output=True, text=True, timeout=300,
+                             env=_environment())
+    assert planned.returncode == 0, planned.stderr
     variables = {
         "CORECLR_ENABLE_PROFILING": "1",
         "CORECLR_PROFILER": ENGINE_CLASS,
@@ -107,8 +123,7 @@ def _run(config: Path, work: Path, *extra: str, project: Path = SAMPLE
         # off for itself, and plumb's is unsigned (`dev07-1-3-sr12`).
         "MicrosoftInstrumentationEngine_DisableCodeSignatureValidation": "1",
         "PLUMB_INSTRUMENTER_LOG": str(log),
-        "PLUMB_PROTO_PRODUCTION": PRODUCTION,
-        "PLUMB_PROTO_TESTS": f"{CALLS_WORK};{READS_ONLY}",
+        "PLUMB_PLAN": str(work / "plan.tsv"),
     }
     settings.write_text(
         "<RunSettings><RunConfiguration><EnvironmentVariables>"
@@ -130,7 +145,7 @@ def _run(config: Path, work: Path, *extra: str, project: Path = SAMPLE
     for line in (report.read_text().splitlines() if report.is_file() else []):
         if line.startswith("   "):
             fact, test = line.split(None, 1)
-            facts[test] = fact
+            facts[test.strip()] = fact
     return done, (log.read_text().splitlines() if log.is_file() else []), facts
 
 
@@ -169,8 +184,17 @@ def test_plumbs_instrumenter_and_microsofts_coverage_both_run(instrumenter, tmp_
     produced = list((tmp_path / "results").rglob("*.coverage"))
     assert produced and produced[0].stat().st_size > 0, (
         f"with plumb's instrumenter loaded, Microsoft's coverage produced nothing: {done.stdout[-2000:]}")
-    # Both instrument `Work`; plumb's probe must still report through coverage's.
-    assert (facts.get(CALLS_WORK), facts.get(READS_ONLY)) == ("ungrounded", "untouched"), facts
+    # Both instrument the same methods; plumb's probes must still report through coverage's, and the
+    # suite must still report what it reports unwoven. Measured: coverage rewrites the build's output
+    # on disk for the length of its run, and a weave planned from the file before then pointed its
+    # tokens at other members — eight tests failed that pass, and facts moved between tests.
+    _assert_parity(facts, "with coverage")
+    plain = subprocess.run(["dotnet", "test", "--no-build"], cwd=SAMPLE, capture_output=True,
+                           text=True, timeout=600, env=_environment())
+    counts = re.compile(r"Failed:\s+\d+, Passed:\s+\d+, Skipped:\s+\d+, Total:\s+\d+")
+    assert counts.search(done.stdout).group(0) == counts.search(plain.stdout).group(0), (
+        f"with coverage, the woven suite reports {counts.search(done.stdout).group(0)!r} where it "
+        f"reports {counts.search(plain.stdout).group(0)!r} unwoven")
 
 
 @pytest.fixture(scope="module")
@@ -190,22 +214,29 @@ def net10_sample(tmp_path_factory) -> Path:
     return project.parent
 
 
+def _assert_parity(facts: dict, where: str) -> None:
+    expected = _expected()
+    differ = {t: (expected.get(t), facts.get(t)) for t in set(expected) | set(facts)
+              if expected.get(t) != facts.get(t)}
+    assert not differ, f"{where}: the engine's weave and the static weave disagree:\n" + "\n".join(
+        f"  {t}: static {e!r}, engine {g!r}" for t, (e, g) in sorted(differ.items()))
+
+
 @needs_engine_platform
 @pytest.mark.parametrize("runtime", ["net6.0", "net10.0"])
-def test_methods_woven_as_they_compile_report_into_the_probe(instrumenter, net10_sample, tmp_path,
-                                                             runtime):
-    """Point 3: the weave at JIT time, read by the same collector the static weave fed.
-
-    A test that calls `Work` reads `ungrounded` — its window was opened by the woven `Begin`, and
-    the woven `Ran` reported into it — and one that only reads the artifact reads `untouched`. The
-    build's output is not written to: nothing is copied, and what runs is what the build wrote.
-    """
+def test_the_whole_weave_as_the_runtime_compiles_gives_every_test_its_fact(
+        instrumenter, net10_sample, tmp_path, runtime):
+    """Point 3: every test of the reference suite reads what the static weave reads, and the suite
+    reports what it reports unwoven. Nothing is copied: what runs is what the build wrote."""
     project = SAMPLE if runtime == "net6.0" else net10_sample
     done, said, facts = _run(instrumenter, tmp_path, project=project)
-    assert f"woven {PRODUCTION}" in said and f"woven {CALLS_WORK}" in said, said
-    assert not [line for line in said if line.startswith("failed")], said
-    assert (facts.get(CALLS_WORK), facts.get(READS_ONLY)) == ("ungrounded", "untouched"), (
-        f"{runtime}: the woven probe did not report into the collector's window: {facts}")
+    assert not [line for line in said if line.startswith(("left", "failed"))], said
+    _assert_parity(facts, runtime)
+    plain = subprocess.run(["dotnet", "test", "--no-build"], cwd=project, capture_output=True,
+                           text=True, timeout=600, env=_environment())
+    counts = re.compile(r"Failed:\s+\d+, Passed:\s+\d+, Skipped:\s+\d+, Total:\s+\d+")
+    assert counts.search(done.stdout) and counts.search(done.stdout).group(0) == \
+        counts.search(plain.stdout).group(0), "woven, the suite must report what it reports unwoven"
     runtimes = {c["observer"]["runtime"] for s in json.loads((tmp_path / "manifest.json").read_text())
                 ["stories"].values() for c in s["citations"]}
     major = ".NET 6." if runtime == "net6.0" else ".NET 10."
