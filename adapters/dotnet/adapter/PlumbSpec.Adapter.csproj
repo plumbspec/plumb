@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The collector VSTest loads into the testhost: a run in, a manifest out (dev07-3-3). Built by
+       the publisher and shipped inside the artifact (dev00-1-1-sr4), into build/, where the
+       launcher finds it in a checkout. -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>PlumbSpec</RootNamespace>
+    <AssemblyName>PlumbSpec.Adapter</AssemblyName>
+    <Nullable>enable</Nullable>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <OutputPath>$(MSBuildThisFileDirectory)../build/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Compiled against, never shipped: the testhost already carries the object model, and the
+         one it loads is the project's own version. The oldest that has the in-process collector
+         is the widest reach. -->
+    <PackageReference Include="Microsoft.TestPlatform.ObjectModel" Version="17.0.0"
+                      PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>

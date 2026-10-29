@@ -1,0 +1,5 @@
+# The NUnit half of the framework check (tests/test_the_dotnet_adapter.py).
+adapter = "dotnet"
+
+[dotnet]
+tests = "bin/Debug/net6.0/NUnitTests.dll"

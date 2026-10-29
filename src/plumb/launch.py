@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Callable
 
 from plumb import runfile
-from plumb.config import JAVA, PYTHON, Config, InvalidConfig
+from plumb.config import DOTNET, JAVA, PYTHON, Config, InvalidConfig
 from plumb.core.manifest import GROUNDING, Manifest, merge
 
 #: The resolved facts handed to a non-Python adapter. One `kind<TAB>value…` per line, because an
@@ -87,6 +87,8 @@ def _run_adapter(config: Config, pytest_args: list, mutation: bool,
     """One adapter's manifest, and whether its observation failed while producing it (`dev07-1-3`)."""
     if config.adapter == JAVA:
         return _java(config, mutation=mutation or config.mutation, report=report, tests=tests)
+    if config.adapter == DOTNET:
+        return _dotnet(config, report=report, tests=tests)
     if config.adapter == PYTHON:
         return _python(config, pytest_args, mutation=mutation or config.mutation, report=report,
                        tests=tests), False
@@ -1151,3 +1153,133 @@ def _test_roots(config, options) -> tuple[str, list]:
             "A root is a compiled output directory, so it appears after the module is built")
     return os.pathsep.join(str(r) for r in roots), roots
 
+
+
+# ---- .NET ---------------------------------------------------------------------------------
+
+#: The collector VSTest loads into the testhost, by the name its own assembly declares. A string,
+#: because VSTest matches it whole — a short name finds nothing and initialises nothing, silently.
+DOTNET_COLLECTOR = "PlumbSpec.Collector, PlumbSpec.Adapter, Version=1.0.0.0, Culture=neutral, " \
+                   "PublicKeyToken=null"
+
+
+def _dotnet(config: Config, *, report: Callable[[str], None] | None,
+            tests: bool = False) -> tuple[Manifest, bool]:
+    """A copy of the build's output, run by VSTest with plumb's collector in the testhost.
+
+    **A copy, made afresh, outside the project's tree** (`dev07-1-3-sr11`). The .NET host settles
+    which assemblies it loads from the build's `deps.json` before any code of ours runs, so the
+    weave that observes production has to be in the files the host loads — and those files are the
+    adopter's build output, which this never writes to. The copy is where the weave will happen; in
+    this slice nothing is woven yet and the copy is run as it was built.
+
+    **VSTest, not a framework.** The collector hears every test start and end from VSTest itself, so
+    xUnit, NUnit and MSTest are one road, and the test SDK the project already references is all a
+    run needs (`dev00-1-1-ur8`).
+    """
+    say = report or (lambda line: None)
+    built = _dotnet_tests(config)
+    work = _scratch(config)
+    manifest_path = work / "manifest.json"
+    _clear_stale(manifest_path)
+    (work / "report.txt").unlink(missing_ok=True)
+
+    collector = _bundled_collector()
+    if not collector:
+        # The tool's own install is the fault, so it is named as that (`dev00-1-1-ur7`).
+        raise LaunchFailed(
+            "the .NET adapter's collector is not in this installation, which was built "
+            "without it. In a checkout, build it with `dotnet build adapters/dotnet/adapter`")
+
+    copy = work / "output"
+    shutil.rmtree(copy, ignore_errors=True)
+    shutil.copytree(built.parent, copy)
+
+    # Nothing observes grounding yet, so the surface is not named to the collector: `inert` is read
+    # from an absence, and an absence nothing watched for proves nothing (`runfile.write`).
+    run_file = runfile.write(config, work / RUN_FILE, surface=False)
+    settings = work / "plumb.runsettings"
+    settings.write_text(_runsettings(collector, manifest_path, run_file, work / "results"))
+
+    dotnet = shutil.which("dotnet") or "dotnet"
+    say(f"dotnet: {built.name}, a copy at {copy}")
+    with (work / "run.out").open("w") as out:
+        try:
+            subprocess.run([dotnet, "test", str(copy / built.name), "--settings", str(settings)],
+                           cwd=config.root, stdout=out, stderr=subprocess.STDOUT,
+                           timeout=SUITE_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            raise LaunchFailed(f"the .NET suite did not finish in {SUITE_TIMEOUT}s — see "
+                               f"{work / 'run.out'}") from None
+
+    if not manifest_path.is_file():
+        raise LaunchFailed(
+            f"the .NET adapter produced no manifest at {manifest_path} — see {work / 'run.out'}")
+
+    said = (work / "report.txt").read_text() if (work / "report.txt").is_file() else ""
+    tally: dict[str, int] = {}
+    for line in said.splitlines():
+        grounding = PER_TEST.match(line)
+        if grounding:
+            tally[grounding.group(1)] = tally.get(grounding.group(1), 0) + 1
+            if tests:
+                say(f"dotnet: {line}")
+        elif GROUNDING_LINE.match(line) or line.startswith("plumb: "):
+            say(f"dotnet: {line}")
+    if tally and not tests:
+        say("dotnet: " + " · ".join(f"{count} {word}" for word, count in sorted(tally.items()))
+            + "   (--tests names them)")
+
+    # Declared and not watched is a run that went blind, which is a different `not-checked` from
+    # nobody having declared anything, and the reader's next move differs (`dev07-1-4-ur5`).
+    blind = bool(config.entry_points or config.production)
+    if blind:
+        say("dotnet: entry points and production are declared, and this adapter does not observe "
+            "grounding yet — every citation reads not-checked")
+    return Manifest.read(manifest_path), blind
+
+
+def _dotnet_tests(config: Config) -> Path:
+    """The built test assembly `[dotnet] tests` names, refused by name when it is not there."""
+    tests = config.options.get("tests")
+    if not isinstance(tests, str) or not tests:
+        raise InvalidConfig("plumb.toml: [dotnet] needs `tests` — the test project's built "
+                            "assembly, as `dotnet build` leaves it, e.g. "
+                            '"tests/bin/Debug/net8.0/MyApp.Tests.dll"')
+    built = (config.root / tests).resolve()
+    if not built.is_file():
+        raise InvalidConfig(f"plumb.toml: [dotnet] `tests` names {built}, which does not exist — "
+                            "the project has not been built yet, or the path is wrong")
+    return built
+
+
+def _runsettings(collector: str, manifest: Path, run_file: Path, results: Path) -> str:
+    """The run settings that load the collector and tell it where the run's files are."""
+    from xml.sax.saxutils import quoteattr, escape
+
+    return (
+        "<RunSettings>\n"
+        f"  <RunConfiguration><ResultsDirectory>{escape(str(results))}</ResultsDirectory>"
+        "</RunConfiguration>\n"
+        "  <InProcDataCollectionRunSettings><InProcDataCollectors>\n"
+        '    <InProcDataCollector friendlyName="plumb" uri="InProcDataCollector://plumbspec/1" '
+        f"assemblyQualifiedName={quoteattr(DOTNET_COLLECTOR)} enabled=\"True\" "
+        f"codebase={quoteattr(collector)}>\n"
+        f"      <Configuration><Manifest>{escape(str(manifest))}</Manifest>"
+        f"<RunFile>{escape(str(run_file))}</RunFile></Configuration>\n"
+        "    </InProcDataCollector>\n"
+        "  </InProcDataCollectors></InProcDataCollectionRunSettings>\n"
+        "</RunSettings>\n")
+
+
+def _bundled_collector() -> str:
+    """The .NET collector that shipped with this tool, or nothing.
+
+    A checkout keeps it where `dotnet build` leaves it. Inside the artifact it is not carried yet,
+    so an installation without it says so rather than looking anywhere else.
+    """
+    here = Path(__file__).resolve()
+    if any(parent.is_file() for parent in here.parents):
+        return ""
+    candidate = here.parents[2] / "adapters" / "dotnet" / "build" / "PlumbSpec.Adapter.dll"
+    return str(candidate) if candidate.is_file() else ""

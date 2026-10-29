@@ -26,8 +26,8 @@ except ModuleNotFoundError:
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-PYTHON, JAVA = "python", "java"
-ADAPTERS = (PYTHON, JAVA)
+PYTHON, JAVA, DOTNET = "python", "java", "dotnet"
+ADAPTERS = (PYTHON, JAVA, DOTNET)
 
 CONFIG_NAME = "plumb.toml"
 

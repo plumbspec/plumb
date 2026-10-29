@@ -33,7 +33,7 @@ Every gold-spec sibling encodes status the same way, in its own runner's native 
 |---|---|---|---|---|
 | Python | pytest | test **passes** | `pytest.skip("UNPROVEN[…]")` → **skipped** | `@pytest.mark.proves("ORD-1", depth="wiring")` |
 | Java | JUnit | `@Test` **passes** | `Assumptions.abort("UNPROVEN[…]")` → **aborted** | `@Proves(value = "ORD-1", depth = "wiring")`, repeatable |
-| C#/.NET | xUnit | `[Fact]` **passes** | `[Fact(Skip="UNPROVEN[…]")]` → **skipped** | tag in name / `Skip` reason |
+| C#/.NET | VSTest (xUnit, NUnit, MSTest) | the test **passes** | `[Fact(Skip = "UNPROVEN[…]")]`, `[Ignore]`, `Assert.Inconclusive` → **skipped** | `[Proves("ORD-1", "wiring")]`, repeatable |
 
 So the **runner's own pass / skip(abort) / fail is already the status signal** in every language.
 The core does not invent a status model; it *normalizes* the runner's result:

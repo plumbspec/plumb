@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The citation vocabulary alone (dev00-1-1-sr1): what an adopter's test project compiles
+       against, and nothing to depend on. At the floor, so every project the adapter serves can. -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>PlumbSpec</RootNamespace>
+    <AssemblyName>PlumbSpec.Annotations</AssemblyName>
+    <Nullable>enable</Nullable>
+    <!-- net6.0 is out of support; it is the floor on purpose, so the warning says nothing new. -->
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+  </PropertyGroup>
+</Project>
